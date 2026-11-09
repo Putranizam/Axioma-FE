@@ -1,0 +1,590 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@source "../app/**/*.{js,ts,jsx,tsx}";
+@source "../components/**/*.{js,ts,jsx,tsx}";
+
+:root {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --bg-primary: #09090b;
+  --bg-elevated: #121214;
+  --bg-surface: #18181b;
+  --bg-subtle: #27272a;
+  --text-primary: #f4f4f5; /* ~17.4:1 vs #09090b (WCAG AAA) */
+  --text-secondary: #d4d4d8; /* ~12.6:1 vs #09090b (WCAG AAA) */
+  --text-muted: #a1a1aa; /* ~7.4:1 vs #09090b (WCAG AA >= 4.5:1) */
+  --icon-muted: #a1a1aa; /* ~7.4:1 vs #09090b (WCAG AA >= 3:1) */
+  --border-subtle: #27272a;
+  --border-strong: #3f3f46;
+}
+
+html.light {
+  --background: #f8fafc;
+  --foreground: #09090b;
+  --bg-primary: #f8fafc;
+  --bg-elevated: #ffffff;
+  --bg-surface: #f1f5f9;
+  --bg-subtle: #e2e8f0;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --icon-muted: #64748b;
+  --border-subtle: #e2e8f0;
+  --border-strong: #cbd5e1;
+}
+
+@theme inline {
+  --color-bg-primary: var(--bg-primary);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg-surface: var(--bg-surface);
+  --color-bg-subtle: var(--bg-subtle);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-muted: var(--text-muted);
+  --color-icon-muted: var(--icon-muted);
+  --color-border-subtle: var(--border-subtle);
+  --color-border-strong: var(--border-strong);
+}
+
+@media (pointer: coarse) {
+  .touch-hidden {
+    display: none !important;
+  }
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-strong) transparent;
+}
+
+html,
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  overscroll-behavior: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-muted);
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+
+/* ==========================================================================
+   Axioma Markdown Typography (#1, #2, #3)
+   Restores and styles headings, ordered/unordered lists, tables, blockquotes,
+   and code blocks inside AI responses.
+   ========================================================================== */
+
+.axioma-markdown {
+  color: var(--text-secondary);
+  font-size: 15px;
+  line-height: 1.72;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.axioma-markdown > *:first-child {
+  margin-top: 0 !important;
+}
+
+.axioma-markdown > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.axioma-markdown p {
+  margin-top: 0;
+  margin-bottom: 0.75em;
+  line-height: 1.72;
+}
+
+.axioma-markdown h1 {
+  font-size: 1.375rem; /* 22px */
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: var(--text-primary);
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+.axioma-markdown h2 {
+  font-size: 1.1875rem; /* 19px */
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+  margin-top: 1.15em;
+  margin-bottom: 0.45em;
+}
+
+.axioma-markdown h3 {
+  font-size: 1.0625rem; /* 17px */
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-primary);
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+}
+
+.axioma-markdown h4,
+.axioma-markdown h5,
+.axioma-markdown h6 {
+  font-size: 0.96875rem; /* 15.5px */
+  font-weight: 600;
+  line-height: 1.5;
+  color: var(--text-primary);
+  margin-top: 0.9em;
+  margin-bottom: 0.35em;
+}
+
+.axioma-markdown ul {
+  list-style-type: disc !important;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin-top: 0.5em;
+  margin-bottom: 0.85em;
+}
+
+.axioma-markdown ol {
+  list-style-type: decimal !important;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin-top: 0.5em;
+  margin-bottom: 0.85em;
+}
+
+.axioma-markdown ul ul {
+  list-style-type: circle !important;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.axioma-markdown ul ul ul {
+  list-style-type: square !important;
+}
+
+.axioma-markdown ol ol {
+  list-style-type: lower-alpha !important;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.axioma-markdown li {
+  display: list-item !important;
+  margin-top: 0.3em;
+  margin-bottom: 0.3em;
+  padding-left: 0.2rem;
+  line-height: 1.68;
+  color: var(--text-secondary);
+}
+
+.axioma-markdown li > p {
+  margin-bottom: 0.35em;
+}
+
+.axioma-markdown li > p:last-child {
+  margin-bottom: 0;
+}
+
+.axioma-markdown li::marker {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.axioma-markdown strong {
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.axioma-markdown em {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.axioma-markdown blockquote {
+  margin: 0.85em 0;
+  padding: 0.5rem 0.9rem;
+  border-left: 3px solid var(--border-strong);
+  background-color: var(--bg-surface);
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.axioma-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  margin: 1.1rem 0;
+}
+
+.axioma-markdown .axioma-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0.85em 0;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-elevated);
+  -webkit-overflow-scrolling: touch;
+}
+
+.axioma-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.84375rem; /* 13.5px */
+  line-height: 1.55;
+}
+
+.axioma-markdown thead {
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.axioma-markdown th {
+  padding: 0.6rem 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  border-right: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+.axioma-markdown th:last-child {
+  border-right: 0;
+}
+
+.axioma-markdown td {
+  padding: 0.55rem 0.85rem;
+  color: var(--text-secondary);
+  border-top: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+
+.axioma-markdown td:last-child {
+  border-right: 0;
+}
+
+.axioma-markdown tbody tr:nth-child(even) {
+  background-color: var(--bg-surface);
+}
+
+.axioma-markdown tbody tr:hover {
+  background-color: var(--bg-subtle);
+}
+
+/* ==========================================================================
+   Message Flow & Streaming Animations (GPU-accelerated: transform & opacity)
+   ========================================================================== */
+
+@keyframes userBubbleIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.985);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes aiBubbleIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes errorBubbleShake {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  25% {
+    opacity: 1;
+    transform: translate3d(-5px, 0, 0);
+  }
+  50% {
+    transform: translate3d(5px, 0, 0);
+  }
+  75% {
+    transform: translate3d(-3px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes thinkingWave {
+  0%,
+  60%,
+  100% {
+    opacity: 0.35;
+    transform: translate3d(0, 0, 0);
+  }
+  30% {
+    opacity: 1;
+    transform: translate3d(0, -3.5px, 0);
+  }
+}
+
+@keyframes thinkingTextPulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes streamBlockFade {
+  0% {
+    opacity: 0.35;
+    transform: translate3d(0, 2px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes streamCursorBlink {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.animate-user-bubble {
+  animation: userBubbleIn 220ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-ai-bubble {
+  animation: aiBubbleIn 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-error-shake {
+  animation: errorBubbleShake 280ms cubic-bezier(0.36, 0.07, 0.19, 0.97) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-thinking-dot {
+  animation: thinkingWave 1.15s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.animate-thinking-label {
+  animation: thinkingTextPulse 1.8s ease-in-out infinite;
+}
+
+/* Smooth fade-in on newly appended markdown blocks & inline blinking cursor (▍) during streaming */
+.streaming-prose > *:last-child {
+  animation: streamBlockFade 180ms ease-out forwards;
+}
+
+.streaming-prose > *:last-child::after {
+  content: "▍";
+  display: inline-block;
+  margin-left: 2px;
+  color: var(--text-primary);
+  font-weight: 400;
+  line-height: 1;
+  vertical-align: baseline;
+  animation: streamCursorBlink 0.85s steps(2, start) infinite;
+}
+
+/* Reduced Motion Accessibility: replace movement/scale/shake with simple opacity fades */
+@media (prefers-reduced-motion: reduce) {
+  .animate-user-bubble,
+  .animate-ai-bubble,
+  .animate-error-shake,
+  .streaming-prose > *:last-child {
+    animation: aiBubbleIn 150ms ease-out forwards !important;
+    transform: none !important;
+  }
+
+  .animate-thinking-dot {
+    animation: thinkingTextPulse 1.4s ease-in-out infinite !important;
+    transform: none !important;
+  }
+
+  .motion-safe-transform {
+    transition-property: opacity, background-color, border-color, color !important;
+    transform: none !important;
+  }
+}
+
+/* =============================================================================
+ * SYNTAX HIGHLIGHTING (highlight.js) — THEME ADAPTIVE (LIGHT & DARK)
+ * ============================================================================= */
+.hljs {
+  color: var(--text-primary);
+  background: transparent;
+}
+
+/* Dark theme colors (default) */
+.hljs-comment,
+.hljs-quote {
+  color: #71717a;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #c084fc;
+  font-weight: 500;
+}
+
+.hljs-string,
+.hljs-title,
+.hljs-section,
+.hljs-attribute,
+.hljs-literal,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-addition {
+  color: #4ade80;
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-variable {
+  color: #fbbf24;
+}
+
+.hljs-title.class_,
+.hljs-class .hljs-title,
+.hljs-title.function_,
+.hljs-function .hljs-title {
+  color: #60a5fa;
+}
+
+.hljs-attr,
+.hljs-variable.language_,
+.hljs-name {
+  color: #38bdf8;
+}
+
+.hljs-built_in,
+.hljs-doctag {
+  color: #f472b6;
+}
+
+.hljs-deletion {
+  color: #f87171;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+.hljs-meta {
+  color: #94a3b8;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 700;
+}
+
+/* Light theme overrides */
+html.light .hljs-comment,
+html.light .hljs-quote {
+  color: #64748b;
+  font-style: italic;
+}
+
+html.light .hljs-keyword,
+html.light .hljs-selector-tag,
+html.light .hljs-subst {
+  color: #7c3aed;
+  font-weight: 500;
+}
+
+html.light .hljs-string,
+html.light .hljs-title,
+html.light .hljs-section,
+html.light .hljs-attribute,
+html.light .hljs-literal,
+html.light .hljs-template-tag,
+html.light .hljs-template-variable,
+html.light .hljs-type,
+html.light .hljs-addition {
+  color: #15803d;
+}
+
+html.light .hljs-number,
+html.light .hljs-symbol,
+html.light .hljs-bullet,
+html.light .hljs-variable {
+  color: #b45309;
+}
+
+html.light .hljs-title.class_,
+html.light .hljs-class .hljs-title,
+html.light .hljs-title.function_,
+html.light .hljs-function .hljs-title {
+  color: #1d4ed8;
+}
+
+html.light .hljs-attr,
+html.light .hljs-variable.language_,
+html.light .hljs-name {
+  color: #0284c7;
+}
+
+html.light .hljs-built_in,
+html.light .hljs-doctag {
+  color: #be185d;
+}
+
+html.light .hljs-deletion {
+  color: #b91c1c;
+  background-color: rgba(220, 38, 38, 0.08);
+}
+
+html.light .hljs-meta {
+  color: #475569;
+}
+
