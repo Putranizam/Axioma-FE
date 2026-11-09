@@ -393,7 +393,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [clientNow, setClientNow] = useState<Date | null>(null);
   const [isSidebarLoading, setIsSidebarLoading] = useState<boolean>(true);
   const [isChatAreaLoading, setIsChatAreaLoading] = useState<boolean>(true);
-  const [isCompactViewport, setIsCompactViewport] = useState<boolean>(false);
   const [isTouchOrMobile, setIsTouchOrMobile] = useState<boolean>(false);
   const [toastNotice, setToastNotice] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -645,7 +644,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   }, [themeMode, applyTheme]);
 
   const focusDesktopTextarea = useCallback(() => {
-    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+    if (typeof window !== "undefined" && window.innerWidth >= 1024) {
       requestAnimationFrame(() => {
         textareaRef.current?.focus();
       });
@@ -724,10 +723,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       // Ignore storage errors
     }
 
-    // Detect Web Speech API support and viewport size in browser (#7)
+    // Detect Web Speech API support and touch/mobile viewport size in browser (#7)
     const updateViewportFlag = () => {
       if (typeof window !== "undefined") {
-        setIsCompactViewport(window.innerWidth < 480);
         const isTouch =
           window.innerWidth < 768 ||
           (typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches);
@@ -1411,7 +1409,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       // Ctrl+K or Cmd+K: Focus search input (Item 6)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        if (typeof window !== "undefined" && window.innerWidth < 768) {
+        if (typeof window !== "undefined" && window.innerWidth < 1024) {
           setIsMobileSidebarOpen(true);
         } else if (isDesktopSidebarCollapsed) {
           setIsDesktopSidebarCollapsed(false);
@@ -3431,7 +3429,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     if (settingsNameError) setSettingsNameError(null);
                   }}
                   placeholder="Masukkan nama tampilan Anda..."
-                  className={`w-full min-h-[40px] px-3.5 py-2 rounded-xl bg-bg-surface border text-xs text-text-primary placeholder:text-text-muted focus:outline-none transition-colors ${
+                  className={`w-full min-h-[40px] px-3.5 py-2 rounded-xl bg-bg-surface border text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none transition-colors ${
                     settingsNameError
                       ? "border-red-500/80 focus:border-red-400"
                       : "border-border-subtle focus:border-border-strong"
@@ -3601,7 +3599,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               setIsMobileSidebarOpen(false);
             }
           }}
-          className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm md:hidden"
+          className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm lg:hidden"
           aria-label="Tutup latar bilah sisi"
         />
       )}
@@ -3609,10 +3607,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed inset-y-0 left-0 z-40 w-[272px] max-w-[85vw] bg-bg-primary border-r border-border-subtle flex flex-col transition-all duration-300 ease-in-out md:static ${
+        className={`fixed inset-y-0 left-0 z-40 w-[272px] max-w-[85vw] bg-bg-primary border-r border-border-subtle flex flex-col transition-all duration-300 ease-in-out lg:static ${
           isDesktopSidebarCollapsed
-            ? "md:w-0 md:opacity-0 md:pointer-events-none md:border-r-0 md:p-0 overflow-hidden"
-            : "md:w-[268px] md:opacity-100 md:translate-x-0"
+            ? "lg:w-0 lg:opacity-0 lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
+            : "lg:w-[268px] lg:opacity-100 lg:translate-x-0"
         } ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Brand Header */}
@@ -3633,7 +3631,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="md:hidden min-w-[40px] min-h-[40px] p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
+            className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
             aria-label="Tutup menu"
           >
             <X className="w-4 h-4" />
@@ -3645,7 +3643,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <button
             type="button"
             onClick={() => handleCreateNewChat()}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg bg-bg-surface hover:bg-bg-subtle active:scale-[0.99] text-text-primary text-xs font-medium tracking-tight transition-all duration-200 border border-border-subtle shadow-xs hover:border-border-strong cursor-pointer"
+            className="w-full min-h-11 lg:min-h-0 flex items-center justify-between px-3 py-2 rounded-lg bg-bg-surface hover:bg-bg-subtle active:scale-[0.99] text-text-primary text-xs font-medium tracking-tight transition-all duration-200 border border-border-subtle shadow-xs hover:border-border-strong cursor-pointer"
           >
             <span className="flex items-center gap-2">
               <Plus className="w-3.5 h-3.5 text-icon-muted" />
@@ -3662,7 +3660,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder={isTouchOrMobile ? "Cari percakapan..." : "Cari percakapan... (Ctrl+K)"}
               aria-label="Cari percakapan"
-              className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
+              className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
             />
             {searchQuery && (
               <button
@@ -3717,14 +3715,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   return (
                     <div
                       key={chat.id}
-                      className={`group relative flex items-center rounded-lg transition-colors ${
+                      className={`group relative flex items-center min-h-11 lg:min-h-0 rounded-lg transition-colors ${
                         isActive
                           ? "bg-bg-surface text-text-primary font-semibold shadow-xs"
                           : "text-text-secondary hover:text-text-primary hover:bg-bg-surface/60"
                       }`}
                     >
                       {isEditing ? (
-                        <div className="flex-1 flex items-center gap-2 px-2.5 py-1.5">
+                        <div className="flex-1 flex items-center gap-2 px-2.5 py-1.5 min-h-11 lg:min-h-0">
                           <MessageSquare className="w-3.5 h-3.5 shrink-0 text-icon-muted" />
                           <input
                             ref={renameInputRef}
@@ -3742,7 +3740,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }}
                             onBlur={() => void submitRenameChat(chat.id)}
                             aria-label="Ubah judul percakapan"
-                            className="flex-1 min-w-0 bg-bg-elevated border border-border-strong rounded px-2 py-0.5 text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                            className="flex-1 min-w-0 bg-bg-elevated border border-border-strong rounded px-2 py-0.5 text-base lg:text-xs text-text-primary focus:outline-none focus:border-border-strong"
                           />
                         </div>
                       ) : (
@@ -3751,7 +3749,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             type="button"
                             onClick={() => void handleSelectChat(chat.id)}
                             title={chat.title}
-                            className="flex-1 min-w-0 text-left pl-2.5 pr-11 py-2 rounded-lg text-[13px] sm:text-sm tracking-tight flex items-center gap-2.5 cursor-pointer"
+                            className="flex-1 min-w-0 min-h-11 lg:min-h-0 text-left pl-2.5 pr-11 py-2 rounded-lg text-[13px] sm:text-sm tracking-tight flex items-center gap-2.5 cursor-pointer"
                           >
                             <MessageSquare className="w-3.5 h-3.5 shrink-0 text-icon-muted" />
                             <span
@@ -3765,7 +3763,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             </span>
                           </button>
 
-                          {/* ⋯ trigger: min 40x40 touch target on mobile */}
+                          {/* ⋯ trigger: min 44x44 touch target on mobile/tablet */}
                           <button
                             ref={(el) => {
                               chatMenuTriggerRefs.current[chat.id] = el;
@@ -3788,10 +3786,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 setOpenChatMenuId(chat.id);
                               }
                             }}
-                            className={`absolute right-1 min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1 rounded-md text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-opacity flex items-center justify-center cursor-pointer ${
+                            className={`absolute right-1 w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1 rounded-md text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-opacity flex items-center justify-center cursor-pointer ${
                               isActive || isMenuOpen
                                 ? "opacity-100"
-                                : "opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-visible:opacity-100"
+                                : "opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100"
                             }`}
                           >
                             <Ellipsis className="w-4 h-4" />
@@ -3893,7 +3891,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             }}
             aria-label="Buka Pengaturan"
             title="Pengaturan"
-            className="min-w-[40px] min-h-[40px] p-2 rounded-xl text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer shrink-0"
+            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-9 lg:h-9 lg:min-w-0 lg:min-h-0 p-2 rounded-xl text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer shrink-0"
           >
             <Settings className="w-4 h-4" />
           </button>
@@ -3953,7 +3951,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <Link
                     href="/privasi"
                     onClick={() => closeSettingsMenu(false)}
-                    className="hover:text-text-primary transition-colors underline underline-offset-2 decoration-border-strong"
+                    className="py-1.5 px-2 inline-block hover:text-text-primary transition-colors underline underline-offset-2 decoration-border-strong"
                   >
                     Kebijakan Privasi
                   </Link>
@@ -3961,7 +3959,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <Link
                     href="/ketentuan"
                     onClick={() => closeSettingsMenu(false)}
-                    className="hover:text-text-primary transition-colors underline underline-offset-2 decoration-border-strong"
+                    className="py-1.5 px-2 inline-block hover:text-text-primary transition-colors underline underline-offset-2 decoration-border-strong"
                   >
                     Ketentuan Layanan
                   </Link>
@@ -3983,7 +3981,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               onClick={toggleDesktopSidebar}
               title={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
               aria-label={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
-              className="hidden md:flex min-w-[36px] min-h-[36px] items-center justify-center p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
+              className="hidden lg:flex min-w-[36px] min-h-[36px] items-center justify-center p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
             >
               {isDesktopSidebarCollapsed ? (
                 <PanelLeft className="w-4 h-4" />
@@ -3999,23 +3997,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 onClick={() => handleCreateNewChat()}
                 title="Percakapan Baru (Ctrl+Shift+O)"
                 aria-label="Percakapan Baru"
-                className="hidden md:flex min-w-[36px] min-h-[36px] items-center justify-center p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
+                className="hidden lg:flex min-w-[36px] min-h-[36px] items-center justify-center p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
               >
                 <SquarePen className="w-4 h-4" />
               </button>
             )}
 
-            {/* Mobile Hamburger Menu (Item 3: >= 40x40px) */}
+            {/* Mobile Hamburger Menu (Item 3: >= 44x44px) */}
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="md:hidden min-w-[40px] min-h-[40px] p-2 rounded-lg text-icon-muted hover:text-text-primary active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+              className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-icon-muted hover:text-text-primary active:scale-95 transition-all flex items-center justify-center cursor-pointer"
               aria-label="Buka bilah sisi"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-2 md:hidden">
+            <div className="flex items-center gap-2 lg:hidden">
               <Image
                 src="/brand/axioma-logo.png"
                 alt="Axioma"
@@ -4030,7 +4028,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
 
             {/* Mobile Header Model Selector */}
-            <div className="relative md:hidden">
+            <div className="relative lg:hidden">
               <button
                 ref={headerAgentTriggerRef}
                 type="button"
@@ -4043,7 +4041,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     setIsHeaderAgentMenuOpen(true);
                   }
                 }}
-                className="text-xs font-medium tracking-tight text-text-secondary hover:text-text-primary bg-bg-surface border border-border-subtle min-h-[40px] px-3 py-2 rounded-lg flex items-center gap-1 transition-colors cursor-pointer hover:bg-bg-subtle"
+                className="text-xs font-medium tracking-tight text-text-secondary hover:text-text-primary bg-bg-surface border border-border-subtle min-h-[44px] px-3.5 py-2.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer hover:bg-bg-subtle"
                 aria-label="Pilih model"
               >
                 <span>{selectedAgent.shortName}</span>
@@ -4060,7 +4058,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       closeHeaderAgentMenu(true)
                     )
                   }
-                  className="absolute top-full mt-2 left-0 z-40 w-72 sm:w-80 rounded-xl bg-bg-elevated border border-border-subtle p-1.5 shadow-2xl space-y-1"
+                  className="fixed left-4 right-4 top-14 w-auto sm:absolute sm:top-full sm:mt-2 sm:left-0 sm:right-auto sm:w-80 z-40 rounded-xl bg-bg-elevated border border-border-subtle p-1.5 shadow-2xl space-y-1"
                 >
                   {AVAILABLE_AGENTS.map((agent, idx) => (
                     <button
@@ -4075,22 +4073,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         handleSelectAgent(agent);
                         closeHeaderAgentMenu(true);
                       }}
-                      className={`w-full text-left px-2.5 py-2 rounded-lg text-xs tracking-tight transition-colors flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer ${
+                      className={`w-full text-left px-2.5 py-2 rounded-lg text-xs tracking-tight transition-colors flex items-center justify-between gap-2.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer ${
                         agent.id === selectedAgent.id
                           ? "bg-bg-surface text-text-primary font-medium"
                           : "text-text-secondary hover:text-text-primary hover:bg-bg-surface/50"
                       }`}
                     >
-                      <div className="min-w-0 pr-2">
+                      <div className="min-w-0 pr-1 flex-1">
                         <div className="text-text-primary font-medium">{agent.name}</div>
-                        <div className="text-[11px] text-text-muted line-clamp-2 leading-relaxed">{agent.description}</div>
+                        <div className="text-[11px] text-text-muted line-clamp-2 leading-relaxed break-words">{agent.description}</div>
                       </div>
                       <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-surface text-text-secondary font-medium border border-border-subtle">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-surface text-text-secondary font-medium border border-border-subtle shrink-0 whitespace-nowrap">
                           {agent.tag}
                         </span>
                         {agent.id === selectedAgent.id && (
-                          <Check className="w-3.5 h-3.5 text-text-primary" />
+                          <Check className="w-3.5 h-3.5 text-text-primary shrink-0" />
                         )}
                       </div>
                     </button>
@@ -4107,7 +4105,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               onClick={() => handleCreateNewChat()}
               aria-label="Percakapan Baru"
               title="Percakapan Baru"
-              className="md:hidden min-w-[40px] min-h-[40px] flex items-center justify-center p-2 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
+              className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
             >
               <Plus className="w-5 h-5" />
             </button>
@@ -4136,9 +4134,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               hasMessages ||
               (isChatAreaLoading &&
                 Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat")))
-                ? "opacity-100 py-6 px-4 md:px-10"
+                ? "opacity-100 py-6 px-4"
                 : "opacity-0 pointer-events-none py-0"
-            } max-w-3xl mx-auto w-full flex flex-col gap-8`}
+            } max-w-2xl lg:max-w-3xl mx-auto w-full flex flex-col gap-5 sm:gap-6 md:gap-8`}
           >
             {isChatAreaLoading &&
               currentMessages.length === 0 &&
@@ -4171,9 +4169,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   return (
                     <div
                       key={message.id}
-                      className="flex justify-end animate-user-bubble w-full my-1"
+                      className="w-full flex justify-end animate-user-bubble my-0 sm:my-1"
                     >
-                      <div className="w-full max-w-[85%] md:max-w-[70%] p-3 rounded-2xl bg-bg-elevated border border-border-strong shadow-xl space-y-2">
+                      <div className="w-full max-w-[85%] lg:max-w-[70%] p-3 rounded-2xl bg-bg-elevated border border-border-strong shadow-xl space-y-2">
                         <textarea
                           ref={editUserTextareaRef}
                           value={editingUserMsgText}
@@ -4190,7 +4188,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }
                           }}
                           rows={Math.max(2, editingUserMsgText.split("\n").length)}
-                          className="w-full bg-transparent text-text-primary text-[15px] leading-relaxed resize-none focus:outline-none"
+                          className="w-full bg-transparent text-text-primary text-base lg:text-[15px] leading-relaxed resize-none focus:outline-none"
                           autoFocus
                           aria-label="Edit pesan pengguna"
                         />
@@ -4219,9 +4217,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 return (
                   <div
                     key={message.id}
-                    className="flex justify-end animate-user-bubble group relative my-1"
+                    className="w-full flex justify-end animate-user-bubble group relative my-0 sm:my-1"
                   >
-                    <div className="flex flex-col items-end max-w-[85%] md:max-w-[70%]">
+                    <div className="flex flex-col items-end max-w-[85%] lg:max-w-[70%]">
                       {/* Attachments rendering */}
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="flex flex-col gap-2 mb-1.5 w-full items-end">
@@ -4288,7 +4286,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       )}
 
                       {/* Action bar on hover (Item 2) & Timestamp (Item 12) */}
-                      <div className="flex items-center gap-1 mt-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 mt-0.5 sm:mt-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         {userTime && (
                           <span className="text-[11px] text-text-muted mr-1.5 select-none font-mono">
                             {userTime}
@@ -4299,7 +4297,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onClick={() => handleCopy(message.content, `user-${message.id}`)}
                           title="Salin pesan"
                           aria-label="Salin pesan pengguna"
-                          className="min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
+                          className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
                         >
                           {copiedId === `user-${message.id}` ? (
                             <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -4312,7 +4310,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onClick={() => handleStartEditUserMessage(message)}
                           title="Edit pesan"
                           aria-label="Edit pesan pengguna"
-                          className="min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
+                          className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -4328,7 +4326,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     key={message.id}
                     className="flex justify-start animate-error-shake"
                   >
-                    <div className="max-w-[95%] md:max-w-[85%] rounded-2xl bg-red-950/30 border border-red-800/50 px-4 py-3.5 space-y-2.5">
+                    <div className="w-full rounded-2xl bg-red-950/30 border border-red-800/50 px-4 py-3.5 space-y-2.5">
                       <div className="flex items-start gap-2.5 text-red-200 text-sm font-medium">
                         <CircleAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                         <div className="space-y-1">
@@ -4366,11 +4364,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               return (
                 <div
                   key={message.id}
-                  className="flex justify-start animate-ai-bubble"
+                  className="w-full flex justify-start animate-ai-bubble group relative"
                 >
-                  <div className="max-w-[95%] md:max-w-[85%] space-y-3 min-w-0">
+                  <div className="w-full space-y-2 sm:space-y-3 min-w-0">
                     <div
-                      className={`axioma-markdown text-text-secondary text-[15px] leading-[1.7] tracking-normal break-words ${
+                      className={`axioma-markdown max-w-[70ch] text-text-secondary text-[15px] leading-[1.7] tracking-normal break-words ${
                         isStreamingThisMessage ? "streaming-prose" : ""
                       }`}
                     >
@@ -4450,7 +4448,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     {/* Message Action Icons + Agent Label: fade-in after streaming finishes */}
                     <div
                       aria-hidden={isStreamingThisMessage}
-                      className={`flex flex-wrap items-center justify-between gap-2 pt-0.5 transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
+                      className={`w-full flex items-center gap-2 pt-0.5 transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
                         isStreamingThisMessage
                           ? "opacity-0 translate-y-1 pointer-events-none select-none"
                           : "opacity-100 translate-y-0"
@@ -4462,7 +4460,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           type="button"
                           onClick={() => handleCopy(message.content, message.id)}
                           title={copiedId === message.id ? "Tersalin" : "Salin jawaban"}
-                          className="min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center"
+                          className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center"
                           aria-label="Salin teks"
                         >
                           {copiedId === message.id ? (
@@ -4478,7 +4476,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onClick={() => void handleFeedback(message.id, "up")}
                           title={msgFeedback === "up" ? "Batalkan suka" : "Jawaban membantu"}
                           aria-pressed={msgFeedback === "up"}
-                          className={`min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
+                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
                             msgFeedback === "up"
                               ? "text-emerald-400 bg-emerald-950/60 border-emerald-700/60"
                               : "border-transparent hover:text-text-primary hover:bg-bg-surface"
@@ -4496,7 +4494,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             msgFeedback === "down" ? "Batalkan tidak suka" : "Jawaban kurang tepat"
                           }
                           aria-pressed={msgFeedback === "down"}
-                          className={`min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
+                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
                             msgFeedback === "down"
                               ? "text-amber-400 bg-amber-950/60 border-amber-700/60"
                               : "border-transparent hover:text-text-primary hover:bg-bg-surface"
@@ -4514,7 +4512,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={() => handleRegenerateLastReply(message.id)}
                             title="Buat ulang jawaban"
                             aria-label="Buat ulang jawaban"
-                            className="min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 sm:w-7 sm:h-7 p-2 sm:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed"
+                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed"
                           >
                             <RotateCw className="w-3.5 h-3.5" />
                           </button>
@@ -4528,18 +4526,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </div>
 
                       {/* Small agent label underneath AI response & Timestamp (Item 12) */}
-                      <div className="flex items-center gap-1.5">
+                      <div className="ml-auto flex items-center shrink-0">
+                        {formatMessageTime(message.created_at) && (
+                          <span className="hidden lg:group-hover:inline text-[11px] text-text-muted font-mono select-none mr-1.5">
+                            {formatMessageTime(message.created_at)} ·
+                          </span>
+                        )}
                         <span
-                          className="text-[11px] text-text-muted font-medium select-none"
+                          className="text-[11px] text-text-muted font-medium select-none text-right"
                           title="Mode Axioma"
                         >
                           {agentBadgeText}
                         </span>
-                        {formatMessageTime(message.created_at) && (
-                          <span className="text-[11px] text-text-muted font-mono opacity-0 group-hover:opacity-100 transition-opacity select-none">
-                            · {formatMessageTime(message.created_at)}
-                          </span>
-                        )}
                       </div>
                     </div>
 
@@ -4574,7 +4572,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               }
                             }}
                             placeholder="Misal: kurang akurat, terlalu panjang..."
-                            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong"
+                            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong"
                           />
                           <button
                             type="button"
@@ -4666,7 +4664,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 aria-label="Gulir ke bawah"
                 className={`${
                   isUserScrolledUp ? "pointer-events-auto" : "pointer-events-none"
-                } w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-bg-surface hover:bg-bg-subtle text-text-primary border border-border-strong shadow-xl flex items-center justify-center transition-colors active:scale-95 cursor-pointer`}
+                } w-11 h-11 min-w-[44px] min-h-[44px] lg:w-10 lg:h-10 lg:min-w-0 lg:min-h-0 rounded-full bg-bg-surface hover:bg-bg-subtle text-text-primary border border-border-strong shadow-xl flex items-center justify-center transition-colors active:scale-95 cursor-pointer`}
               >
                 <ArrowDown className="w-4 h-4" />
               </button>
@@ -4677,8 +4675,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)]/80 to-transparent z-10" />
 
           {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) via GPU transform */}
-          <div className="w-full px-4 md:px-10 shrink-0 pb-3 pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent relative z-20">
-            <div className="w-full max-w-3xl mx-auto flex flex-col items-center">
+          <div className="w-full px-4 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent relative z-20">
+            <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
               <div
                 className={`relative w-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform ${
                   hasMessages ||
@@ -4872,7 +4870,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           disabled={isAttachmentsFull || isLoading || isGenerating}
                           title={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
                           aria-label={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
-                          className={`min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 p-2 rounded-xl flex items-center justify-center transition-all ${
+                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-xl flex items-center justify-center transition-all ${
                             isAttachmentsFull || isLoading || isGenerating
                               ? "text-icon-muted opacity-40 cursor-not-allowed"
                               : "text-icon-muted hover:text-text-primary hover:bg-bg-surface active:scale-95 cursor-pointer"
@@ -5021,19 +5019,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       onChange={handleTextareaChange}
                       onKeyDown={handleKeyDown}
                       onPaste={handlePaste}
+                      onFocus={() => {
+                        if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                          setTimeout(() => {
+                            textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                          }, 300);
+                        }
+                      }}
                       aria-label="Ketik pesan untuk Axioma"
-                      placeholder={
-                        isCompactViewport
-                          ? "Tanya apa saja…"
-                          : "Tanyakan apa saja ke Axioma..."
-                      }
+                      placeholder="Tanya apa saja…"
                       className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary placeholder:text-text-muted text-base focus:outline-none px-1 py-2.5 max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out"
                     />
                   </div>
 
                   <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 self-center">
                     {/* Desktop Engine Selector (Item 5, UI Bug 2) */}
-                    <div className="relative hidden md:block">
+                    <div className="relative hidden lg:block">
                       <button
                         ref={desktopAgentTriggerRef}
                         type="button"
@@ -5119,7 +5120,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           aria-label={
                             isRecording ? "Hentikan perekaman suara" : "Mulai input suara"
                           }
-                          className={`min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 p-2 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
+                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
                             isRecording
                               ? "bg-red-500/20 text-red-400 border-red-500/60 animate-pulse shadow-sm"
                               : "text-icon-muted hover:text-text-primary hover:bg-bg-surface border-transparent"
@@ -5135,7 +5136,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             aria-disabled="true"
                             title="Browser tidak mendukung input suara"
                             aria-label="Browser tidak mendukung input suara"
-                            className="min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 p-2 rounded-xl flex items-center justify-center text-icon-muted opacity-50 cursor-not-allowed"
+                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-xl flex items-center justify-center text-icon-muted opacity-50 cursor-not-allowed"
                           >
                             <MicOff className="w-4 h-4" />
                           </button>
@@ -5149,14 +5150,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       )}
                     </div>
 
-                    {/* Send / Stop button (Item 3: >= 40x40px on mobile) */}
+                    {/* Send / Stop button (Item 3: >= 44x44px on mobile/tablet, 32x32px on desktop) */}
                     {isGenerating ? (
                       <button
                         type="button"
                         onClick={handleStopGeneration}
                         title="Hentikan respons"
                         aria-label="Hentikan respons"
-                        className="w-10 h-10 min-w-[40px] min-h-[40px] sm:w-8 sm:h-8 sm:min-w-0 sm:min-h-0 rounded-full flex items-center justify-center bg-text-primary text-bg-primary hover:opacity-90 active:scale-[0.92] transition-[transform,opacity] duration-150 ease-out shadow-md cursor-pointer motion-safe-transform"
+                        className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full flex items-center justify-center bg-text-primary text-bg-primary hover:opacity-90 active:scale-[0.94] transition-[opacity] duration-150 ease-out shadow-md cursor-pointer"
                       >
                         <Square className="w-3.5 h-3.5 fill-current" />
                       </button>
@@ -5185,12 +5186,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           disabled={isSendDisabled}
                           title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
                           aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                          className={`w-10 h-10 min-w-[40px] min-h-[40px] sm:w-8 sm:h-8 sm:min-w-0 sm:min-h-0 rounded-full flex items-center justify-center transition-[transform,background-color,color,box-shadow,opacity] duration-200 ease-out motion-safe-transform ${
+                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity] duration-200 ease-out ${
                             !isSendDisabled
                               ? `bg-text-primary text-bg-primary hover:opacity-90 shadow-md cursor-pointer ${
-                                  isSendPressed ? "scale-[0.92]" : "scale-100"
+                                  isSendPressed ? "scale-[0.94]" : "scale-100"
                                 }`
-                              : "bg-bg-surface text-text-muted border border-border-subtle scale-90 cursor-not-allowed opacity-50"
+                              : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
                           }`}
                         >
                           {isUploadingAttachment ? (
@@ -5250,14 +5251,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <span className="inline-flex items-center gap-2">
                   <Link
                     href="/privasi"
-                    className="underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+                    className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
                   >
                     Privasi
                   </Link>
                   <span className="text-border-strong">·</span>
                   <Link
                     href="/ketentuan"
-                    className="underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+                    className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
                   >
                     Ketentuan
                   </Link>
