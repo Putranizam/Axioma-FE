@@ -705,7 +705,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   // Android keyboard & duplicate submission guards (#3, #6)
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const isSubmittingRef = useRef<boolean>(false);
-  const [viewportHeight, setViewportHeight] = useState<string | undefined>(undefined);
 
   // Voice Mode & Dictation states
   const [isVoiceModeOpen, setIsVoiceModeOpen] = useState<boolean>(false);
@@ -1070,25 +1069,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       method: "GET",
       cache: "no-store",
     }).catch(() => {});
-  }, []);
-
-  // Visual viewport height observer for Android soft keyboard (#6)
-  useEffect(() => {
-    if (typeof window === "undefined" || !window.visualViewport) return;
-
-    const handleResize = () => {
-      if (window.visualViewport) {
-        setViewportHeight(`${window.visualViewport.height}px`);
-      }
-    };
-
-    window.visualViewport.addEventListener("resize", handleResize);
-    window.visualViewport.addEventListener("scroll", handleResize);
-
-    return () => {
-      window.visualViewport?.removeEventListener("resize", handleResize);
-      window.visualViewport?.removeEventListener("scroll", handleResize);
-    };
   }, []);
 
   // Cloudflare Turnstile Invisible Widget Setup (#2, #9)
@@ -4081,8 +4061,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           void handleFilesSelected(e.dataTransfer.files);
         }
       }}
-      className="flex h-screen h-[100dvh] w-full max-w-full bg-bg-primary text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary relative"
-      style={{ height: viewportHeight || undefined }}
+      className="flex flex-col lg:flex-row h-[100dvh] w-full max-w-full bg-bg-primary text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary relative"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5659,7 +5638,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)]/80 to-transparent z-10" />
 
           {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) on Desktop; Docked at Bottom on Mobile */}
-          <div className="w-full px-3 sm:px-4 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent relative z-20">
+          <div className="w-full px-3 sm:px-4 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5 sm:pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent relative z-20">
             <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
               <div
                 className={`relative w-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform ${
@@ -6025,13 +6004,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onChange={handleTextareaChange}
                         onKeyDown={handleKeyDown}
                         onPaste={handlePaste}
-                        onFocus={() => {
-                          if (typeof window !== "undefined" && window.innerWidth < 1024) {
-                            setTimeout(() => {
-                              textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                            }, 300);
-                          }
-                        }}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder="Minta Axioma..."
                         className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary placeholder:text-text-muted text-base focus:outline-none px-1.5 py-2 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out"
@@ -6369,7 +6341,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </div>
 
               {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
-              <div className="text-center text-[11px] sm:text-xs text-text-muted pt-2.5 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+              <div className="text-center text-[11px] sm:text-xs text-text-muted pt-1 sm:pt-2.5 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
                 <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
                 <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
                 <span className="hidden md:inline text-border-strong">•</span>

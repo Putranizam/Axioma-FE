@@ -99,7 +99,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full h-[100dvh] overflow-hidden`}
       suppressHydrationWarning
     >
       <head>
@@ -110,7 +110,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="h-full w-full overflow-hidden bg-bg-primary text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary"
+        className="h-full h-[100dvh] w-full overflow-hidden bg-bg-primary text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary"
         suppressHydrationWarning
       >
         {children}
