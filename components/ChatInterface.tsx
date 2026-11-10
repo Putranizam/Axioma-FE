@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect, useCallback, useMemo, useContext } from "react";
+import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import ReactMarkdown from "react-markdown";
@@ -24,6 +24,7 @@ import {
   Paperclip,
   Mic,
   MicOff,
+  AudioLines,
   ArrowUp,
   ArrowDown,
   ChevronDown,
@@ -69,6 +70,112 @@ import {
   formatFileSize,
   MAX_FILES_PER_MESSAGE,
 } from "../lib/attachments";
+import VoiceModeOverlay from "./VoiceModeOverlay";
+import {
+  checkVoiceSupport,
+  getSupportedAudioMimeType,
+  unlockAudioSystem,
+  transcribeAudioBlob,
+} from "../lib/voice";
+
+// In-app WebView / older browser polyfills and guards (#6)
+if (typeof Array.prototype.at !== "function") {
+  Array.prototype.at = function (index: number) {
+    const k = index >= 0 ? index : this.length + index;
+    return k >= 0 && k < this.length ? this[k] : undefined;
+  };
+}
+
+if (typeof globalThis.structuredClone !== "function") {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).structuredClone = function <T>(val: T): T {
+    return JSON.parse(JSON.stringify(val));
+  };
+}
+
+function fallbackCopyText(text: string): boolean {
+  if (typeof document === "undefined") return false;
+  try {
+    const textArea = document.createElement("textarea");
+    textArea.value = text;
+    textArea.style.position = "fixed";
+    textArea.style.top = "-9999px";
+    textArea.style.left = "-9999px";
+    textArea.style.opacity = "0";
+    document.body.appendChild(textArea);
+    textArea.focus();
+    textArea.select();
+    const successful = document.execCommand("copy");
+    document.body.removeChild(textArea);
+    return successful;
+  } catch {
+    return false;
+  }
+}
+
+let turnstileScriptLoadingPromise: Promise<void> | null = null;
+function loadTurnstileScript(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (window.turnstile) return Promise.resolve();
+  if (turnstileScriptLoadingPromise) return turnstileScriptLoadingPromise;
+
+  const scriptId = "cf-turnstile-script";
+  const existing = document.getElementById(scriptId) as HTMLScriptElement | null;
+  if (existing) {
+    turnstileScriptLoadingPromise = new Promise<void>((resolve) => {
+      if (window.turnstile) {
+        resolve();
+      } else {
+        existing.addEventListener("load", () => resolve(), { once: true });
+        existing.addEventListener("error", () => resolve(), { once: true });
+      }
+    });
+    return turnstileScriptLoadingPromise;
+  }
+
+  turnstileScriptLoadingPromise = new Promise<void>((resolve) => {
+    const script = document.createElement("script");
+    script.id = scriptId;
+    script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => resolve();
+    document.head.appendChild(script);
+  });
+
+  return turnstileScriptLoadingPromise;
+}
+
+// Fallback ID generator: crypto.randomUUID -> crypto.getRandomValues v4 -> Math.random fallback (#4)
+export function generateId(requireUuid = false): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    try {
+      return crypto.randomUUID();
+    } catch {}
+  }
+
+  if (typeof crypto !== "undefined" && typeof crypto.getRandomValues === "function") {
+    try {
+      const bytes = new Uint8Array(16);
+      crypto.getRandomValues(bytes);
+      bytes[6] = (bytes[6] & 0x0f) | 0x40; // Version 4
+      bytes[8] = (bytes[8] & 0x3f) | 0x80; // Variant 10xx
+      const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join("");
+      return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+    } catch {}
+  }
+
+  if (requireUuid) {
+    return "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
+      const r = (Math.random() * 16) | 0;
+      const v = c === "x" ? r : (r & 0x3) | 0x8;
+      return v.toString(16);
+    });
+  }
+
+  return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
+}
 
 declare global {
   interface Window {
@@ -77,6 +184,7 @@ declare global {
       reset: (widgetId?: string) => void;
       remove: (widgetId?: string) => void;
       getResponse: (widgetId?: string) => string;
+      execute: (containerOrWidgetId?: string | HTMLElement, params?: any) => void;
     };
   }
 }
@@ -88,9 +196,9 @@ const BACKEND_URL = RAW_ENV_BACKEND_URL
     ? "http://localhost:8000"
     : "";
 const TURNSTILE_SITE_KEY = (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "").trim();
-// Must be longer than the backend's own AI budget (50s) / watchdog (55s) so the clear
-// backend error message arrives before the browser gives up.
-const REQUEST_TIMEOUT_MS = 60_000;
+// Initial response timeout 90s (for Render cold start); idle timeout 30s per chunk (#1)
+const INITIAL_RESPONSE_TIMEOUT_MS = 90_000;
+const IDLE_STREAM_TIMEOUT_MS = 30_000;
 const TEXTAREA_MAX_HEIGHT_PX = 192; // ~8 lines (8 * 24px line-height)
 const DEFAULT_DISPLAY_NAME = "";
 
@@ -250,6 +358,132 @@ const STARTER_PROMPTS: StarterPrompt[] = [
     icon: "code",
   },
 ];
+
+/**
+ * Inline voice waveform visualizer for dictation (Gemini-style)
+ * Renders 13 thin rounded vertical bars (2px width) that move real-time with
+ * microphone volume via Web Audio AnalyserNode in requestAnimationFrame, with 0 React re-renders.
+ */
+function InlineVoiceWaveform({
+  analyser,
+  recordingSeconds,
+  onSpeechDetected,
+}: {
+  analyser: AnalyserNode | null;
+  recordingSeconds: number;
+  onSpeechDetected?: () => void;
+}) {
+  const NUM_BARS = 13;
+  const barRefs = useRef<(HTMLSpanElement | null)[]>([]);
+  const animFrameRef = useRef<number | null>(null);
+  const speechDetectedRef = useRef<boolean>(false);
+  const accumulatedSpeechMsRef = useRef<number>(0);
+  const lastSampleTimeRef = useRef<number>(0);
+  const onSpeechDetectedRef = useRef(onSpeechDetected);
+
+  useEffect(() => {
+    onSpeechDetectedRef.current = onSpeechDetected;
+  }, [onSpeechDetected]);
+
+  useEffect(() => {
+    if (!analyser) return;
+
+    speechDetectedRef.current = false;
+    accumulatedSpeechMsRef.current = 0;
+    lastSampleTimeRef.current = Date.now();
+
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+    const updateWave = () => {
+      const now = Date.now();
+      const deltaMs = Math.min(100, Math.max(1, now - lastSampleTimeRef.current));
+      lastSampleTimeRef.current = now;
+
+      // Always sample audio volume for Voice Activity Detection
+      analyser.getByteTimeDomainData(dataArray);
+      let sumSquares = 0;
+      for (let i = 0; i < dataArray.length; i++) {
+        const norm = (dataArray[i] - 128) / 128;
+        sumSquares += norm * norm;
+      }
+      const rms = Math.sqrt(sumSquares / dataArray.length);
+
+      // Voice Activity Detection: RMS >= 0.02 for at least ~300 ms total
+      if (rms >= 0.02) {
+        accumulatedSpeechMsRef.current += deltaMs;
+        if (!speechDetectedRef.current && accumulatedSpeechMsRef.current >= 300) {
+          speechDetectedRef.current = true;
+          onSpeechDetectedRef.current?.();
+        }
+      }
+
+      if (prefersReducedMotion) {
+        const t = now / 600;
+        for (let i = 0; i < NUM_BARS; i++) {
+          const bar = barRefs.current[i];
+          if (bar) {
+            const h = 4 + Math.sin(t + i * 0.4) * 4;
+            bar.style.height = `${Math.max(4, h)}px`;
+          }
+        }
+        animFrameRef.current = requestAnimationFrame(updateWave);
+        return;
+      }
+
+      const boostedVolume = Math.min(1, rms * 6);
+      for (let i = 0; i < NUM_BARS; i++) {
+        const bar = barRefs.current[i];
+        if (bar) {
+          const distFromCenter = Math.abs(i - 6);
+          const centerWeight = Math.max(0.3, 1 - Math.pow(distFromCenter / 6.5, 1.6) * 0.7);
+          const variance = 0.85 + Math.sin(i * 1.4 + now * 0.012) * 0.15;
+          const targetHeight = 4 + boostedVolume * 22 * centerWeight * variance;
+          bar.style.height = `${Math.min(26, Math.max(4, targetHeight))}px`;
+        }
+      }
+
+      animFrameRef.current = requestAnimationFrame(updateWave);
+    };
+
+    animFrameRef.current = requestAnimationFrame(updateWave);
+    return () => {
+      if (animFrameRef.current) {
+        cancelAnimationFrame(animFrameRef.current);
+      }
+    };
+  }, [analyser]);
+
+  const minutes = Math.floor(recordingSeconds / 60);
+  const seconds = recordingSeconds % 60;
+  const formattedTime = `${minutes}:${seconds.toString().padStart(2, "0")}`;
+
+  return (
+    <div className="flex-1 min-w-0 flex items-center justify-center gap-3 py-1.5 px-2 animate-in fade-in duration-200">
+      {/* 13 live vertical bars */}
+      <div className="flex items-center gap-[3px] h-7 px-1" aria-hidden="true">
+        {Array.from({ length: NUM_BARS }).map((_, idx) => (
+          <span
+            key={idx}
+            ref={(el) => {
+              barRefs.current[idx] = el;
+            }}
+            className="w-[2px] bg-text-secondary/85 rounded-full transition-[height] duration-75 ease-out select-none"
+            style={{ height: "4px" }}
+          />
+        ))}
+      </div>
+
+      {/* Timer */}
+      <span className="text-[11px] sm:text-xs text-text-muted/70 font-mono tracking-wider tabular-nums select-none">
+        {formattedTime}
+      </span>
+    </div>
+  );
+}
 
 const INITIAL_CHATS: ChatSession[] = [];
 
@@ -412,6 +646,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [selectedAgent, setSelectedAgent] = useState<Agent>(AVAILABLE_AGENTS[0]);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState<boolean>(false);
   const [isHeaderAgentMenuOpen, setIsHeaderAgentMenuOpen] = useState<boolean>(false);
+  const [headerMenuTop, setHeaderMenuTop] = useState<number | null>(null);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState<boolean>(false);
 
   // Settings Modal & Clear All Chats Modal state
@@ -463,13 +698,32 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   // Cloudflare Turnstile token & widget ref (#9)
   const turnstileWidgetIdRef = useRef<string | null>(null);
   const turnstileTokenRef = useRef<string | null>(null);
+  const consecutiveTurnstileErrorsRef = useRef<number>(0);
+  const pendingTokenResolversRef = useRef<Array<{ resolve: (token: string) => void; reject: (err: any) => void }>>([]);
+  const turnstileResetTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Web Speech API (Voice input 🎤) state
+  // Android keyboard & duplicate submission guards (#3, #6)
+  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const isSubmittingRef = useRef<boolean>(false);
+  const [viewportHeight, setViewportHeight] = useState<string | undefined>(undefined);
+
+  // Voice Mode & Dictation states
+  const [isVoiceModeOpen, setIsVoiceModeOpen] = useState<boolean>(false);
   const [isSpeechSupported, setIsSpeechSupported] = useState<boolean>(true);
   const [isRecording, setIsRecording] = useState<boolean>(false);
-  const [speechError, setSpeechError] = useState<string | null>(null);
-  const recognitionRef = useRef<any>(null);
-  const speechBaseTextRef = useRef<string>("");
+  const [isTranscribingVoice, setIsTranscribingVoice] = useState<boolean>(false);
+  const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
+  const [dictationAnalyser, setDictationAnalyser] = useState<AnalyserNode | null>(null);
+
+  const dictationRecorderRef = useRef<MediaRecorder | null>(null);
+  const dictationStreamRef = useRef<MediaStream | null>(null);
+  const dictationAudioContextRef = useRef<AudioContext | null>(null);
+  const dictationAnalyserRef = useRef<AnalyserNode | null>(null);
+  const dictationChunksRef = useRef<Blob[]>([]);
+  const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dictationActionRef = useRef<"stop" | "send">("stop");
+  const hasSpokenRef = useRef<boolean>(false);
+  const handleSendMessageRef = useRef<(textOverride?: string) => Promise<void>>(async () => {});
 
   // Sidebar chat item menu (⋯), inline rename, and undo delete states
   const [openChatMenuId, setOpenChatMenuId] = useState<string | null>(null);
@@ -511,6 +765,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const desktopAgentItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
   const headerAgentTriggerRef = useRef<HTMLButtonElement>(null);
+  const tabletAgentTriggerRef = useRef<HTMLButtonElement>(null);
   const headerAgentMenuRef = useRef<HTMLDivElement>(null);
   const headerAgentItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -679,10 +934,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     focusDesktopTextarea();
 
     if (!initialChatId || !VALID_UUID_REGEX.test(initialChatId)) {
-      const initialId =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : "00000000-0000-0000-0000-000000000001";
+      const initialId = generateId(true);
       setCurrentSessionChatId(initialId);
     }
 
@@ -734,19 +986,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     };
 
     if (typeof window !== "undefined") {
-      const SpeechRecognitionAPI =
-        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      setIsSpeechSupported(Boolean(SpeechRecognitionAPI));
+      const voiceSupport = checkVoiceSupport();
+      setIsSpeechSupported(voiceSupport.hasMediaDevices && Boolean(getSupportedAudioMimeType()));
       updateViewportFlag();
       window.addEventListener("resize", updateViewportFlag);
     }
 
     let storedUserId = safeGetLocalStorage(STORAGE_KEYS.USER_ID);
     if (!storedUserId) {
-      storedUserId =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : `user-${Date.now()}`;
+      storedUserId = generateId();
       safeSetLocalStorage(STORAGE_KEYS.USER_ID, storedUserId);
     }
     setCurrentUserId(storedUserId);
@@ -805,13 +1053,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         if (toastTimerRef.current) {
           clearTimeout(toastTimerRef.current);
         }
-        if (recognitionRef.current) {
-          try {
-            recognitionRef.current.stop();
-          } catch {
-            // Ignore stop errors on unmount
-          }
-        }
       };
     }
 
@@ -822,65 +1063,202 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     };
   }, [initialChatId]);
 
-  // Cloudflare Turnstile Invisible Widget Setup (#9)
+  // Lightweight Render backend warmup on first page load without DB query (#1)
   useEffect(() => {
-    if (!TURNSTILE_SITE_KEY || typeof window === "undefined") return;
+    if (!BACKEND_URL || typeof window === "undefined") return;
+    void fetch(`${BACKEND_URL}/api/health`, {
+      method: "GET",
+      cache: "no-store",
+    }).catch(() => {});
+  }, []);
 
-    const renderTurnstile = () => {
-      if (!window.turnstile || turnstileWidgetIdRef.current) return;
-      const container = document.getElementById("turnstile-container");
-      if (!container) return;
+  // Visual viewport height observer for Android soft keyboard (#6)
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.visualViewport) return;
 
-      try {
-        turnstileWidgetIdRef.current = window.turnstile.render(container, {
-          sitekey: TURNSTILE_SITE_KEY,
-          size: "invisible",
-          callback: (token: string) => {
-            turnstileTokenRef.current = token;
-          },
-          "expired-callback": () => {
-            turnstileTokenRef.current = null;
-            if (turnstileWidgetIdRef.current && window.turnstile) {
-              window.turnstile.reset(turnstileWidgetIdRef.current);
-            }
-          },
-          "error-callback": () => {
-            turnstileTokenRef.current = null;
-          },
-        });
-      } catch {
-        // Ignore initialization errors
+    const handleResize = () => {
+      if (window.visualViewport) {
+        setViewportHeight(`${window.visualViewport.height}px`);
       }
     };
 
-    if (window.turnstile) {
-      renderTurnstile();
-    } else {
-      const scriptId = "cf-turnstile-script";
-      if (!document.getElementById(scriptId)) {
-        const script = document.createElement("script");
-        script.id = scriptId;
-        script.src = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit";
-        script.async = true;
-        script.defer = true;
-        script.onload = () => {
-          renderTurnstile();
-        };
-        document.head.appendChild(script);
-      }
-    }
+    window.visualViewport.addEventListener("resize", handleResize);
+    window.visualViewport.addEventListener("scroll", handleResize);
 
     return () => {
+      window.visualViewport?.removeEventListener("resize", handleResize);
+      window.visualViewport?.removeEventListener("scroll", handleResize);
+    };
+  }, []);
+
+  // Cloudflare Turnstile Invisible Widget Setup (#2, #9)
+  const renderTurnstileWidget = useCallback(async () => {
+    if (!TURNSTILE_SITE_KEY || typeof window === "undefined") return;
+    await loadTurnstileScript();
+    if (!window.turnstile) return;
+
+    const container = document.getElementById("turnstile-container");
+    if (!container) return;
+
+    // Prevent duplicate widget render in StrictMode / route changes
+    if (turnstileWidgetIdRef.current) return;
+
+    container.innerHTML = "";
+
+    try {
+      const widgetId = window.turnstile.render(container, {
+        sitekey: TURNSTILE_SITE_KEY,
+        size: "invisible",
+        callback: (token: string) => {
+          turnstileTokenRef.current = token;
+          consecutiveTurnstileErrorsRef.current = 0;
+          const resolvers = pendingTokenResolversRef.current;
+          pendingTokenResolversRef.current = [];
+          resolvers.forEach(({ resolve }) => resolve(token));
+        },
+        "expired-callback": () => {
+          turnstileTokenRef.current = null;
+          if (turnstileWidgetIdRef.current && window.turnstile) {
+            try {
+              window.turnstile.reset(turnstileWidgetIdRef.current);
+            } catch {}
+          }
+        },
+        "error-callback": () => {
+          turnstileTokenRef.current = null;
+          consecutiveTurnstileErrorsRef.current += 1;
+          if (consecutiveTurnstileErrorsRef.current <= 3) {
+            if (turnstileResetTimerRef.current) {
+              clearTimeout(turnstileResetTimerRef.current);
+            }
+            turnstileResetTimerRef.current = setTimeout(() => {
+              if (turnstileWidgetIdRef.current && window.turnstile) {
+                try {
+                  window.turnstile.reset(turnstileWidgetIdRef.current);
+                } catch {}
+              }
+            }, 2000);
+          }
+        },
+      });
+      turnstileWidgetIdRef.current = widgetId;
+    } catch {
+      // Ignore initialization errors
+    }
+  }, []);
+
+  useEffect(() => {
+    void renderTurnstileWidget();
+
+    return () => {
+      if (turnstileResetTimerRef.current) {
+        clearTimeout(turnstileResetTimerRef.current);
+      }
       if (turnstileWidgetIdRef.current && window.turnstile) {
         try {
           window.turnstile.remove(turnstileWidgetIdRef.current);
-        } catch {
-          // Ignore removal errors
-        }
+        } catch {}
         turnstileWidgetIdRef.current = null;
       }
+      const resolvers = pendingTokenResolversRef.current;
+      pendingTokenResolversRef.current = [];
+      resolvers.forEach(({ reject }) => reject(new Error("Turnstile unmounted")));
     };
+  }, [renderTurnstileWidget]);
+
+  const executeTurnstileOnce = useCallback((timeoutMs = 10_000): Promise<string> => {
+    return new Promise<string>((resolve, reject) => {
+      if (typeof window === "undefined" || !window.turnstile || !turnstileWidgetIdRef.current) {
+        return reject(new Error("Turnstile widget tidak siap"));
+      }
+
+      if (turnstileTokenRef.current) {
+        return resolve(turnstileTokenRef.current);
+      }
+      try {
+        const resp = window.turnstile.getResponse(turnstileWidgetIdRef.current);
+        if (resp) {
+          turnstileTokenRef.current = resp;
+          return resolve(resp);
+        }
+      } catch {}
+
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const resolverItem = {
+        resolve: (tok: string) => {
+          if (timer) clearTimeout(timer);
+          resolve(tok);
+        },
+        reject: (err: any) => {
+          if (timer) clearTimeout(timer);
+          reject(err);
+        },
+      };
+
+      pendingTokenResolversRef.current.push(resolverItem);
+
+      timer = setTimeout(() => {
+        pendingTokenResolversRef.current = pendingTokenResolversRef.current.filter((item) => item !== resolverItem);
+        reject(new Error("Turnstile timeout (10s)"));
+      }, timeoutMs);
+
+      try {
+        window.turnstile.execute(turnstileWidgetIdRef.current);
+      } catch (err) {
+        if (timer) clearTimeout(timer);
+        pendingTokenResolversRef.current = pendingTokenResolversRef.current.filter((item) => item !== resolverItem);
+        reject(err);
+      }
+    });
   }, []);
+
+  const getTurnstileToken = useCallback(async (): Promise<string> => {
+    if (!TURNSTILE_SITE_KEY) return "";
+
+    // a) Return existing token if available
+    if (turnstileTokenRef.current) {
+      return turnstileTokenRef.current;
+    }
+    if (turnstileWidgetIdRef.current && window.turnstile) {
+      try {
+        const existing = window.turnstile.getResponse(turnstileWidgetIdRef.current);
+        if (existing) {
+          turnstileTokenRef.current = existing;
+          return existing;
+        }
+      } catch {}
+    }
+
+    if (!turnstileWidgetIdRef.current || !window.turnstile) {
+      await renderTurnstileWidget();
+    }
+
+    // b) Call window.turnstile.execute(widgetId) and wait up to 10s
+    try {
+      const token = await executeTurnstileOnce(10_000);
+      if (token) return token;
+    } catch {
+      // First attempt failed or timed out
+    }
+
+    // c) On fail/timeout, reset widget and retry once
+    if (turnstileWidgetIdRef.current && window.turnstile) {
+      try {
+        window.turnstile.reset(turnstileWidgetIdRef.current);
+      } catch {}
+    }
+    turnstileTokenRef.current = null;
+
+    try {
+      const retryToken = await executeTurnstileOnce(10_000);
+      if (retryToken) return retryToken;
+    } catch {
+      // Second attempt failed or timed out
+    }
+
+    // d) If still fails, throw error
+    throw new Error("Verifikasi keamanan gagal. Muat ulang halaman lalu coba lagi.");
+  }, [renderTurnstileWidget, executeTurnstileOnce]);
 
   const handleSelectAgent = useCallback((agent: Agent) => {
     setSelectedAgent(agent);
@@ -1002,6 +1380,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, [displayName]);
 
+  // Modern AI mobile greeting: "Halo {nama}, apa yang Anda pikirkan?" (like Gemini mobile)
+  // When recording: "Tanyakan apa saja, {nama}."
+  const mobileGreeting = useMemo(() => {
+    const cleanName = displayName?.trim();
+    const hasName = Boolean(cleanName && cleanName.toLowerCase() !== "pengguna");
+    if (isRecording) {
+      return hasName ? `Tanyakan apa saja, ${cleanName}.` : "Tanyakan apa saja.";
+    }
+    return hasName ? `Halo ${cleanName}, apa yang Anda pikirkan?` : "Halo, apa yang Anda pikirkan?";
+  }, [displayName, isRecording]);
+
   useEffect(() => {
     const nextHasMessages = Boolean(currentMessages.length > 0);
     setHasMessages(nextHasMessages);
@@ -1046,121 +1435,328 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       textarea.scrollHeight > TEXTAREA_MAX_HEIGHT_PX ? "auto" : "hidden";
   }, []);
 
-  const stopVoiceRecording = useCallback((focusInput = false) => {
-    if (recognitionRef.current) {
+  // Dictation Cancel & Stop functions (Inline Dictation & Gemini style)
+  const cancelVoiceRecording = useCallback(() => {
+    if (dictationRecorderRef.current && dictationRecorderRef.current.state !== "inactive") {
       try {
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.onend = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.stop();
-      } catch {
-        // Ignore stop errors
-      }
-      recognitionRef.current = null;
+        dictationRecorderRef.current.stop();
+      } catch {}
     }
-    setIsRecording(false);
-    if (focusInput) {
-      requestAnimationFrame(() => {
-        const el = textareaRef.current;
-        if (el) {
-          el.focus();
-          const len = el.value.length;
-          el.setSelectionRange(len, len);
-          adjustTextareaHeight();
-        }
+    dictationRecorderRef.current = null;
+
+    if (dictationStreamRef.current) {
+      dictationStreamRef.current.getTracks().forEach((t) => {
+        try {
+          t.stop();
+        } catch {}
       });
+      dictationStreamRef.current = null;
     }
-  }, [adjustTextareaHeight]);
 
-  const handleToggleVoiceRecording = useCallback(() => {
-    setSpeechError(null);
+    if (dictationAudioContextRef.current && dictationAudioContextRef.current.state !== "closed") {
+      try {
+        void dictationAudioContextRef.current.close();
+      } catch {}
+    }
+    dictationAudioContextRef.current = null;
+    dictationAnalyserRef.current = null;
+    setDictationAnalyser(null);
 
+    if (recordingTimerRef.current) {
+      clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+    dictationChunksRef.current = [];
+    setIsRecording(false);
+    setIsTranscribingVoice(false);
+    setRecordingSeconds(0);
+  }, []);
+
+  const stopVoiceRecording = useCallback(
+    (action: "stop" | "send" = "stop") => {
+      dictationActionRef.current = action;
+
+      // Voice Activity Detection: If user hasn't spoken (silence / no speech detected >= 300ms)
+      if (!hasSpokenRef.current) {
+        cancelVoiceRecording();
+        showToastNotice("Suara tidak terdengar, coba lagi");
+        return;
+      }
+
+      if (dictationRecorderRef.current && dictationRecorderRef.current.state === "recording") {
+        try {
+          dictationRecorderRef.current.stop();
+        } catch {
+          cancelVoiceRecording();
+        }
+      } else {
+        cancelVoiceRecording();
+      }
+    },
+    [cancelVoiceRecording, showToastNotice]
+  );
+
+  const handleToggleVoiceRecording = useCallback(async () => {
     if (isRecording) {
-      stopVoiceRecording(true);
+      stopVoiceRecording("stop");
       return;
     }
 
-    if (typeof window === "undefined") return;
-    const SpeechRecognitionAPI =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (typeof window === "undefined" || typeof navigator === "undefined") return;
 
-    if (!SpeechRecognitionAPI) {
-      setIsSpeechSupported(false);
-      setSpeechError("Browser tidak mendukung input suara.");
+    // Haptic feedback if supported
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+        navigator.vibrate(10);
+      }
+    } catch {}
+
+    const support = checkVoiceSupport();
+    if (support.isInAppBrowser) {
+      showToastNotice("Buka di Safari atau Chrome untuk menggunakan mikrofon");
       return;
+    }
+
+    if (!support.hasMediaDevices) {
+      setIsSpeechSupported(false);
+      showToastNotice("Perangkat Anda tidak mendukung perekaman audio.");
+      return;
+    }
+
+    // AudioContext must be created / resumed inside user gesture for iOS Safari
+    let audioCtx: AudioContext | null = null;
+    try {
+      const AudioCtxClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtxClass) {
+        audioCtx = new AudioCtxClass();
+        if (audioCtx.state === "suspended") {
+          await audioCtx.resume();
+        }
+        dictationAudioContextRef.current = audioCtx;
+      }
+    } catch (e) {
+      console.warn("Failed to init AudioContext:", e);
     }
 
     try {
-      const recognition = new SpeechRecognitionAPI();
-      recognition.lang = "id-ID";
-      recognition.interimResults = true;
-      recognition.continuous = true;
+      hasSpokenRef.current = false;
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+      });
+      dictationStreamRef.current = stream;
 
-      speechBaseTextRef.current = inputText.trim() ? `${inputText.trimEnd()} ` : "";
+      if (audioCtx && audioCtx.state !== "closed") {
+        try {
+          const source = audioCtx.createMediaStreamSource(stream);
+          const analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          analyser.smoothingTimeConstant = 0.5;
+          source.connect(analyser);
+          dictationAnalyserRef.current = analyser;
+          setDictationAnalyser(analyser);
+        } catch (e) {
+          console.warn("Analyser connection error:", e);
+        }
+      }
 
-      recognition.onstart = () => {
-        setIsRecording(true);
-        setSpeechError(null);
+      const mimeType = getSupportedAudioMimeType();
+      let recorder: MediaRecorder;
+      try {
+        recorder = mimeType
+          ? new MediaRecorder(stream, { mimeType })
+          : new MediaRecorder(stream);
+      } catch {
+        recorder = new MediaRecorder(stream);
+      }
+
+      dictationRecorderRef.current = recorder;
+      dictationChunksRef.current = [];
+
+      recorder.ondataavailable = (event) => {
+        if (event.data && event.data.size > 0) {
+          dictationChunksRef.current.push(event.data);
+        }
       };
 
-      recognition.onresult = (event: any) => {
-        let finalPart = "";
-        let interimPart = "";
-        for (let i = 0; i < event.results.length; i++) {
-          const res = event.results[i];
-          if (res.isFinal) {
-            finalPart += res[0].transcript;
+      recorder.onstop = async () => {
+        // Stop audio tracks immediately so microphone icon in phone status bar disappears
+        if (dictationStreamRef.current) {
+          dictationStreamRef.current.getTracks().forEach((t) => {
+            try {
+              t.stop();
+            } catch {}
+          });
+          dictationStreamRef.current = null;
+        }
+
+        if (dictationAudioContextRef.current && dictationAudioContextRef.current.state !== "closed") {
+          try {
+            void dictationAudioContextRef.current.close();
+          } catch {}
+        }
+        dictationAudioContextRef.current = null;
+        dictationAnalyserRef.current = null;
+        setDictationAnalyser(null);
+
+        if (recordingTimerRef.current) {
+          clearInterval(recordingTimerRef.current);
+          recordingTimerRef.current = null;
+        }
+
+        const action = dictationActionRef.current;
+        const chunks = dictationChunksRef.current;
+        dictationChunksRef.current = [];
+        setIsRecording(false);
+
+        if (!hasSpokenRef.current || !chunks || chunks.length === 0) {
+          showToastNotice("Suara tidak terdengar, coba lagi");
+          return;
+        }
+
+        const audioBlob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+        if (audioBlob.size < 200) {
+          showToastNotice("Suara tidak terdengar, coba lagi");
+          return;
+        }
+
+        setIsTranscribingVoice(true);
+        try {
+          const headers = await buildAuthHeaders();
+          const turnstileToken = await getTurnstileToken().catch(() => undefined);
+          const transcript = await transcribeAudioBlob(BACKEND_URL, audioBlob, headers, turnstileToken);
+
+          if (!transcript || !transcript.trim()) {
+            showToastNotice("Suara tidak terdengar, coba lagi");
+            return;
+          }
+
+          const cleanTranscript = transcript.trim();
+          const currentText = textareaRef.current ? textareaRef.current.value : inputText;
+          const combined = currentText.trim()
+            ? `${currentText.trim()} ${cleanTranscript}`
+            : cleanTranscript;
+
+          if (action === "send") {
+            setInputText("");
+            if (currentChatKey) {
+              safeSetChatDraft(currentChatKey, "");
+            }
+            if (handleSendMessageRef.current) {
+              await handleSendMessageRef.current(combined);
+            }
           } else {
-            interimPart += res[0].transcript;
+            setInputText(combined);
+            if (currentChatKey) {
+              safeSetChatDraft(currentChatKey, combined);
+            }
+            requestAnimationFrame(() => {
+              const el = textareaRef.current;
+              if (el) {
+                el.focus();
+                const len = el.value.length;
+                el.setSelectionRange(len, len);
+                adjustTextareaHeight();
+              }
+            });
           }
+        } catch (err: any) {
+          console.error("Transcription failed:", err);
+          showToastNotice(err?.message || "Suara tidak terdengar, coba lagi");
+        } finally {
+          setIsTranscribingVoice(false);
+          setRecordingSeconds(0);
         }
-        const combined = `${speechBaseTextRef.current}${finalPart}${interimPart}`;
-        setInputText(combined);
-        requestAnimationFrame(() => {
-          adjustTextareaHeight();
-        });
       };
 
-      recognition.onerror = (event: any) => {
-        const errCode = String(event?.error || "");
-        if (errCode === "not-allowed" || errCode === "service-not-allowed") {
-          setSpeechError(
-            "Izin mikrofon ditolak. Silakan izinkan akses mikrofon di pengaturan browser Anda untuk menggunakan input suara."
-          );
-        } else if (errCode === "audio-capture") {
-          setSpeechError(
-            "Mikrofon tidak ditemukan. Pastikan perangkat mikrofon Anda terhubung dan aktif."
-          );
-        } else if (errCode === "network") {
-          setSpeechError("Gagal memproses input suara karena kendala jaringan.");
-        } else if (errCode !== "no-speech" && errCode !== "aborted") {
-          setSpeechError("Gagal mengenali suara. Silakan coba lagi.");
-        }
-        setIsRecording(false);
-        recognitionRef.current = null;
-      };
-
-      recognition.onend = () => {
-        setIsRecording(false);
-        recognitionRef.current = null;
-        requestAnimationFrame(() => {
-          const el = textareaRef.current;
-          if (el) {
-            el.focus();
-            const len = el.value.length;
-            el.setSelectionRange(len, len);
-            adjustTextareaHeight();
+      setRecordingSeconds(0);
+      if (recordingTimerRef.current) {
+        clearInterval(recordingTimerRef.current);
+      }
+      recordingTimerRef.current = setInterval(() => {
+        setRecordingSeconds((prev) => {
+          if (prev >= 119) {
+            // Auto stop at 2 minutes (120s)
+            stopVoiceRecording("stop");
+            return 120;
           }
+          return prev + 1;
         });
-      };
+      }, 1000);
 
-      recognitionRef.current = recognition;
-      recognition.start();
-    } catch {
-      setSpeechError("Tidak dapat memulai perekaman suara di browser ini.");
-      setIsRecording(false);
+      recorder.start(250);
+      setIsRecording(true);
+    } catch (err: any) {
+      console.warn("Microphone access error:", err);
+      cancelVoiceRecording();
+      const name = String(err?.name || "");
+      if (name === "NotAllowedError" || name === "PermissionDeniedError") {
+        showToastNotice("Izinkan mikrofon di pengaturan browser");
+      } else {
+        showToastNotice("Suara tidak terdengar, coba lagi");
+      }
     }
-  }, [isRecording, inputText, stopVoiceRecording, adjustTextareaHeight]);
+  }, [
+    isRecording,
+    stopVoiceRecording,
+    cancelVoiceRecording,
+    showToastNotice,
+    buildAuthHeaders,
+    getTurnstileToken,
+    inputText,
+    currentChatKey,
+    adjustTextareaHeight,
+  ]);
+
+  // Keep stable refs to avoid re-triggering effects when recording state changes
+  const cancelVoiceRecordingRef = useRef(cancelVoiceRecording);
+  cancelVoiceRecordingRef.current = cancelVoiceRecording;
+  const isRecordingRef = useRef(isRecording);
+  isRecordingRef.current = isRecording;
+
+  // Clean up recording on visibilitychange (tab switch / browser minimize)
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.hidden && isRecordingRef.current) {
+        cancelVoiceRecordingRef.current();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
+  }, []);
+
+  // Dedicated unmount-only cleanup strictly with [] dependencies
+  useEffect(() => {
+    return () => {
+      cancelVoiceRecordingRef.current();
+    };
+  }, []);
+
+  // Open ChatGPT-style Voice Mode
+  const handleOpenVoiceMode = useCallback(() => {
+    if (isRecording) {
+      cancelVoiceRecording();
+    }
+    // Synchronously unlock audio system in user gesture for iOS Safari compatibility
+    try {
+      const AudioCtxClass =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtxClass) {
+        const dummyCtx = new AudioCtxClass();
+        void unlockAudioSystem(dummyCtx);
+      }
+    } catch {}
+
+    setIsVoiceModeOpen(true);
+  }, [isRecording, cancelVoiceRecording]);
 
   const inputTextRef = useRef<string>("");
   useEffect(() => {
@@ -1169,9 +1765,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const nextVal = e.target.value;
-    if (isRecording) {
-      speechBaseTextRef.current = nextVal;
-    }
     setInputText(nextVal);
     adjustTextareaHeight();
     if (currentChatKey) {
@@ -1359,9 +1952,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   const closeHeaderAgentMenu = useCallback((restoreFocus = true) => {
     setIsHeaderAgentMenuOpen(false);
+    setHeaderMenuTop(null);
     if (restoreFocus) {
-      requestAnimationFrame(() => headerAgentTriggerRef.current?.focus());
+      const trigger = headerAgentTriggerRef.current || tabletAgentTriggerRef.current;
+      requestAnimationFrame(() => trigger?.focus());
     }
+  }, []);
+
+  const toggleHeaderAgentMenu = useCallback(() => {
+    setIsHeaderAgentMenuOpen((prev) => {
+      const next = !prev;
+      const trigger = headerAgentTriggerRef.current || tabletAgentTriggerRef.current;
+      if (next && trigger) {
+        const rect = trigger.getBoundingClientRect();
+        setHeaderMenuTop(Math.round(rect.bottom + 8));
+      } else {
+        setHeaderMenuTop(null);
+      }
+      return next;
+    });
   }, []);
 
   const closeChatItemMenu = useCallback((chatId: string | null, restoreFocus = true) => {
@@ -1543,7 +2152,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       if (
         isHeaderAgentMenuOpen &&
         !headerAgentMenuRef.current?.contains(target) &&
-        !headerAgentTriggerRef.current?.contains(target)
+        !headerAgentTriggerRef.current?.contains(target) &&
+        !tabletAgentTriggerRef.current?.contains(target)
       ) {
         closeHeaderAgentMenu(false);
       }
@@ -1669,10 +2279,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         return;
       }
 
-      const newSessionId =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : `00000000-0000-4000-8000-${String(Date.now()).padStart(12, "0").slice(-12)}`;
+      const newSessionId = generateId(true);
       setCurrentSessionChatId(newSessionId);
       setActiveChatId("new-chat");
       setHasMessages(false);
@@ -2141,6 +2748,150 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     );
   };
 
+  // Voice Mode: Send message to /api/chats/message with voice_mode: true
+  const handleVoiceModeSendMessage = useCallback(
+    async (
+      userText: string,
+      voiceMode: boolean
+    ): Promise<{ aiReplyText: string; streamReader?: ReadableStreamDefaultReader<Uint8Array> | null }> => {
+      let targetChatId = activeChatId;
+      let sessionPayloadId = currentSessionChatId;
+
+      if (!sessionPayloadId) {
+        sessionPayloadId = generateId(true);
+        setCurrentSessionChatId(sessionPayloadId);
+      }
+
+      if (targetChatId === "new-chat") {
+        targetChatId = sessionPayloadId;
+      }
+
+      const headers = await buildAuthHeaders();
+      headers["Accept"] = "text/event-stream, application/json";
+
+      const turnstileToken = await getTurnstileToken().catch(() => undefined);
+
+      const response = await fetch(`${BACKEND_URL}/api/chats/message`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          chat_id: sessionPayloadId,
+          content: userText,
+          stream: true,
+          agent_id: selectedAgent.id,
+          turnstile_token: turnstileToken || undefined,
+          voice_mode: voiceMode,
+        }),
+      });
+
+      if (!response.ok) {
+        let errDetail = `Status ${response.status}`;
+        try {
+          const errJson = await response.json();
+          if (errJson?.error) errDetail = errJson.error;
+        } catch {}
+        throw new Error(errDetail);
+      }
+
+      if (response.body) {
+        return {
+          aiReplyText: "",
+          streamReader: response.body.getReader(),
+        };
+      }
+
+      const data = await response.json();
+      return {
+        aiReplyText: data.reply || data.content || "",
+      };
+    },
+    [activeChatId, currentSessionChatId, selectedAgent, buildAuthHeaders, getTurnstileToken]
+  );
+
+  // Voice Mode: Save completed turn to chat history and active session
+  const handleVoiceModeTurnComplete = useCallback(
+    (userText: string, aiText: string) => {
+      if (!userText || !aiText) return;
+
+      const nowIso = new Date().toISOString();
+      const userMsg: Message = {
+        id: `user-${Date.now()}`,
+        sender: "user",
+        content: userText,
+        created_at: nowIso,
+      };
+
+      const aiMsg: Message = {
+        id: `ai-${Date.now() + 1}`,
+        sender: "ai",
+        content: aiText,
+        created_at: nowIso,
+        agentId: selectedAgent.id,
+        agentName: selectedAgent.name,
+      };
+
+      let targetChatId = activeChatId;
+      let sessionPayloadId = currentSessionChatId;
+
+      if (!sessionPayloadId) {
+        sessionPayloadId = generateId(true);
+        setCurrentSessionChatId(sessionPayloadId);
+      }
+
+      const initialTitle = userText.length > 40 ? `${userText.slice(0, 40)}…` : userText;
+
+      if (activeChatId === "new-chat") {
+        targetChatId = sessionPayloadId;
+        const newChat: ChatSession = {
+          id: targetChatId,
+          title: initialTitle,
+          dateCategory: "TODAY",
+          messages: [userMsg, aiMsg],
+        };
+        setChats((prev) => [newChat, ...prev]);
+        setActiveChatId(targetChatId);
+        syncBrowserUrl(targetChatId, "push");
+
+        setClientNow(new Date());
+        setChatHistory((prev) => [
+          {
+            id: targetChatId,
+            title: initialTitle,
+            created_at: nowIso,
+            last_activity_at: nowIso,
+          },
+          ...prev.filter((c) => c.id !== targetChatId),
+        ]);
+      } else {
+        appendMessageToChat(targetChatId, userMsg);
+        setTimeout(() => {
+          appendMessageToChat(targetChatId, aiMsg);
+        }, 50);
+
+        setChatHistory((prev) => {
+          const exists = prev.some((c) => c.id === targetChatId);
+          if (exists) {
+            return prev.map((c) =>
+              c.id === targetChatId ? { ...c, last_activity_at: nowIso } : c
+            );
+          }
+          return [
+            {
+              id: targetChatId,
+              title: initialTitle,
+              created_at: nowIso,
+              last_activity_at: nowIso,
+            },
+            ...prev,
+          ];
+        });
+      }
+
+      setHasMessages(true);
+    },
+    [activeChatId, currentSessionChatId, selectedAgent, syncBrowserUrl]
+  );
+
   // Replaces a temporary message ID with the authoritative UUID from backend (#4)
   const replaceMessageIdInState = useCallback(
     (chatId: string, oldId: string, newId: string) => {
@@ -2247,7 +2998,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const activeAgentSnapshot = selectedAgent;
     const controller = new AbortController();
     requestControllersByChatRef.current[targetChatId] = controller;
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    let abortReason: "timeout" | "stopped" | null = null;
+    let initialTimeoutId: ReturnType<typeof setTimeout> | null = setTimeout(() => {
+      abortReason = "timeout";
+      controller.abort();
+    }, INITIAL_RESPONSE_TIMEOUT_MS);
+
+    let idleTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    const resetIdleTimeout = () => {
+      if (idleTimeoutId) clearTimeout(idleTimeoutId);
+      idleTimeoutId = setTimeout(() => {
+        abortReason = "timeout";
+        controller.abort();
+      }, IDLE_STREAM_TIMEOUT_MS);
+    };
+
     let activeAiMsgId = `ai-${Date.now()}`;
     let currentUserMsgId = options?.tempUserMsgId || "";
     let streamBubbleCreated = false;
@@ -2282,33 +3048,65 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     };
 
     try {
-      const headers = await buildAuthHeaders();
-      headers["Accept"] = "text/event-stream, application/json";
-
-      const currentTurnstileToken = turnstileTokenRef.current;
-      const response = await fetch(`${BACKEND_URL}/api/chats/message`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({
-          chat_id: sessionPayloadId,
-          content: userText,
-          stream: true,
-          agent_id: activeAgentSnapshot.id,
-          regenerate: Boolean(options?.regenerate),
-          turnstile_token: currentTurnstileToken || undefined,
-          attachment_ids: options?.attachmentIds?.length ? options.attachmentIds : undefined,
-        }),
-        signal: controller.signal,
+      let currentTurnstileToken = await getTurnstileToken().catch((err) => {
+        throw err;
       });
 
-      // Reset Turnstile token so a fresh one is generated if needed again
-      if (turnstileWidgetIdRef.current && window.turnstile) {
-        try {
-          window.turnstile.reset(turnstileWidgetIdRef.current);
-          turnstileTokenRef.current = null;
-        } catch {
-          // Ignore reset errors
+      let response: Response | null = null;
+
+      // Attempt sending message with 1 auto-retry if Turnstile verification fails (403 turnstile_failed)
+      for (let attempt = 0; attempt < 2; attempt++) {
+        const isRetry = attempt > 0;
+        const headers = await buildAuthHeaders();
+        headers["Accept"] = "text/event-stream, application/json";
+
+        response = await fetch(`${BACKEND_URL}/api/chats/message`, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({
+            chat_id: sessionPayloadId,
+            content: userText,
+            stream: true,
+            agent_id: activeAgentSnapshot.id,
+            regenerate: Boolean(options?.regenerate),
+            turnstile_token: currentTurnstileToken || undefined,
+            attachment_ids: options?.attachmentIds?.length ? options.attachmentIds : undefined,
+          }),
+          signal: controller.signal,
+        });
+
+        // Reset Turnstile token after use so subsequent messages obtain fresh validation (#2)
+        turnstileTokenRef.current = null;
+        if (turnstileWidgetIdRef.current && window.turnstile) {
+          try {
+            window.turnstile.reset(turnstileWidgetIdRef.current);
+          } catch {}
         }
+
+        // On 403 turnstile_failed or turnstile_required, reset widget, acquire fresh token, and auto-retry once (#2)
+        if (response.status === 403 && !isRetry) {
+          const errorBody = await response.clone().json().catch(() => null);
+          if (errorBody?.code === "turnstile_failed" || errorBody?.code === "turnstile_required") {
+            try {
+              currentTurnstileToken = await getTurnstileToken();
+              continue;
+            } catch {
+              break;
+            }
+          }
+        }
+
+        break;
+      }
+
+      if (!response) {
+        throw new Error("Gagal menghubungkan ke server.");
+      }
+
+      // First response received: cancel initial 90s response timeout (#1)
+      if (initialTimeoutId) {
+        clearTimeout(initialTimeoutId);
+        initialTimeoutId = null;
       }
 
       const contentType = (response.headers.get("content-type") || "").toLowerCase();
@@ -2321,6 +3119,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         let returnedAgentName = activeAgentSnapshot.name;
         let returnedAgentId: string = activeAgentSnapshot.id;
         let returnedMessageId: string | undefined;
+
+        // Initialize 30s idle timeout for active streaming (#1)
+        resetIdleTimeout();
 
         const processRawSseEvent = (rawEvent: string) => {
           const line = rawEvent.split(/\r?\n/).find((l) => l.startsWith("data:"));
@@ -2411,7 +3212,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         while (true) {
           const { value, done } = await reader.read();
+          // Reset 30s idle timeout on each received chunk (#1)
+          resetIdleTimeout();
+
           if (done) {
+            if (idleTimeoutId) {
+              clearTimeout(idleTimeoutId);
+              idleTimeoutId = null;
+            }
             buffer += decoder.decode();
             break;
           }
@@ -2585,8 +3393,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       console.error("Axioma Backend Connection Error:", error);
 
       let errorDetail: string;
-      if (error?.name === "AbortError") {
-        errorDetail = `Permintaan melebihi batas waktu ${REQUEST_TIMEOUT_MS / 1000} detik. Silakan coba lagi.`;
+      const isTimeout =
+        abortReason === "timeout" ||
+        (error?.name === "AbortError" && !stoppedByUserByChatRef.current[targetChatId]);
+      const isNetworkError =
+        (typeof navigator !== "undefined" && !navigator.onLine) ||
+        error?.name === "TypeError" ||
+        error instanceof TypeError ||
+        (typeof error?.message === "string" && (
+          error.message.includes("Failed to fetch") ||
+          error.message.includes("NetworkError") ||
+          error.message.includes("fetch failed")
+        ));
+
+      if (isTimeout) {
+        errorDetail = "Server terlalu lama merespons, coba lagi.";
       } else if (
         error?.message?.includes("Kuota AI hari ini") ||
         error?.message?.toLowerCase().includes("kuota harian") ||
@@ -2594,19 +3415,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         error?.code === "daily_quota_exceeded"
       ) {
         errorDetail = "Kuota AI hari ini sudah habis. Tersedia lagi pukul 07.00 WIB.";
-      } else if (
-        (typeof navigator !== "undefined" && !navigator.onLine) ||
-        error?.message?.includes("Koneksi internet terputus")
-      ) {
-        errorDetail = "Koneksi internet terputus. Silakan periksa jaringan Anda.";
-      } else if (
-        error instanceof TypeError ||
-        error?.name === "TypeError" ||
-        (error?.message && error.message.includes("Failed to fetch")) ||
-        (error?.message && error.message.includes("NetworkError")) ||
-        (error?.message && error.message.includes("Pastikan backend berjalan"))
-      ) {
-        errorDetail = "Server sedang tidak dapat dihubungi. Coba lagi sebentar.";
+      } else if (isNetworkError) {
+        errorDetail = "Koneksi terputus, periksa internet Anda.";
       } else {
         errorDetail = error?.message || "Terjadi kesalahan yang tidak diketahui.";
       }
@@ -2656,13 +3466,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         },
       });
     } finally {
-      clearTimeout(timeoutId);
+      if (initialTimeoutId) clearTimeout(initialTimeoutId);
+      if (idleTimeoutId) clearTimeout(idleTimeoutId);
       if (requestControllersByChatRef.current[targetChatId] === controller) {
         delete requestControllersByChatRef.current[targetChatId];
       }
       setChatLoading(targetChatId, false);
       setChatGenerating(targetChatId, false);
       setChatStreamingMsgId(targetChatId, null);
+      isSubmittingRef.current = false;
+      setIsSubmitting(false);
       focusDesktopTextarea();
       // Sync sidebar with backend so new/updated chat titles are reflected
       void refreshChatHistory();
@@ -2829,7 +3642,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       );
 
       const headers = await buildAuthHeaders();
-      const currentTurnstile = turnstileTokenRef.current || undefined;
+      const currentTurnstile = (await getTurnstileToken().catch(() => undefined)) || turnstileTokenRef.current || undefined;
       const targetChatId = activeChatId === "new-chat" ? undefined : activeChatId;
 
       const serverAtt = await uploadAttachmentWithProgress(
@@ -2927,13 +3740,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const sendTextMessage = async (rawText: string, attachedItems?: AttachmentItem[]) => {
     const userText = rawText.trim();
     const effectiveAttachments = attachedItems || [];
-    if ((!userText && effectiveAttachments.length === 0) || isLoading || isGenerating) return;
+    if (
+      (!userText && effectiveAttachments.length === 0) ||
+      isLoading ||
+      isGenerating ||
+      isSubmittingRef.current
+    ) {
+      return;
+    }
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
 
     setIsSendPressed(true);
     setTimeout(() => setIsSendPressed(false), 160);
 
     if (isRecording) {
-      stopVoiceRecording(false);
+      cancelVoiceRecording();
     }
 
     if (currentChatKey) {
@@ -2941,6 +3764,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
     setInputText("");
     if (textareaRef.current) {
+      textareaRef.current.value = "";
       textareaRef.current.style.height = "auto";
       textareaRef.current.style.overflowY = "hidden";
     }
@@ -2963,10 +3787,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     let sessionPayloadId = currentSessionChatId;
 
     if (!sessionPayloadId) {
-      sessionPayloadId =
-        typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
-          ? crypto.randomUUID()
-          : "00000000-0000-0000-0000-000000000001";
+      sessionPayloadId = generateId(true);
       setCurrentSessionChatId(sessionPayloadId);
     }
 
@@ -3021,7 +3842,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     });
   };
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = async (textOverride?: string) => {
+    // Prevent duplicate sending: block if request is running (#3)
+    if (isLoading || isGenerating || isSubmittingRef.current) {
+      return;
+    }
+
     const hasUploading = pendingAttachments.some(
       (a) => a.status === "uploading" || a.status === "compressing"
     );
@@ -3030,16 +3856,32 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       return;
     }
 
+    // Read latest uncommitted text directly from DOM element or use explicit textOverride
+    const rawInput =
+      typeof textOverride === "string"
+        ? textOverride
+        : textareaRef.current
+        ? textareaRef.current.value
+        : inputText;
+
+    if (!rawInput.trim() && pendingAttachments.length === 0) {
+      return;
+    }
+
     const readyServerAttachments = pendingAttachments
       .filter((a) => a.status === "ready" && a.serverAttachment)
       .map((a) => a.serverAttachment!);
 
     setPendingAttachments([]);
-    await sendTextMessage(inputText, readyServerAttachments);
+    await sendTextMessage(rawInput, readyServerAttachments);
   };
 
+  useEffect(() => {
+    handleSendMessageRef.current = handleSendMessage;
+  });
+
   const handleStarterPromptClick = (prompt: StarterPrompt) => {
-    if (isLoading || isGenerating) return;
+    if (isLoading || isGenerating || isSubmittingRef.current) return;
     if (prompt.mode === "prefill") {
       const text = prompt.prefillText || prompt.label;
       setInputText(text);
@@ -3057,21 +3899,44 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // 1. Ignore IME composition events (Gboard, Samsung keyboard, etc.) (#3)
+    if (e.nativeEvent.isComposing || e.keyCode === 229) {
+      return;
+    }
+
+    // 2. On touch devices (pointer: coarse), Enter inserts newline, NOT send (#3)
+    const isTouchDevice =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(pointer: coarse)").matches;
+    if (isTouchDevice) {
+      return;
+    }
+
+    // 3. Desktop (pointer: fine): Enter sends, Shift+Enter inserts newline
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!isOnline) return;
-      const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
-      if (!isLoading && !isGenerating && (inputText.trim() || hasReadyAttachments)) {
-        void handleSendMessage();
-      }
+      if (isLoading || isGenerating || isSubmittingRef.current) return;
+      void handleSendMessage();
     }
   };
 
   const handleCopy = (text: string, id: string) => {
     try {
-      void navigator.clipboard.writeText(text);
+      if (
+        typeof navigator !== "undefined" &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function"
+      ) {
+        navigator.clipboard.writeText(text).catch(() => {
+          fallbackCopyText(text);
+        });
+      } else {
+        fallbackCopyText(text);
+      }
     } catch {
-      // Ignore clipboard permission errors
+      fallbackCopyText(text);
     }
     setCopiedId(id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -3216,7 +4081,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           void handleFilesSelected(e.dataTransfer.files);
         }
       }}
-      className="flex h-[100dvh] w-full max-w-full bg-bg-primary text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary relative"
+      className="flex h-screen h-[100dvh] w-full max-w-full bg-bg-primary text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary relative"
+      style={{ height: viewportHeight || undefined }}
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -3973,147 +4839,265 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="sticky top-0 z-20 h-14 flex items-center justify-between px-4 bg-bg-primary/85 backdrop-blur-md border-b border-border-subtle shrink-0">
-          <div className="flex items-center gap-2">
-            {/* Desktop Sidebar Toggle Button (Item 8) */}
-            <button
-              type="button"
-              onClick={toggleDesktopSidebar}
-              title={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
-              aria-label={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
-              className="hidden lg:flex min-w-[36px] min-h-[36px] items-center justify-center p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
-            >
-              {isDesktopSidebarCollapsed ? (
-                <PanelLeft className="w-4 h-4" />
-              ) : (
-                <PanelLeftClose className="w-4 h-4" />
-              )}
-            </button>
-
-            {/* New Chat icon button in Header when desktop sidebar is collapsed (UI Bug 3) */}
-            {isDesktopSidebarCollapsed && (
-              <button
-                type="button"
-                onClick={() => handleCreateNewChat()}
-                title="Percakapan Baru (Ctrl+Shift+O)"
-                aria-label="Percakapan Baru"
-                className="hidden lg:flex min-w-[36px] min-h-[36px] items-center justify-center p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
-              >
-                <SquarePen className="w-4 h-4" />
-              </button>
-            )}
-
-            {/* Mobile Hamburger Menu (Item 3: >= 44x44px) */}
+        <header className="sticky top-0 z-20 min-h-[56px] h-auto flex items-center justify-between px-3 sm:px-4 bg-bg-primary/85 backdrop-blur-md border-b-0 md:border-b md:border-border-subtle shrink-0 pt-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-2.5 md:py-0 md:h-14">
+          {/* Mobile Header (< md) - Modern AI Pattern */}
+          <div className="flex md:hidden items-center justify-between w-full">
+            {/* Left: 44px circular hamburger menu */}
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-icon-muted hover:text-text-primary active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-bg-elevated border border-border-subtle text-text-secondary hover:text-text-primary active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs"
               aria-label="Buka bilah sisi"
             >
               <Menu className="w-5 h-5" />
             </button>
 
-            <div className="flex items-center gap-2 lg:hidden">
-              <Image
-                src="/brand/axioma-logo.png"
-                alt="Axioma"
-                width={28}
-                height={28}
-                className="w-7 h-7 object-contain rounded-lg shrink-0 dark:ring-1 dark:ring-white/10"
-                priority
-              />
-              <span className="text-sm font-semibold tracking-tight text-text-primary">
+            {/* Center: Axioma + model name without border box */}
+            <button
+              ref={headerAgentTriggerRef}
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={isHeaderAgentMenuOpen}
+              onClick={toggleHeaderAgentMenu}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full active:opacity-75 transition-opacity cursor-pointer focus:outline-none"
+              aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
+            >
+              <span className="font-semibold text-base tracking-tight text-text-primary">
                 Axioma
               </span>
-            </div>
+              <span className="text-sm font-normal text-text-muted flex items-center gap-0.5">
+                {selectedAgent.shortName}
+                <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+              </span>
+            </button>
 
-            {/* Mobile Header Model Selector */}
-            <div className="relative lg:hidden">
+            {/* Right: Circular New Chat (44px) + Circular Avatar Initial (44px) */}
+            <div className="flex items-center gap-2">
               <button
-                ref={headerAgentTriggerRef}
                 type="button"
-                aria-haspopup="menu"
-                aria-expanded={isHeaderAgentMenuOpen}
-                onClick={() => setIsHeaderAgentMenuOpen((prev) => !prev)}
-                onKeyDown={(e) => {
-                  if (e.key === "ArrowDown") {
-                    e.preventDefault();
-                    setIsHeaderAgentMenuOpen(true);
-                  }
-                }}
-                className="text-xs font-medium tracking-tight text-text-secondary hover:text-text-primary bg-bg-surface border border-border-subtle min-h-[44px] px-3.5 py-2.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer hover:bg-bg-subtle"
-                aria-label="Pilih model"
+                onClick={() => handleCreateNewChat()}
+                aria-label="Percakapan Baru"
+                title="Percakapan Baru"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-bg-elevated border border-border-subtle text-text-secondary hover:text-text-primary active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs"
               >
-                <span>{selectedAgent.shortName}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-icon-muted" />
+                <SquarePen className="w-5 h-5" />
               </button>
 
-              {isHeaderAgentMenuOpen && (
-                <div
-                  ref={headerAgentMenuRef}
-                  role="menu"
-                  aria-label="Pilih model AI"
-                  onKeyDown={(e) =>
-                    handleMenuArrowKeyDown(e, headerAgentItemRefs.current, () =>
-                      closeHeaderAgentMenu(true)
-                    )
-                  }
-                  className="fixed left-4 right-4 top-14 w-auto sm:absolute sm:top-full sm:mt-2 sm:left-0 sm:right-auto sm:w-80 z-40 rounded-xl bg-bg-elevated border border-border-subtle p-1.5 shadow-2xl space-y-1"
+              <button
+                type="button"
+                onClick={() => {
+                  setSettingsNameInput(displayName);
+                  setSettingsNameError(null);
+                  setSettingsDefaultAgentInput(defaultAgentId);
+                  setIsSettingsModalOpen(true);
+                }}
+                aria-label="Buka profil dan pengaturan"
+                title="Profil dan Pengaturan"
+                className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-bg-elevated border border-border-strong text-text-primary font-semibold text-sm active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none"
+              >
+                {getAvatarInitials(displayName) || "A"}
+              </button>
+            </div>
+          </div>
+
+          {/* Desktop & Tablet Header (>= md) */}
+          <div className="hidden md:flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              {/* Desktop Sidebar Toggle Button (Item 8) */}
+              <button
+                type="button"
+                onClick={toggleDesktopSidebar}
+                title={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
+                aria-label={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
+                className="hidden lg:flex min-w-[36px] min-h-[36px] items-center justify-center p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
+              >
+                {isDesktopSidebarCollapsed ? (
+                  <PanelLeft className="w-4 h-4" />
+                ) : (
+                  <PanelLeftClose className="w-4 h-4" />
+                )}
+              </button>
+
+              {/* New Chat icon button in Header when desktop sidebar is collapsed (UI Bug 3) */}
+              {isDesktopSidebarCollapsed && (
+                <button
+                  type="button"
+                  onClick={() => handleCreateNewChat()}
+                  title="Percakapan Baru (Ctrl+Shift+O)"
+                  aria-label="Percakapan Baru"
+                  className="hidden lg:flex min-w-[36px] min-h-[36px] items-center justify-center p-2 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
                 >
-                  {AVAILABLE_AGENTS.map((agent, idx) => (
+                  <SquarePen className="w-4 h-4" />
+                </button>
+              )}
+
+              {/* Tablet Hamburger Menu (md to lg) */}
+              <button
+                type="button"
+                onClick={() => setIsMobileSidebarOpen(true)}
+                className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-icon-muted hover:text-text-primary active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                aria-label="Buka bilah sisi"
+              >
+                <Menu className="w-5 h-5" />
+              </button>
+
+              <div className="flex items-center gap-2 lg:hidden">
+                <Image
+                  src="/brand/axioma-logo.png"
+                  alt="Axioma"
+                  width={28}
+                  height={28}
+                  className="w-7 h-7 object-contain rounded-lg shrink-0 dark:ring-1 dark:ring-white/10"
+                  priority
+                />
+                <span className="text-sm font-semibold tracking-tight text-text-primary">
+                  Axioma
+                </span>
+              </div>
+
+              {/* Tablet Header Model Selector (md to lg) */}
+              <div className="relative lg:hidden">
+                <button
+                  ref={tabletAgentTriggerRef}
+                  type="button"
+                  aria-haspopup="menu"
+                  aria-expanded={isHeaderAgentMenuOpen}
+                  onClick={toggleHeaderAgentMenu}
+                  className="text-xs font-medium tracking-tight text-text-secondary hover:text-text-primary bg-bg-surface border border-border-subtle min-h-[44px] px-3.5 py-2.5 rounded-lg flex items-center gap-1 transition-colors cursor-pointer hover:bg-bg-subtle"
+                  aria-label="Pilih model"
+                >
+                  <span>{selectedAgent.shortName}</span>
+                  <ChevronDown className="w-3.5 h-3.5 text-icon-muted" />
+                </button>
+              </div>
+            </div>
+
+            {/* Tablet Right Action (md to lg) */}
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => handleCreateNewChat()}
+                aria-label="Percakapan Baru"
+                title="Percakapan Baru"
+                className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
+              >
+                <Plus className="w-5 h-5" />
+              </button>
+            </div>
+          </div>
+
+          {/* Shared Header Agent Menu Dropdown (Fixed across viewports) */}
+          {isHeaderAgentMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <div
+                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150"
+                onClick={() => closeHeaderAgentMenu(true)}
+                aria-hidden="true"
+              />
+
+              {/* Mobile Fixed Model Menu */}
+              <div
+                ref={headerAgentMenuRef}
+                role="menu"
+                aria-label="Pilih model AI"
+                onKeyDown={(e) =>
+                  handleMenuArrowKeyDown(e, headerAgentItemRefs.current, () =>
+                    closeHeaderAgentMenu(true)
+                  )
+                }
+                style={headerMenuTop ? { top: `${headerMenuTop}px` } : undefined}
+                className="fixed left-4 right-4 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 max-w-[calc(100vw-2rem)] sm:max-w-md mx-auto max-h-[70dvh] overflow-y-auto rounded-2xl bg-bg-elevated border border-border-strong p-2 shadow-2xl space-y-1.5 focus:outline-none animate-in fade-in slide-in-from-top-2 duration-150 motion-safe:transition-all"
+              >
+                {AVAILABLE_AGENTS.map((agent, idx) => {
+                  const isSelected = agent.id === selectedAgent.id;
+                  return (
                     <button
                       ref={(el) => {
                         headerAgentItemRefs.current[idx] = el;
                       }}
                       type="button"
                       role="menuitemradio"
-                      aria-checked={agent.id === selectedAgent.id}
+                      aria-checked={isSelected}
                       key={agent.id}
                       onClick={() => {
                         handleSelectAgent(agent);
                         closeHeaderAgentMenu(true);
                       }}
-                      className={`w-full text-left px-2.5 py-2 rounded-lg text-xs tracking-tight transition-colors flex items-center justify-between gap-2.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer ${
-                        agent.id === selectedAgent.id
-                          ? "bg-bg-surface text-text-primary font-medium"
-                          : "text-text-secondary hover:text-text-primary hover:bg-bg-surface/50"
+                      className={`w-full text-left p-3 rounded-lg text-xs tracking-tight transition-colors flex flex-col gap-1.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer border ${
+                        isSelected
+                          ? "bg-bg-surface border-border-subtle text-text-primary font-medium"
+                          : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-surface/50"
                       }`}
                     >
-                      <div className="min-w-0 pr-1 flex-1">
-                        <div className="text-text-primary font-medium">{agent.name}</div>
-                        <div className="text-[11px] text-text-muted line-clamp-2 leading-relaxed break-words">{agent.description}</div>
-                      </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-surface text-text-secondary font-medium border border-border-subtle shrink-0 whitespace-nowrap">
+                      {/* Baris atas: nama model (kiri) & badge (kanan) */}
+                      <div className="flex items-start justify-between gap-2 w-full">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span className="font-semibold text-text-primary text-sm tracking-tight truncate">
+                            {agent.name}
+                          </span>
+                          {isSelected && (
+                            <Check className="w-4 h-4 text-text-primary shrink-0" />
+                          )}
+                        </div>
+                        <span className="text-[11px] px-2 py-0.5 rounded bg-bg-surface text-text-secondary font-medium border border-border-subtle shrink-0 whitespace-nowrap">
                           {agent.tag}
                         </span>
-                        {agent.id === selectedAgent.id && (
-                          <Check className="w-3.5 h-3.5 text-text-primary shrink-0" />
-                        )}
                       </div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Right Header Actions: Mobile New Chat Button (+) & Hidden Share button (Item 10) */}
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => handleCreateNewChat()}
-              aria-label="Percakapan Baru"
-              title="Percakapan Baru"
-              className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] flex items-center justify-center p-2.5 rounded-lg text-text-secondary hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
-            >
-              <Plus className="w-5 h-5" />
-            </button>
-          </div>
+                      {/* Baris bawah: deskripsi selebar penuh */}
+                      <p className="text-sm text-text-muted leading-snug break-words">
+                        {agent.description}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </header>
 
         {/* Dynamic Chat Workspace */}
         <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
+          {/* Ambient bottom radial glow (Axioma dark aesthetic) */}
+          <div
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[45vh] bg-[radial-gradient(ellipse_at_bottom,_rgba(37,99,235,0.12),_rgba(30,27,75,0.06)_40%,_transparent_70%)] dark:bg-[radial-gradient(ellipse_at_bottom,_rgba(56,189,248,0.09),_rgba(30,58,138,0.05)_45%,_transparent_75%)] z-0"
+            aria-hidden="true"
+          />
+
+          {/* Mobile Empty State Center View (< md) */}
+          {!hasMessages &&
+            !(
+              isChatAreaLoading &&
+              Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
+            ) && (
+              <div
+                className={`md:hidden absolute inset-x-0 top-4 bottom-28 z-10 flex flex-col items-center justify-center px-6 text-center transition-all duration-300 pointer-events-none ${
+                  isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
+                }`}
+              >
+                <div className="w-full max-w-sm flex flex-col items-center gap-5">
+                  {/* Brand Logo with subtle glow and smooth entrance */}
+                  <div className="relative group">
+                    <div className="absolute -inset-3 bg-gradient-to-r from-blue-500/25 via-indigo-500/25 to-sky-500/25 rounded-2xl blur-xl opacity-75" />
+                    <Image
+                      src="/brand/axioma-logo.png"
+                      alt="Axioma"
+                      width={44}
+                      height={44}
+                      className="relative w-11 h-11 object-contain rounded-xl drop-shadow-xl dark:ring-1 dark:ring-white/10"
+                      priority
+                    />
+                  </div>
+
+                  {/* Sapaan besar */}
+                  <h1 className="text-2xl sm:text-[28px] font-medium sm:font-semibold text-text-primary tracking-tight leading-snug text-balance">
+                    {mobileGreeting}
+                  </h1>
+                </div>
+              </div>
+            )}
+
           {/* Floating Notification Toast (#10: e.g. "Percakapan tidak ditemukan") */}
           {toastNotice && (
             <div
@@ -4634,7 +5618,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {waitingSeconds >= 25
                         ? "Jawaban panjang butuh waktu lebih lama. Anda bisa menekan Stop kapan saja."
                         : waitingSeconds >= 8
-                        ? "Menyusun jawaban, mohon tunggu…"
+                        ? "Server sedang disiapkan, mohon tunggu…"
                         : "Axioma sedang berpikir…"}
                     </span>
                   </div>
@@ -4674,8 +5658,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Subtle gradient overlay above input console so scrolling text fades gracefully (Item 11) */}
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)]/80 to-transparent z-10" />
 
-          {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) via GPU transform */}
-          <div className="w-full px-4 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent relative z-20">
+          {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) on Desktop; Docked at Bottom on Mobile */}
+          <div className="w-full px-3 sm:px-4 shrink-0 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent relative z-20">
             <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
               <div
                 className={`relative w-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform ${
@@ -4683,17 +5667,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   (isChatAreaLoading &&
                     Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat")))
                     ? "translate-y-0"
-                    : "-translate-y-[max(180px,28vh)] sm:-translate-y-[30vh]"
+                    : "translate-y-0 md:-translate-y-[30vh]"
                 }`}
               >
-                {/* Friendly Greeting or Loading Skeleton (#6: fades out & slides up slightly when first message is sent) */}
+                {/* Desktop Greeting (Hidden on mobile where greeting is vertically centered in the viewport) */}
                 {showEmptyDecorations &&
                   !(
                     isChatAreaLoading &&
                     Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                   ) && (
                     <div
-                      className={`absolute bottom-full left-0 right-0 mb-5 sm:mb-6 pointer-events-none transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
+                      className={`hidden md:block absolute bottom-full left-0 right-0 mb-5 sm:mb-6 pointer-events-none transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
                         isEmptyDecorationsExiting
                           ? "opacity-0 -translate-y-2.5"
                           : "opacity-100 translate-y-0"
@@ -4717,45 +5701,38 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
                   )}
 
-                {/* Voice Input Permission / Error Banner (1a) */}
-                {speechError && (
-                  <div
-                    role="alert"
-                    className="w-full mb-2.5 px-3.5 py-2 rounded-xl bg-amber-950/50 border border-amber-800/60 flex items-center justify-between gap-2 text-xs text-amber-200"
-                  >
-                    <span className="flex items-center gap-2">
-                      <CircleAlert className="w-4 h-4 text-amber-400 shrink-0" />
-                      <span>{speechError}</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => setSpeechError(null)}
-                      aria-label="Tutup peringatan suara"
-                      className="p-1 rounded hover:bg-amber-900/50 text-amber-300 hover:text-amber-100 cursor-pointer shrink-0"
+                {/* Mobile Gemini-style Mode Tabs above Composer (< md) */}
+                {!hasMessages &&
+                  showEmptyDecorations &&
+                  !(
+                    isChatAreaLoading &&
+                    Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
+                  ) && (
+                    <div
+                      className={`md:hidden w-full mb-3 flex items-center justify-start gap-2.5 px-1 text-xs font-medium transition-all duration-200 ${
+                        isEmptyDecorationsExiting
+                          ? "opacity-0 -translate-y-2 pointer-events-none"
+                          : "opacity-100 translate-y-0"
+                      }`}
                     >
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
-                )}
+                      <button
+                        type="button"
+                        onClick={() => textareaRef.current?.focus()}
+                        className="px-4 py-1.5 rounded-full bg-[#1e1f20] text-text-primary border border-border-subtle font-semibold shadow-xs cursor-pointer active:scale-95 transition-all"
+                      >
+                        Percakapan
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleOpenVoiceMode}
+                        className="px-3 py-1.5 rounded-full text-text-muted hover:text-text-primary hover:bg-bg-surface/50 cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
+                      >
+                        <AudioLines className="w-3.5 h-3.5 text-blue-400" />
+                        <span>Mode Suara</span>
+                      </button>
+                    </div>
+                  )}
 
-                {/* Active Voice Recording Indicator (1a) */}
-                {isRecording && (
-                  <div className="w-full mb-2 px-3 py-1.5 rounded-xl bg-red-950/40 border border-red-800/50 flex items-center justify-between text-xs text-red-200">
-                    <span className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
-                      <span>
-                        Mendengarkan (Bahasa Indonesia)... Klik ikon mikrofon untuk berhenti.
-                      </span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={() => stopVoiceRecording(true)}
-                      className="text-xs font-medium text-red-300 hover:text-red-100 underline cursor-pointer"
-                    >
-                      Selesai
-                    </button>
-                  </div>
-                )}
 
                 {/* Pending Attachment Chips Preview */}
                 {pendingAttachments.length > 0 && (
@@ -4844,8 +5821,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Polished Input Box */}
-                <div className="bg-bg-elevated border border-border-subtle rounded-[20px] p-2 shadow-2xl flex items-center w-full gap-1.5 sm:gap-2 transition-[border-color,box-shadow] duration-200 hover:border-border-strong focus-within:border-border-strong focus-within:ring-2 focus-within:ring-border-subtle">
+                {/* Polished Input Box (Mobile: rounded-full pill container ~56px; Desktop: rounded-[22px]) */}
+                <div className="bg-bg-elevated border border-border-subtle/80 rounded-full md:rounded-[22px] px-2.5 py-1.5 md:p-2 min-h-[52px] sm:min-h-[56px] shadow-2xl flex items-center w-full gap-1.5 sm:gap-2 transition-[border-color,box-shadow,border-radius] duration-200 hover:border-border-strong focus-within:border-border-strong focus-within:ring-2 focus-within:ring-border-subtle">
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
                     const isAttachmentsFull = pendingAttachments.length >= 4;
@@ -4857,26 +5834,27 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           aria-haspopup="menu"
                           aria-expanded={isAttachmentMenuOpen}
                           onClick={() => {
-                            if (isAttachmentsFull || isLoading || isGenerating) return;
+                            if (isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice) return;
                             setIsAttachmentMenuOpen((prev) => !prev);
                           }}
                           onKeyDown={(e) => {
-                            if (isAttachmentsFull || isLoading || isGenerating) return;
+                            if (isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice) return;
                             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                               e.preventDefault();
                               setIsAttachmentMenuOpen(true);
                             }
                           }}
-                          disabled={isAttachmentsFull || isLoading || isGenerating}
+                          disabled={isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice}
                           title={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
                           aria-label={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
-                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-xl flex items-center justify-center transition-all ${
-                            isAttachmentsFull || isLoading || isGenerating
-                              ? "text-icon-muted opacity-40 cursor-not-allowed"
-                              : "text-icon-muted hover:text-text-primary hover:bg-bg-surface active:scale-95 cursor-pointer"
+                          className={`w-10 h-10 min-w-[40px] min-h-[40px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full flex items-center justify-center transition-all ${
+                            isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice
+                              ? "text-icon-muted opacity-40 cursor-not-allowed pointer-events-none"
+                              : "text-text-secondary hover:text-text-primary hover:bg-bg-surface active:scale-95 cursor-pointer"
                           }`}
                         >
-                          <Paperclip className="w-4 h-4" />
+                          <Plus className="w-5 h-5 md:hidden" />
+                          <Paperclip className="w-4 h-4 hidden md:block" />
                         </button>
 
                         {/* Tooltip when 4 attachments reached */}
@@ -4891,16 +5869,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                         {/* Attachment Popover Menu (All Devices) */}
                         {isAttachmentMenuOpen && (
-                          <div
-                            role="menu"
-                            aria-label="Pilihan lampiran"
-                            onKeyDown={(e) =>
-                              handleMenuArrowKeyDown(e, attachmentItemRefs.current, () =>
-                                closeAttachmentMenu(true)
-                              )
-                            }
-                            className="absolute left-0 bottom-full mb-2.5 z-40 w-64 sm:w-72 rounded-2xl bg-bg-elevated border border-border-strong p-1.5 shadow-2xl space-y-1 animate-user-bubble focus:outline-none"
-                          >
+                          <>
+                            {/* Mobile backdrop */}
+                            <div
+                              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150 sm:hidden"
+                              onClick={() => closeAttachmentMenu(true)}
+                              aria-hidden="true"
+                            />
+                            <div
+                              role="menu"
+                              aria-label="Pilihan lampiran"
+                              onKeyDown={(e) =>
+                                handleMenuArrowKeyDown(e, attachmentItemRefs.current, () =>
+                                  closeAttachmentMenu(true)
+                                )
+                              }
+                              className="absolute left-0 bottom-full mb-2.5 z-40 w-64 sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-bg-elevated border border-border-strong p-1.5 shadow-2xl space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-150 focus:outline-none"
+                            >
                             {/* 1. Foto & Gambar */}
                             <button
                               ref={(el) => {
@@ -4965,7 +5950,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               </p>
                             </div>
                           </div>
-                        )}
+                        </>
+                      )}
 
                         {/* Hidden Native File Inputs */}
                         <input
@@ -5011,208 +5997,346 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     );
                   })()}
 
-                  <div className="flex-1 min-w-0 flex items-center">
-                    <textarea
-                      ref={textareaRef}
-                      rows={1}
-                      value={inputText}
-                      onChange={handleTextareaChange}
-                      onKeyDown={handleKeyDown}
-                      onPaste={handlePaste}
-                      onFocus={() => {
-                        if (typeof window !== "undefined" && window.innerWidth < 1024) {
-                          setTimeout(() => {
-                            textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-                          }, 300);
-                        }
+                  {isRecording ? (
+                    <InlineVoiceWaveform
+                      analyser={dictationAnalyser}
+                      recordingSeconds={recordingSeconds}
+                      onSpeechDetected={() => {
+                        hasSpokenRef.current = true;
                       }}
-                      aria-label="Ketik pesan untuk Axioma"
-                      placeholder="Tanya apa saja…"
-                      className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary placeholder:text-text-muted text-base focus:outline-none px-1 py-2.5 max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out"
                     />
-                  </div>
-
-                  <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 self-center">
-                    {/* Desktop Engine Selector (Item 5, UI Bug 2) */}
-                    <div className="relative hidden lg:block">
-                      <button
-                        ref={desktopAgentTriggerRef}
-                        type="button"
-                        aria-haspopup="menu"
-                        aria-expanded={isAgentMenuOpen}
-                        onClick={() => setIsAgentMenuOpen((prev) => !prev)}
-                        onKeyDown={(e) => {
-                          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                            e.preventDefault();
-                            setIsAgentMenuOpen(true);
+                  ) : isTranscribingVoice ? (
+                    <div className="flex-1 min-w-0 flex items-center justify-center gap-2 py-2 px-3 animate-in fade-in duration-150">
+                      <div className="flex items-center gap-1.5" aria-hidden="true">
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.3s]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.15s]" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-bounce" />
+                      </div>
+                      <span className="text-xs text-text-muted font-medium select-none">
+                        Mentranskripsikan...
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex-1 min-w-0 flex items-center">
+                      <textarea
+                        ref={textareaRef}
+                        rows={1}
+                        value={inputText}
+                        onChange={handleTextareaChange}
+                        onKeyDown={handleKeyDown}
+                        onPaste={handlePaste}
+                        onFocus={() => {
+                          if (typeof window !== "undefined" && window.innerWidth < 1024) {
+                            setTimeout(() => {
+                              textareaRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+                            }, 300);
                           }
                         }}
-                        className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold tracking-tight text-text-secondary hover:text-text-primary hover:bg-bg-surface active:scale-95 transition-all cursor-pointer"
-                        aria-label="Pilih model"
+                        aria-label="Ketik pesan untuk Axioma"
+                        placeholder="Minta Axioma..."
+                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary placeholder:text-text-muted text-base focus:outline-none px-1.5 py-2 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out"
+                      />
+                    </div>
+                  )}
+
+                  {isRecording ? (
+                    <div className="flex items-center gap-2 shrink-0 self-center animate-in fade-in duration-150">
+                      {/* STOP Button (grey circular button with square stop icon) */}
+                      <button
+                        type="button"
+                        onClick={() => stopVoiceRecording("stop")}
+                        aria-label="Hentikan rekaman"
+                        title="Hentikan rekaman (masukkan teks ke kotak input)"
+                        className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-white/10 hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-white/90 shadow-xs"
                       >
-                        <span>{selectedAgent.shortName}</span>
-                        <ChevronDown className="w-3.5 h-3.5 text-icon-muted" />
+                        <Square className="w-4 h-4 fill-current rounded-xs" />
                       </button>
 
-                      {isAgentMenuOpen && (
-                        <div
-                          ref={desktopAgentMenuRef}
-                          role="menu"
-                          aria-label="Pilih model AI"
-                          onKeyDown={(e) =>
-                            handleMenuArrowKeyDown(e, desktopAgentItemRefs.current, () =>
-                              closeDesktopAgentMenu(true)
-                            )
-                          }
-                          className="absolute bottom-full mb-2 right-0 z-40 w-72 sm:w-80 rounded-xl bg-bg-elevated border border-border-subtle p-1.5 shadow-2xl space-y-1"
-                        >
-                          {AVAILABLE_AGENTS.map((agent, idx) => (
-                            <button
-                              ref={(el) => {
-                                desktopAgentItemRefs.current[idx] = el;
-                              }}
-                              type="button"
-                              role="menuitemradio"
-                              aria-checked={agent.id === selectedAgent.id}
-                              key={agent.id}
-                              onClick={() => {
-                                handleSelectAgent(agent);
-                                closeDesktopAgentMenu(true);
-                              }}
-                              className={`w-full text-left px-2.5 py-2 rounded-lg text-xs tracking-tight transition-colors flex items-center justify-between focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer ${
-                                agent.id === selectedAgent.id
-                                  ? "bg-bg-surface text-text-primary font-medium"
-                                  : "text-text-secondary hover:text-text-primary hover:bg-bg-surface/50"
-                              }`}
-                            >
-                              <div className="min-w-0 pr-2">
-                                <div className="text-text-primary font-medium">{agent.name}</div>
-                                <div className="text-[11px] text-text-muted line-clamp-2 leading-relaxed">
-                                  {agent.description}
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-1.5 shrink-0">
-                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-surface text-text-secondary font-medium border border-border-subtle">
-                                  {agent.tag}
-                                </span>
-                                {agent.id === selectedAgent.id && (
-                                  <Check className="w-3.5 h-3.5 text-text-primary" />
-                                )}
-                              </div>
-                            </button>
-                          ))}
-                        </div>
-                      )}
+                      {/* KIRIM Button (blue accent circular button with arrow up) */}
+                      <button
+                        type="button"
+                        onClick={() => stopVoiceRecording("send")}
+                        aria-label="Kirim rekaman"
+                        title="Kirim rekaman langsung"
+                        className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-blue-600 hover:bg-blue-500 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-white shadow-md shadow-blue-500/25"
+                      >
+                        <ArrowUp className="w-5 h-5 stroke-[2.5]" />
+                      </button>
                     </div>
-
-                    {/* Voice Input Mic Button (Item 3: >= 40x40px on mobile) */}
-                    <div className="relative group shrink-0">
-                      {isSpeechSupported ? (
+                  ) : isTranscribingVoice ? (
+                    <div className="flex items-center shrink-0 self-center px-2 animate-in fade-in duration-150">
+                      <div className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-bg-surface/50 flex items-center justify-center">
+                        <Loader2 className="w-5 h-5 animate-spin text-text-muted" />
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 sm:gap-2 shrink-0 self-center">
+                      {/* Desktop Engine Selector (Item 5, UI Bug 2) */}
+                      <div className="relative hidden lg:block">
                         <button
+                          ref={desktopAgentTriggerRef}
                           type="button"
-                          onClick={handleToggleVoiceRecording}
-                          aria-pressed={isRecording}
-                          title={
-                            isRecording
-                              ? "Klik untuk berhenti merekam"
-                              : "Input suara (Bahasa Indonesia)"
-                          }
-                          aria-label={
-                            isRecording ? "Hentikan perekaman suara" : "Mulai input suara"
-                          }
-                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-xl flex items-center justify-center transition-all cursor-pointer border ${
-                            isRecording
-                              ? "bg-red-500/20 text-red-400 border-red-500/60 animate-pulse shadow-sm"
-                              : "text-icon-muted hover:text-text-primary hover:bg-bg-surface border-transparent"
-                          }`}
+                          aria-haspopup="menu"
+                          aria-expanded={isAgentMenuOpen}
+                          onClick={() => setIsAgentMenuOpen((prev) => !prev)}
+                          onKeyDown={(e) => {
+                            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                              e.preventDefault();
+                              setIsAgentMenuOpen(true);
+                            }
+                          }}
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold tracking-tight text-text-secondary hover:text-text-primary hover:bg-bg-surface active:scale-95 transition-all cursor-pointer"
+                          aria-label="Pilih model"
                         >
-                          <Mic className="w-4 h-4" />
+                          <span>{selectedAgent.shortName}</span>
+                          <ChevronDown className="w-3.5 h-3.5 text-icon-muted" />
                         </button>
-                      ) : (
-                        <>
+
+                        {isAgentMenuOpen && (
+                          <div
+                            ref={desktopAgentMenuRef}
+                            role="menu"
+                            aria-label="Pilih model AI"
+                            onKeyDown={(e) =>
+                              handleMenuArrowKeyDown(e, desktopAgentItemRefs.current, () =>
+                                closeDesktopAgentMenu(true)
+                              )
+                            }
+                            className="absolute bottom-full mb-2 right-0 z-50 w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-bg-elevated border border-border-subtle p-2 shadow-2xl space-y-1.5 focus:outline-none animate-in fade-in slide-in-from-bottom-2 duration-150 motion-safe:transition-all"
+                          >
+                            {AVAILABLE_AGENTS.map((agent, idx) => {
+                              const isSelected = agent.id === selectedAgent.id;
+                              return (
+                                <button
+                                  ref={(el) => {
+                                    desktopAgentItemRefs.current[idx] = el;
+                                  }}
+                                  type="button"
+                                  role="menuitemradio"
+                                  aria-checked={isSelected}
+                                  key={agent.id}
+                                  onClick={() => {
+                                    handleSelectAgent(agent);
+                                    closeDesktopAgentMenu(true);
+                                  }}
+                                  className={`w-full text-left p-3 rounded-lg text-xs tracking-tight transition-colors flex flex-col gap-1.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer border ${
+                                    isSelected
+                                      ? "bg-bg-surface border-border-subtle text-text-primary font-medium"
+                                      : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-surface/50"
+                                  }`}
+                                >
+                                  {/* Baris atas: nama model & badge */}
+                                  <div className="flex items-start justify-between gap-2 w-full">
+                                    <div className="flex items-center gap-2 min-w-0">
+                                      <span className="font-semibold text-text-primary text-sm tracking-tight truncate">
+                                        {agent.name}
+                                      </span>
+                                      {isSelected && (
+                                        <Check className="w-4 h-4 text-text-primary shrink-0" />
+                                      )}
+                                    </div>
+                                    <span className="text-[11px] px-2 py-0.5 rounded bg-bg-surface text-text-secondary font-medium border border-border-subtle shrink-0 whitespace-nowrap">
+                                      {agent.tag}
+                                    </span>
+                                  </div>
+
+                                  {/* Baris bawah: deskripsi selebar penuh */}
+                                  <p className="text-sm text-text-muted leading-snug break-words">
+                                    {agent.description}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Voice Input Mic Button (Dikte) */}
+                      <div className="relative group shrink-0">
+                        {isSpeechSupported ? (
                           <button
                             type="button"
-                            disabled
-                            aria-disabled="true"
-                            title="Browser tidak mendukung input suara"
-                            aria-label="Browser tidak mendukung input suara"
-                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-xl flex items-center justify-center text-icon-muted opacity-50 cursor-not-allowed"
+                            onClick={handleToggleVoiceRecording}
+                            title="Dikte suara (Bahasa Indonesia)"
+                            aria-label="Mulai dikte"
+                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full md:rounded-xl flex items-center justify-center text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-all cursor-pointer border border-transparent active:scale-95"
                           >
-                            <MicOff className="w-4 h-4" />
+                            <Mic className="w-5 h-5 lg:w-4 lg:h-4" />
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              type="button"
+                              disabled
+                              aria-disabled="true"
+                              title="Perangkat tidak mendukung input mikrofon"
+                              aria-label="Perangkat tidak mendukung input mikrofon"
+                              className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full md:rounded-xl flex items-center justify-center text-icon-muted opacity-50 cursor-not-allowed"
+                            >
+                              <MicOff className="w-5 h-5 lg:w-4 lg:h-4" />
+                            </button>
+                            <span
+                              role="tooltip"
+                              className="pointer-events-none absolute right-0 bottom-full mb-2 px-2 py-1 rounded-md bg-bg-elevated border border-border-subtle text-[11px] text-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shadow-lg z-30"
+                            >
+                              Mikrofon tidak didukung
+                            </span>
+                          </>
+                        )}
+                      </div>
+
+                      {/* MOBILE ACTION BUTTON: Morphing Mode Suara <-> Send / Stop (< md) */}
+                      <div className="md:hidden shrink-0 flex items-center">
+                        {isGenerating ? (
+                          <button
+                            type="button"
+                            onClick={handleStopGeneration}
+                            title="Hentikan respons"
+                            aria-label="Hentikan respons"
+                            className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center bg-text-primary text-bg-primary hover:opacity-90 active:scale-[0.92] transition-transform duration-150 ease-out shadow-md cursor-pointer"
+                          >
+                            <Square className="w-3.5 h-3.5 fill-current" />
+                          </button>
+                        ) : (() => {
+                          const isUploadingAttachment = pendingAttachments.some(
+                            (a) => a.status === "uploading" || a.status === "compressing"
+                          );
+                          const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
+                          const hasUserTextOrAttachments = Boolean(inputText.trim()) || hasReadyAttachments;
+
+                          if (hasUserTextOrAttachments) {
+                            const isSendDisabled =
+                              !isOnline ||
+                              isUploadingAttachment ||
+                              isLoading ||
+                              isGenerating ||
+                              isSubmitting;
+
+                            return (
+                              <button
+                                type="button"
+                                onClick={() => void handleSendMessage()}
+                                disabled={isSendDisabled}
+                                title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
+                                aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
+                                className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all duration-200 ease-out ${
+                                  !isSendDisabled
+                                    ? "bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25 active:scale-[0.92] cursor-pointer"
+                                    : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
+                                }`}
+                              >
+                                {isUploadingAttachment ? (
+                                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                ) : (
+                                  <ArrowUp className="w-5 h-5 text-white stroke-[2.5]" />
+                                )}
+                              </button>
+                            );
+                          }
+
+                          // Mode Suara button (default when no text/attachment)
+                          return (
+                            <button
+                              type="button"
+                              onClick={handleOpenVoiceMode}
+                              title="Mode Suara (Percakapan langsung)"
+                              aria-label="Mode Suara (Percakapan langsung)"
+                              className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25 active:scale-[0.92] transition-all duration-200 cursor-pointer"
+                            >
+                              <AudioLines className="w-5 h-5 text-white" />
+                            </button>
+                          );
+                        })()}
+                      </div>
+
+                      {/* DESKTOP ACTIONS: Mode Suara + Send / Stop (>= md) */}
+                      <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
+                        {/* Mode Suara (ChatGPT-style Voice Mode) Button */}
+                        <div className="relative group shrink-0">
+                          <button
+                            type="button"
+                            onClick={handleOpenVoiceMode}
+                            title="Mode Suara (Percakapan langsung)"
+                            aria-label="Mode Suara (Percakapan langsung)"
+                            className="w-8 h-8 p-1.5 rounded-xl flex items-center justify-center text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-all cursor-pointer border border-transparent active:scale-[0.94]"
+                          >
+                            <AudioLines className="w-4 h-4" />
                           </button>
                           <span
                             role="tooltip"
                             className="pointer-events-none absolute right-0 bottom-full mb-2 px-2 py-1 rounded-md bg-bg-elevated border border-border-subtle text-[11px] text-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shadow-lg z-30"
                           >
-                            Browser tidak mendukung input suara
+                            Mode Suara
                           </span>
-                        </>
-                      )}
+                        </div>
+
+                        {/* Desktop Send / Stop button */}
+                        {isGenerating ? (
+                          <button
+                            type="button"
+                            onClick={handleStopGeneration}
+                            title="Hentikan respons"
+                            aria-label="Hentikan respons"
+                            className="w-8 h-8 rounded-full flex items-center justify-center bg-text-primary text-bg-primary hover:opacity-90 active:scale-[0.94] transition-[opacity] duration-150 ease-out shadow-md cursor-pointer"
+                          >
+                            <Square className="w-3.5 h-3.5 fill-current" />
+                          </button>
+                        ) : (() => {
+                          const isUploadingAttachment = pendingAttachments.some(
+                            (a) => a.status === "uploading" || a.status === "compressing"
+                          );
+                          const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
+                          const isSendDisabled =
+                            !isOnline ||
+                            (!inputText.trim() && !hasReadyAttachments) ||
+                            isUploadingAttachment ||
+                            isLoading ||
+                            isGenerating ||
+                            isSubmitting;
+
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => void handleSendMessage()}
+                              onPointerDown={() => {
+                                if (!isSendDisabled) {
+                                  setIsSendPressed(true);
+                                }
+                              }}
+                              onPointerUp={() => setIsSendPressed(false)}
+                              onPointerLeave={() => setIsSendPressed(false)}
+                              disabled={isSendDisabled}
+                              title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
+                              aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
+                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity] duration-200 ease-out ${
+                                !isSendDisabled
+                                  ? `bg-text-primary text-bg-primary hover:opacity-90 shadow-md cursor-pointer ${
+                                      isSendPressed ? "scale-[0.94]" : "scale-100"
+                                    }`
+                                  : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
+                              }`}
+                            >
+                              {isUploadingAttachment ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin text-text-muted" />
+                              ) : (
+                                <ArrowUp className="w-4 h-4" />
+                              )}
+                            </button>
+                          );
+                        })()}
+                      </div>
                     </div>
-
-                    {/* Send / Stop button (Item 3: >= 44x44px on mobile/tablet, 32x32px on desktop) */}
-                    {isGenerating ? (
-                      <button
-                        type="button"
-                        onClick={handleStopGeneration}
-                        title="Hentikan respons"
-                        aria-label="Hentikan respons"
-                        className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full flex items-center justify-center bg-text-primary text-bg-primary hover:opacity-90 active:scale-[0.94] transition-[opacity] duration-150 ease-out shadow-md cursor-pointer"
-                      >
-                        <Square className="w-3.5 h-3.5 fill-current" />
-                      </button>
-                    ) : (() => {
-                      const isUploadingAttachment = pendingAttachments.some(
-                        (a) => a.status === "uploading" || a.status === "compressing"
-                      );
-                      const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
-                      const isSendDisabled =
-                        !isOnline ||
-                        (!inputText.trim() && !hasReadyAttachments) ||
-                        isUploadingAttachment ||
-                        isLoading;
-
-                      return (
-                        <button
-                          type="button"
-                          onClick={() => void handleSendMessage()}
-                          onPointerDown={() => {
-                            if (!isSendDisabled) {
-                              setIsSendPressed(true);
-                            }
-                          }}
-                          onPointerUp={() => setIsSendPressed(false)}
-                          onPointerLeave={() => setIsSendPressed(false)}
-                          disabled={isSendDisabled}
-                          title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                          aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity] duration-200 ease-out ${
-                            !isSendDisabled
-                              ? `bg-text-primary text-bg-primary hover:opacity-90 shadow-md cursor-pointer ${
-                                  isSendPressed ? "scale-[0.94]" : "scale-100"
-                                }`
-                              : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
-                          }`}
-                        >
-                          {isUploadingAttachment ? (
-                            <Loader2 className="w-3.5 h-3.5 animate-spin text-text-muted" />
-                          ) : (
-                            <ArrowUp className="w-4 h-4" />
-                          )}
-                        </button>
-                      );
-                    })()}
-                  </div>
+                  )}
                 </div>
 
-                {/* 4 Starter Prompt Cards (Empty State only: 2x2 grid on mobile & desktop so 4th card never overlaps disclaimer) */}
+                {/* 4 Starter Prompt Cards (Empty State only: 2x2 grid on desktop, hidden on mobile) */}
                 {showEmptyDecorations &&
                   !(
                     isChatAreaLoading &&
                     Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                   ) && (
                     <div
-                      className={`absolute top-full left-0 right-0 mt-3 sm:mt-4 grid grid-cols-2 gap-2 sm:gap-2.5 transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
+                      className={`hidden md:grid absolute top-full left-0 right-0 mt-3 sm:mt-4 grid-cols-2 gap-2 sm:gap-2.5 transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
                         isEmptyDecorationsExiting
                           ? "opacity-0 -translate-y-2.5 pointer-events-none"
                           : "opacity-100 translate-y-0"
@@ -5246,9 +6370,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
               <div className="text-center text-[11px] sm:text-xs text-text-muted pt-2.5 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
-                <span>Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
-                <span className="hidden sm:inline text-border-strong">•</span>
-                <span className="inline-flex items-center gap-2">
+                <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
+                <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
+                <span className="hidden md:inline text-border-strong">•</span>
+                <span className="hidden md:inline-flex items-center gap-2">
                   <Link
                     href="/privasi"
                     className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
@@ -5324,8 +6449,32 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Cloudflare Turnstile Invisible Container (#9) */}
-      <div id="turnstile-container" className="hidden" aria-hidden="true" />
+      {/* ChatGPT-style Voice Mode Fullscreen Overlay (Item 10) */}
+      {isVoiceModeOpen && (
+        <VoiceModeOverlay
+          isOpen={isVoiceModeOpen}
+          onClose={() => setIsVoiceModeOpen(false)}
+          backendUrl={BACKEND_URL}
+          authHeaders={(() => {
+            const uid = currentUserId || safeGetLocalStorage(STORAGE_KEYS.USER_ID) || "";
+            const h: Record<string, string> = {};
+            if (uid) h["X-User-Id"] = uid;
+            return h;
+          })()}
+          chatId={activeChatId === "new-chat" ? currentSessionChatId : activeChatId}
+          agentId={selectedAgent.id}
+          agentName={selectedAgent.name}
+          getTurnstileToken={async () => {
+            const token = await getTurnstileToken().catch(() => "");
+            return token || "";
+          }}
+          onSendMessage={handleVoiceModeSendMessage}
+          onTurnComplete={handleVoiceModeTurnComplete}
+        />
+      )}
+
+      {/* Cloudflare Turnstile Invisible Container (#2, #9) */}
+      <div id="turnstile-container" className="fixed -bottom-96 -left-96 opacity-0 pointer-events-none" aria-hidden="true" />
     </div>
   );
 }

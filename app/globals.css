@@ -95,6 +95,19 @@ body {
   height: 0;
 }
 
+.no-scrollbar::-webkit-scrollbar,
+.scrollbar-none::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar,
+.scrollbar-none {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
 /* ==========================================================================
    Axioma Markdown Typography (#1, #2, #3)
    Restores and styles headings, ordered/unordered lists, tables, blockquotes,
