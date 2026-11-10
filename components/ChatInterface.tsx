@@ -5099,26 +5099,26 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
             ) && (
               <div
-                className={`md:hidden flex-1 min-h-0 z-10 flex flex-col items-center justify-center px-6 text-center transition-all duration-300 pointer-events-none ${
+                className={`md:hidden flex-1 min-h-0 z-10 flex flex-col items-center justify-center px-4 text-center transition-all duration-300 pointer-events-none ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                 }`}
               >
-                <div className="w-full max-w-sm flex flex-col items-center gap-3 sm:gap-5">
+                <div className="w-full max-w-[320px] sm:max-w-md mx-auto flex flex-col items-center px-2">
                   {/* Brand Logo with subtle glow and smooth entrance */}
-                  <div className="relative group">
-                    <div className="absolute -inset-3 bg-gradient-to-r from-blue-500/25 via-indigo-500/25 to-sky-500/25 rounded-2xl blur-xl opacity-75" />
+                  <div className="relative group mb-5 sm:mb-6">
+                    <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/30 via-indigo-500/30 to-sky-500/30 rounded-2xl blur-xl opacity-80" />
                     <Image
                       src="/brand/axioma-logo.png"
                       alt="Axioma"
-                      width={44}
-                      height={44}
-                      className="relative w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-xl drop-shadow-xl dark:ring-1 dark:ring-white/10"
+                      width={56}
+                      height={56}
+                      className="relative w-14 h-14 sm:w-16 sm:h-16 object-contain rounded-2xl drop-shadow-2xl dark:ring-1 dark:ring-white/15"
                       priority
                     />
                   </div>
 
                   {/* Sapaan besar */}
-                  <h1 className="text-xl sm:text-2xl md:text-[28px] font-medium sm:font-semibold text-text-primary tracking-tight leading-snug text-balance">
+                  <h1 className="text-[32px] sm:text-4xl font-medium sm:font-semibold text-text-primary tracking-tight leading-[1.2] text-center text-balance">
                     {mobileGreeting}
                   </h1>
                 </div>
@@ -5742,7 +5742,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                   ) && (
                     <div
-                      className={`md:hidden w-full mb-3 flex items-center justify-start gap-2.5 px-1 text-xs font-medium transition-all duration-200 ${
+                      className={`md:hidden w-full mb-3 flex items-center justify-center gap-2.5 px-1 text-xs font-medium transition-all duration-200 ${
                         isEmptyDecorationsExiting
                           ? "opacity-0 -translate-y-2 pointer-events-none"
                           : "opacity-100 translate-y-0"
