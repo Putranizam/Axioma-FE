@@ -74,8 +74,22 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Prevent iOS Safari auto-zoom on input focus */
+/* Prevent iOS Safari scrolling and auto-zoom on input focus */
 @media screen and (max-width: 768px) {
+  html,
+  body {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 100%;
+    height: var(--viewport-height, 100dvh);
+    width: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
+
   input,
   textarea,
   select {

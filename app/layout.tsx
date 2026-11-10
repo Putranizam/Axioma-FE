@@ -87,6 +87,7 @@ export const viewport: Viewport = {
   themeColor: "#09090b",
   width: "device-width",
   initialScale: 1,
+  maximumScale: 1,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
 };
@@ -99,7 +100,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${geistSans.variable} ${geistMono.variable} dark h-full h-[100dvh] overflow-hidden`}
+      className={`${geistSans.variable} ${geistMono.variable} dark h-full overflow-hidden`}
       suppressHydrationWarning
     >
       <head>
@@ -110,7 +111,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="h-full h-[100dvh] w-full overflow-hidden bg-bg-primary text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary"
+        className="h-full w-full overflow-hidden bg-bg-primary text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary"
         suppressHydrationWarning
       >
         {children}

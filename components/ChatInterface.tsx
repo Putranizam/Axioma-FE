@@ -639,6 +639,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isUserScrolledUp, setIsUserScrolledUp] = useState<boolean>(false);
   const [greeting, setGreeting] = useState<string>("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
 
   // User profile & model selection state (persisted in localStorage)
   const [displayName, setDisplayName] = useState<string>(DEFAULT_DISPLAY_NAME);
@@ -896,6 +897,52 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       return () => mediaQuery.removeListener(handleOsThemeChange);
     }
   }, [themeMode, applyTheme]);
+
+  // VisualViewport listener for native mobile iOS Safari keyboard handling
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleViewportChange = () => {
+      const vv = window.visualViewport;
+      const height = vv ? vv.height : window.innerHeight;
+      document.documentElement.style.setProperty("--viewport-height", `${height}px`);
+
+      const isMobile = window.innerWidth < 768;
+      const screenH = window.screen?.height || window.innerHeight;
+      const isKeyboard = isMobile && vv ? vv.height < screenH - 120 : false;
+      setIsKeyboardOpen(isKeyboard);
+
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    handleViewportChange();
+
+    const vv = window.visualViewport;
+    if (vv) {
+      vv.addEventListener("resize", handleViewportChange);
+      vv.addEventListener("scroll", handleViewportChange);
+    }
+
+    const handleWindowScroll = () => {
+      if (window.scrollY !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+    window.addEventListener("resize", handleViewportChange);
+
+    return () => {
+      if (vv) {
+        vv.removeEventListener("resize", handleViewportChange);
+        vv.removeEventListener("scroll", handleViewportChange);
+      }
+      window.removeEventListener("scroll", handleWindowScroll);
+      window.removeEventListener("resize", handleViewportChange);
+    };
+  }, []);
 
   const focusDesktopTextarea = useCallback(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
@@ -4061,7 +4108,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           void handleFilesSelected(e.dataTransfer.files);
         }
       }}
-      className="flex flex-col lg:flex-row h-[100dvh] w-full max-w-full bg-bg-primary text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary relative"
+      style={{ height: "var(--viewport-height, 100dvh)" }}
+      className="flex flex-col lg:flex-row w-full max-w-full bg-bg-primary text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary relative"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5037,7 +5085,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </header>
 
         {/* Dynamic Chat Workspace */}
-        <div className="flex-1 flex flex-col h-full min-h-0 overflow-hidden relative">
+        <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
           {/* Ambient bottom radial glow (Axioma dark aesthetic) */}
           <div
             className="pointer-events-none absolute inset-x-0 bottom-0 h-[45vh] bg-[radial-gradient(ellipse_at_bottom,_rgba(37,99,235,0.12),_rgba(30,27,75,0.06)_40%,_transparent_70%)] dark:bg-[radial-gradient(ellipse_at_bottom,_rgba(56,189,248,0.09),_rgba(30,58,138,0.05)_45%,_transparent_75%)] z-0"
@@ -5051,11 +5099,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
             ) && (
               <div
-                className={`md:hidden absolute inset-x-0 top-4 bottom-28 z-10 flex flex-col items-center justify-center px-6 text-center transition-all duration-300 pointer-events-none ${
+                className={`md:hidden flex-1 min-h-0 z-10 flex flex-col items-center justify-center px-6 text-center transition-all duration-300 pointer-events-none ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                 }`}
               >
-                <div className="w-full max-w-sm flex flex-col items-center gap-5">
+                <div className="w-full max-w-sm flex flex-col items-center gap-3 sm:gap-5">
                   {/* Brand Logo with subtle glow and smooth entrance */}
                   <div className="relative group">
                     <div className="absolute -inset-3 bg-gradient-to-r from-blue-500/25 via-indigo-500/25 to-sky-500/25 rounded-2xl blur-xl opacity-75" />
@@ -5064,13 +5112,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       alt="Axioma"
                       width={44}
                       height={44}
-                      className="relative w-11 h-11 object-contain rounded-xl drop-shadow-xl dark:ring-1 dark:ring-white/10"
+                      className="relative w-10 h-10 sm:w-11 sm:h-11 object-contain rounded-xl drop-shadow-xl dark:ring-1 dark:ring-white/10"
                       priority
                     />
                   </div>
 
                   {/* Sapaan besar */}
-                  <h1 className="text-2xl sm:text-[28px] font-medium sm:font-semibold text-text-primary tracking-tight leading-snug text-balance">
+                  <h1 className="text-xl sm:text-2xl md:text-[28px] font-medium sm:font-semibold text-text-primary tracking-tight leading-snug text-balance">
                     {mobileGreeting}
                   </h1>
                 </div>
@@ -5093,12 +5141,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <div
             ref={scrollRef}
             onScroll={handleChatScroll}
-            className={`flex-1 overflow-y-auto transition-opacity duration-200 ease-out ${
+            className={`flex-1 min-h-0 overflow-y-auto transition-opacity duration-200 ease-out ${
               hasMessages ||
               (isChatAreaLoading &&
                 Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat")))
                 ? "opacity-100 py-6 px-4"
-                : "opacity-0 pointer-events-none py-0"
+                : "opacity-0 pointer-events-none py-0 hidden md:flex"
             } max-w-2xl lg:max-w-3xl mx-auto w-full flex flex-col gap-5 sm:gap-6 md:gap-8`}
           >
             {isChatAreaLoading &&
@@ -5638,7 +5686,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)]/80 to-transparent z-10" />
 
           {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) on Desktop; Docked at Bottom on Mobile */}
-          <div className="w-full px-3 sm:px-4 shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-1.5 sm:pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent relative z-20">
+          <div
+            className={`w-full px-3 sm:px-4 shrink-0 pt-1.5 sm:pt-2 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent relative z-20 ${
+              isKeyboardOpen
+                ? "pb-2"
+                : "pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
+            }`}
+          >
             <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
               <div
                 className={`relative w-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform ${
@@ -6004,6 +6058,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onChange={handleTextareaChange}
                         onKeyDown={handleKeyDown}
                         onPaste={handlePaste}
+                        onFocus={() => {
+                          if (typeof window !== "undefined") {
+                            if (window.scrollY !== 0) window.scrollTo(0, 0);
+                            requestAnimationFrame(() => {
+                              if (window.scrollY !== 0) window.scrollTo(0, 0);
+                            });
+                          }
+                        }}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder="Minta Axioma..."
                         className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary placeholder:text-text-muted text-base focus:outline-none px-1.5 py-2 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out"
@@ -6341,7 +6403,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </div>
 
               {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
-              <div className="text-center text-[11px] sm:text-xs text-text-muted pt-1 sm:pt-2.5 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5">
+              <div
+                className={`text-center text-[11px] sm:text-xs text-text-muted pt-1 sm:pt-2.5 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 ${
+                  isKeyboardOpen ? "hidden md:flex" : "flex"
+                }`}
+              >
                 <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
                 <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
                 <span className="hidden md:inline text-border-strong">•</span>
