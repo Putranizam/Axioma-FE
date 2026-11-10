@@ -5,44 +5,42 @@ import "./globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
+  preload: true,
 });
 
 const appBaseUrl = (() => {
-  const raw = (process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000").trim();
+  const raw = (process.env.NEXT_PUBLIC_APP_URL || "https://axioma.my.id").trim();
   try {
     return new URL(raw);
   } catch {
-    return new URL("http://localhost:3000");
+    return new URL("https://axioma.my.id");
   }
 })();
 
-const allowIndexing = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true";
-
 export const metadata: Metadata = {
   metadataBase: appBaseUrl,
-  robots: allowIndexing
-    ? {
-        index: true,
-        follow: true,
-      }
-    : {
-        index: false,
-        follow: false,
-        nocache: true,
-        googleBot: {
-          index: false,
-          follow: false,
-          noimageindex: true,
-        },
-      },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+    },
+  },
+  alternates: {
+    canonical: "/",
+  },
   title: {
     default: "Axioma — Asisten AI Cerdas untuk Analisis, Penulisan & Pemrograman",
-    template: "%s",
+    template: "%s | Axioma",
   },
   description:
     "Axioma adalah ruang kerja asisten AI cerdas berbahasa Indonesia untuk penalaran strategis, penulisan profesional, eksplorasi ide, dan arsitektur perangkat lunak.",
@@ -104,6 +102,8 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <head>
+        <link rel="preconnect" href="https://axioma-be.onrender.com" crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href="https://axioma-be.onrender.com" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var d=document.documentElement;var m=window.matchMedia("(prefers-color-scheme: dark)");function apply(){var t=localStorage.getItem("axioma_theme");var isDark=t==="dark"||((!t||t==="system")&&m.matches);if(isDark){d.classList.add("dark");d.classList.remove("light");}else{d.classList.remove("dark");d.classList.add("light");}}apply();if(m&&m.addEventListener){m.addEventListener("change",function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}else if(m&&m.addListener){m.addListener(function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}}catch(e){}})();`,

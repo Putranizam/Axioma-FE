@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -59,7 +60,6 @@ import {
   Loader2,
   WifiOff,
 } from "lucide-react";
-import { CodeBlock } from "./CodeBlock";
 import {
   AttachmentItem,
   PendingAttachment,
@@ -70,13 +70,21 @@ import {
   formatFileSize,
   MAX_FILES_PER_MESSAGE,
 } from "../lib/attachments";
-import VoiceModeOverlay from "./VoiceModeOverlay";
 import {
   checkVoiceSupport,
   getSupportedAudioMimeType,
   unlockAudioSystem,
   transcribeAudioBlob,
 } from "../lib/voice";
+
+// Dynamic imports for code splitting & faster First Load JS
+const CodeBlock = dynamic(() => import("./CodeBlock").then((mod) => mod.CodeBlock), {
+  ssr: false,
+});
+
+const VoiceModeOverlay = dynamic(() => import("./VoiceModeOverlay"), {
+  ssr: false,
+});
 
 // In-app WebView / older browser polyfills and guards (#6)
 if (typeof Array.prototype.at !== "function") {
@@ -5751,6 +5759,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <button
                         type="button"
                         onClick={() => textareaRef.current?.focus()}
+                        aria-label="Mode Percakapan Teks"
                         className="px-4 py-1.5 rounded-full bg-[#1e1f20] text-text-primary border border-border-subtle font-semibold shadow-xs cursor-pointer active:scale-95 transition-all"
                       >
                         Percakapan
@@ -5758,6 +5767,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <button
                         type="button"
                         onClick={handleOpenVoiceMode}
+                        aria-label="Buka Mode Suara"
                         className="px-3 py-1.5 rounded-full text-text-muted hover:text-text-primary hover:bg-bg-surface/50 cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
                       >
                         <AudioLines className="w-3.5 h-3.5 text-blue-400" />
