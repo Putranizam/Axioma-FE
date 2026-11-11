@@ -29,7 +29,11 @@ import {
   ArrowUp,
   ArrowDown,
   ChevronDown,
-  Sparkles,
+  ChevronRight,
+  ChevronsUpDown,
+  Clock,
+  Bell,
+  Database,
   Bot,
   CircleAlert,
   RotateCw,
@@ -44,6 +48,7 @@ import {
   Code,
   TriangleAlert,
   LogOut,
+  Cloud,
   PanelLeftClose,
   PanelLeft,
   Sun,
@@ -810,6 +815,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [settingsDefaultAgentInput, setSettingsDefaultAgentInput] =
     useState<Agent["id"]>("axioma-pro");
   const [themeMode, setThemeMode] = useState<"dark" | "light" | "system">("system");
+  const [expandedSettingsSection, setExpandedSettingsSection] = useState<string | null>(null);
   const [isClearAllConfirmOpen, setIsClearAllConfirmOpen] = useState<boolean>(false);
   const [isClearingAllChats, setIsClearingAllChats] = useState<boolean>(false);
 
@@ -4840,13 +4846,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Settings Modal (1d: Display Name + Default Model) */}
+      {/* Settings Modal (Menyerupai Referensi Gambar 1) */}
       {isSettingsModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className="fixed inset-0 z-50 flex flex-col md:flex-row md:items-center md:justify-center bg-white dark:bg-zinc-950 md:bg-black/70 md:backdrop-blur-xs p-0 md:p-4 overflow-hidden touch-none"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 overflow-hidden"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsSettingsModalOpen(false);
@@ -4855,201 +4861,336 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         >
           <form
             onSubmit={handleSaveSettings}
-            className="w-full h-full md:h-auto md:max-h-[calc(100dvh-2rem)] md:max-w-md bg-white dark:bg-zinc-950 md:rounded-2xl md:border md:border-border-subtle shadow-2xl flex flex-col overflow-hidden"
+            className="w-full sm:max-w-md max-h-[92dvh] sm:max-h-[85dvh] rounded-t-3xl sm:rounded-3xl bg-[#121214] sm:bg-[#18181b] border-t sm:border border-zinc-800 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
           >
-            {/* Pinned Header */}
-            <div className="shrink-0 touch-none select-none flex items-center justify-between border-b border-border-subtle px-4 sm:px-5 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 bg-white dark:bg-zinc-950 z-10">
-              <div>
-                <h2 id="settings-modal-title" className="text-sm font-semibold text-text-primary">
-                  Pengaturan
-                </h2>
-                <p className="text-xs text-text-muted mt-0.5">
-                  Sesuaikan profil tampilan dan model AI default Anda.
-                </p>
-              </div>
+            {/* Grab handle for mobile */}
+            <div className="pt-3 pb-1 shrink-0 flex justify-center sm:hidden">
+              <div className="w-10 h-1 rounded-full bg-zinc-700/60" />
+            </div>
+
+            {/* Modal Header */}
+            <div className="shrink-0 flex items-center justify-between px-5 pt-3 pb-3">
+              <h2 id="settings-modal-title" className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+                Setelan
+              </h2>
               <button
                 type="button"
                 onClick={() => setIsSettingsModalOpen(false)}
-                aria-label="Tutup pengaturan"
-                className="min-w-[40px] min-h-[40px] p-2 rounded-xl text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer flex items-center justify-center shrink-0 -mr-1"
+                aria-label="Tutup setelan"
+                className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            {/* Scrollable Middle Body */}
-            <div className="flex-1 overflow-y-auto overscroll-none touch-pan-y [-webkit-overflow-scrolling:touch] transform-gpu px-4 sm:px-5 py-4 space-y-4">
-              {/* Display Name Input */}
-              <div className="space-y-1.5">
-                <label
-                  htmlFor="settings-display-name"
-                  className="block text-xs font-medium text-text-primary"
-                >
-                  Nama Tampilan
-                </label>
-                <input
-                  ref={settingsNameInputRef}
-                  id="settings-display-name"
-                  type="text"
-                  maxLength={60}
-                  value={settingsNameInput}
-                  aria-invalid={Boolean(settingsNameError)}
-                  onChange={(e) => {
-                    setSettingsNameInput(e.target.value);
-                    if (settingsNameError) setSettingsNameError(null);
-                  }}
-                  placeholder="Masukkan nama tampilan Anda..."
-                  className={`w-full min-h-[40px] px-3.5 py-2 rounded-xl bg-bg-surface border text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none transition-colors ${
-                    settingsNameError
-                      ? "border-red-500/80 focus:border-red-400"
-                      : "border-border-subtle focus:border-border-strong"
-                  }`}
-                />
-                {settingsNameError ? (
-                  <p role="alert" className="text-[11px] text-red-400 font-medium">
-                    {settingsNameError}
-                  </p>
-                ) : (
-                  <p className="text-[11px] text-text-muted">
-                    Disimpan secara aman di peramban perangkat ini.
-                  </p>
-                )}
-              </div>
-
-              {/* Theme Mode Selector (Item 13) */}
-              <div className="space-y-1.5">
-                <label className="block text-xs font-medium text-text-primary">
-                  Tema Tampilan
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { id: "dark" as const, label: "Gelap", icon: Moon },
-                    { id: "light" as const, label: "Terang", icon: Sun },
-                    { id: "system" as const, label: "Sistem", icon: Monitor },
-                  ].map((item) => {
-                    const isSelected = themeMode === item.id;
-                    const Icon = item.icon;
-                    return (
-                      <button
-                        key={item.id}
-                        type="button"
-                        onClick={() => handleSetTheme(item.id)}
-                        className={`min-h-[40px] px-3 py-2 rounded-xl border text-xs font-medium flex items-center justify-center gap-1.5 transition-colors cursor-pointer ${
-                          isSelected
-                            ? "bg-bg-surface border-border-strong text-text-primary shadow-xs font-semibold"
-                            : "bg-bg-elevated border-border-subtle text-text-secondary hover:border-border-strong"
-                        }`}
-                      >
-                        <Icon className="w-3.5 h-3.5" />
-                        <span>{item.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Default Model Selector */}
+            {/* Scrollable Body */}
+            <div className="flex-1 overflow-y-auto px-5 py-2 space-y-5 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
+              {/* Kategori 1: Account */}
               <div className="space-y-2">
-                <label className="block text-xs font-medium text-text-primary">
-                  Model Default
-                </label>
-                <div className="space-y-2">
-                  {AVAILABLE_AGENTS.map((agent) => {
-                    const isChecked = settingsDefaultAgentInput === agent.id;
-                    return (
-                      <label
-                        key={agent.id}
-                        className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-colors min-h-[48px] ${
-                          isChecked
-                            ? "bg-bg-surface border-border-strong text-text-primary"
-                            : "bg-bg-elevated border-border-subtle text-text-secondary hover:border-border-strong"
-                        }`}
-                      >
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <input
-                            type="radio"
-                            name="defaultAgent"
-                            value={agent.id}
-                            checked={isChecked}
-                            onChange={() => setSettingsDefaultAgentInput(agent.id)}
-                            className="w-4 h-4 accent-zinc-900 dark:accent-zinc-100 cursor-pointer shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <div className="font-medium text-text-primary leading-tight">{agent.name}</div>
-                            <div className="text-[11px] text-text-muted leading-relaxed line-clamp-2 mt-0.5">{agent.description}</div>
-                          </div>
-                        </div>
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-bg-surface text-text-secondary font-medium border border-border-subtle ml-2 shrink-0">
-                          {agent.tag}
+                <div className="text-xs font-semibold text-zinc-400 tracking-wide px-1">
+                  Account
+                </div>
+                <div className="rounded-2xl bg-zinc-900 border border-zinc-800/80 overflow-hidden divide-y divide-zinc-800/70">
+                  {/* Manage account */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <User className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
+                      <div className="min-w-0">
+                        <span className="text-sm font-medium text-zinc-100 block truncate">Manage account</span>
+                        <span className="text-xs text-zinc-400 block truncate">
+                          {displayName || (authUser ? "Pengguna" : "Mode Tamu")}
                         </span>
-                      </label>
-                    );
-                  })}
+                      </div>
+                    </div>
+                    <ChevronRight
+                      className={`w-4 h-4 text-zinc-500 shrink-0 transition-transform ${
+                        expandedSettingsSection === "account" ? "rotate-90" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {/* Expandable Manage account input */}
+                  {expandedSettingsSection === "account" && (
+                    <div className="p-3.5 bg-zinc-950/60 space-y-3">
+                      <div>
+                        <label
+                          htmlFor="settings-display-name"
+                          className="block text-xs font-medium text-zinc-300 mb-1"
+                        >
+                          Nama Tampilan
+                        </label>
+                        <input
+                          ref={settingsNameInputRef}
+                          id="settings-display-name"
+                          type="text"
+                          maxLength={60}
+                          value={settingsNameInput}
+                          aria-invalid={Boolean(settingsNameError)}
+                          onChange={(e) => {
+                            setSettingsNameInput(e.target.value);
+                            if (settingsNameError) setSettingsNameError(null);
+                          }}
+                          placeholder="Masukkan nama tampilan..."
+                          className="w-full min-h-[38px] px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
+                        />
+                        {settingsNameError && (
+                          <p role="alert" className="text-[11px] text-red-400 mt-1">
+                            {settingsNameError}
+                          </p>
+                        )}
+                      </div>
+                      {authUser && (
+                        <div className="text-[11px] text-zinc-400">
+                          Email: <span className="font-mono text-zinc-200">{authUser.email}</span>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Batas penggunaan */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Clock className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
+                      <span className="text-sm font-medium text-zinc-100 truncate">Batas penggunaan</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
+                      <span>
+                        {authUser
+                          ? "Tanpa Batas"
+                          : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/5 pesan`}
+                      </span>
+                      <ChevronRight
+                        className={`w-4 h-4 text-zinc-500 transition-transform ${
+                          expandedSettingsSection === "quota" ? "rotate-90" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Expandable Quota Details */}
+                  {expandedSettingsSection === "quota" && (
+                    <div className="p-3.5 bg-zinc-950/60 space-y-2 text-xs">
+                      <p className="text-zinc-300 leading-relaxed">
+                        {authUser
+                          ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan inferensi model AI Axioma."
+                          : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis. Hubungkan akun Anda untuk menikmati percakapan tanpa batas.`}
+                      </p>
+                      {!authUser && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsSettingsModalOpen(false);
+                            setIsAuthModalOpen(true);
+                          }}
+                          className="mt-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
+                        >
+                          Hubungkan Akun
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 
-              {/* Keyboard Shortcuts List - desktop only / hidden on touch & mobile */}
-              <div className="hidden md:block touch-hidden space-y-2 pt-2 border-t border-border-subtle">
-                <div className="flex items-center gap-1.5 text-xs font-medium text-text-primary">
-                  <Keyboard className="w-3.5 h-3.5 text-icon-muted" />
-                  <span>Pintasan Keyboard</span>
+              {/* Kategori 2: Preferensi */}
+              <div className="space-y-2">
+                <div className="text-xs font-semibold text-zinc-400 tracking-wide px-1">
+                  Preferensi
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-[11px]">
-                  <div className="flex items-center justify-between gap-2 py-0.5 min-w-0">
-                    <span className="text-text-muted truncate">Cari percakapan</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-bg-surface border border-border-subtle text-text-secondary font-mono text-[10px] whitespace-nowrap shrink-0 shadow-2xs">
-                      Ctrl / ⌘ K
-                    </kbd>
+                <div className="rounded-2xl bg-zinc-900 border border-zinc-800/80 overflow-hidden divide-y divide-zinc-800/70">
+                  {/* Notifikasi */}
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Bell className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
+                      <span className="text-sm font-medium text-zinc-100 truncate">Notifikasi</span>
+                    </div>
+                    <span className="text-xs text-zinc-400">Aktif</span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 py-0.5 min-w-0">
-                    <span className="text-text-muted truncate">Percakapan baru</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-bg-surface border border-border-subtle text-text-secondary font-mono text-[10px] whitespace-nowrap shrink-0 shadow-2xs">
-                      Ctrl / ⌘ ⇧ O
-                    </kbd>
+
+                  {/* Model Default */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Bot className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
+                      <span className="text-sm font-medium text-zinc-100 truncate">Model Default</span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
+                      <span>
+                        {AVAILABLE_AGENTS.find((a) => a.id === settingsDefaultAgentInput)?.name || "Axioma Pro"}
+                      </span>
+                      <ChevronRight
+                        className={`w-4 h-4 text-zinc-500 transition-transform ${
+                          expandedSettingsSection === "agent" ? "rotate-90" : ""
+                        }`}
+                      />
+                    </div>
+                  </button>
+
+                  {/* Expandable Model Selector */}
+                  {expandedSettingsSection === "agent" && (
+                    <div className="p-3 bg-zinc-950/60 space-y-2">
+                      {AVAILABLE_AGENTS.map((agent) => {
+                        const isChecked = settingsDefaultAgentInput === agent.id;
+                        return (
+                          <label
+                            key={agent.id}
+                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-colors ${
+                              isChecked
+                                ? "bg-zinc-850 border-zinc-600 text-white shadow-xs"
+                                : "bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <input
+                                type="radio"
+                                name="defaultAgent"
+                                value={agent.id}
+                                checked={isChecked}
+                                onChange={() => setSettingsDefaultAgentInput(agent.id)}
+                                className="w-3.5 h-3.5 accent-white cursor-pointer shrink-0"
+                              />
+                              <div className="min-w-0">
+                                <div className="font-semibold text-zinc-100">{agent.name}</div>
+                                <div className="text-[11px] text-zinc-400 line-clamp-1">{agent.description}</div>
+                              </div>
+                            </div>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-medium border border-zinc-700 ml-2 shrink-0">
+                              {agent.tag}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Penyimpanan Riwayat */}
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Database className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
+                      <span className="text-sm font-medium text-zinc-100 truncate">Penyimpanan Riwayat</span>
+                    </div>
+                    <span className="text-xs text-zinc-400">
+                      {authUser ? "Cloud & Perangkat" : "Perangkat (Lokal)"}
+                    </span>
                   </div>
-                  <div className="flex items-center justify-between gap-2 py-0.5 min-w-0">
-                    <span className="text-text-muted truncate">Hentikan balasan</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-bg-surface border border-border-subtle text-text-secondary font-mono text-[10px] whitespace-nowrap shrink-0 shadow-2xs">
-                      Esc
-                    </kbd>
+
+                  {/* Pintasan Keyboard */}
+                  <button
+                    type="button"
+                    onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Keyboard className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
+                      <span className="text-sm font-medium text-zinc-100 truncate">Pintasan Keyboard</span>
+                    </div>
+                    <ChevronRight
+                      className={`w-4 h-4 text-zinc-500 shrink-0 transition-transform ${
+                        expandedSettingsSection === "shortcuts" ? "rotate-90" : ""
+                      }`}
+                    />
+                  </button>
+
+                  {/* Expandable Keyboard Shortcuts */}
+                  {expandedSettingsSection === "shortcuts" && (
+                    <div className="p-3.5 bg-zinc-950/60 space-y-1.5 text-[11px]">
+                      <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                        <span className="text-zinc-400">Cari percakapan</span>
+                        <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                          Ctrl / ⌘ K
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                        <span className="text-zinc-400">Percakapan baru</span>
+                        <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                          Ctrl / ⌘ ⇧ O
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                        <span className="text-zinc-400">Hentikan balasan</span>
+                        <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                          Esc
+                        </kbd>
+                      </div>
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-zinc-400">Kirim pesan</span>
+                        <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                          Enter
+                        </kbd>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Tema Row (Menyerupai Referensi Gambar 1) */}
+                  <div className="p-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Moon className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
+                      <span className="text-sm font-medium text-zinc-100 truncate">Tema</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <select
+                        value={themeMode}
+                        onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
+                        className="text-xs font-medium text-zinc-300 bg-transparent border-0 cursor-pointer focus:outline-none pr-1"
+                      >
+                        <option value="system" className="bg-zinc-900 text-white">Default sistem</option>
+                        <option value="dark" className="bg-zinc-900 text-white">Gelap</option>
+                        <option value="light" className="bg-zinc-900 text-white">Terang</option>
+                      </select>
+                      <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0 pointer-events-none" />
+                    </div>
                   </div>
-                  <div className="flex items-center justify-between gap-2 py-0.5 min-w-0">
-                    <span className="text-text-muted truncate">Kirim pesan</span>
-                    <kbd className="px-1.5 py-0.5 rounded bg-bg-surface border border-border-subtle text-text-secondary font-mono text-[10px] whitespace-nowrap shrink-0 shadow-2xs">
-                      Enter
-                    </kbd>
-                  </div>
+
+                  {/* Hapus Semua Percakapan */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsSettingsModalOpen(false);
+                      setIsClearAllConfirmOpen(true);
+                    }}
+                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-red-950/20 transition-colors cursor-pointer text-red-400 group"
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <Trash className="w-4 h-4 text-red-400 shrink-0" strokeWidth={1.75} />
+                      <span className="text-sm font-medium">Hapus semua percakapan</span>
+                    </div>
+                    <ChevronRight className="w-4 h-4 text-red-400/50 group-hover:text-red-400 transition-colors shrink-0" />
+                  </button>
                 </div>
               </div>
 
-              {/* App Version Info (Item 4: at bottom of settings modal only) */}
-              <div className="flex items-center justify-between pt-2 border-t border-border-subtle text-xs">
-                <span className="text-text-muted">Versi Aplikasi</span>
-                <span className="px-2 py-0.5 rounded text-[11px] bg-bg-surface text-text-secondary font-mono border border-border-subtle">
-                  Axioma v2.5
-                </span>
-              </div>
-
-              {/* Storage Transparency Notice (Item 3) */}
-              <div className="pt-2 border-t border-border-subtle">
-                <p className="text-[11px] text-text-muted leading-relaxed">
-                  Riwayat percakapan tersimpan untuk perangkat &amp; browser ini. Menghapus data browser akan menghilangkan akses ke riwayat.
-                </p>
+              {/* Version & Notice info */}
+              <div className="pt-2 text-center text-xs text-zinc-500 space-y-1">
+                <div>Axioma v2.5</div>
+                <div className="text-[11px] leading-relaxed">
+                  Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
+                </div>
               </div>
             </div>
 
-            {/* Pinned Footer */}
-            <div className="shrink-0 touch-none flex items-center justify-end gap-2 px-4 sm:px-5 pt-3 pb-[max(0.875rem,env(safe-area-inset-bottom))] border-t border-border-subtle bg-white dark:bg-zinc-950 z-10">
+            {/* Modal Footer */}
+            <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t border-zinc-800 bg-[#121214] sm:bg-[#18181b]">
               <button
                 type="button"
                 onClick={() => setIsSettingsModalOpen(false)}
-                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
+                className="min-h-[38px] px-4 py-2 rounded-xl text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-colors cursor-pointer"
               >
                 Batal
               </button>
               <button
                 type="submit"
-                className="min-h-[40px] px-5 py-2 rounded-xl text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 transition-opacity cursor-pointer shadow-xs"
+                className="min-h-[38px] px-5 py-2 rounded-xl text-xs font-semibold text-zinc-900 bg-zinc-100 hover:bg-white transition-colors cursor-pointer shadow-xs"
               >
                 Simpan
               </button>
@@ -5126,10 +5267,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             {/* Guest Mode Cloud Sync Prompt Banner */}
             <div className="p-3 rounded-xl bg-bg-surface border border-border-subtle flex flex-col gap-2.5 shrink-0">
               <div className="flex items-start gap-2.5">
-                <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <Cloud className="w-4 h-4 text-text-muted shrink-0 mt-0.5" strokeWidth={1.75} />
                 <div className="text-xs text-text-secondary leading-snug">
-                  <span className="font-semibold text-text-primary block text-xs">Simpan di Cloud</span>
-                  Masuk untuk mencadangkan percakapan ke cloud secara aman.
+                  <span className="font-semibold text-text-primary block text-xs">Cadangkan Percakapan</span>
+                  Hubungkan akun untuk menyimpan riwayat chat agar bisa diakses dari perangkat lain.
                 </div>
               </div>
               <button
@@ -5138,9 +5279,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsMobileSidebarOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold tracking-tight transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                className="w-full py-2 px-3 rounded-lg bg-text-primary hover:opacity-90 text-bg-primary text-xs font-semibold tracking-tight transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               >
-                <span>Masuk / Buat Akun</span>
+                <span>Hubungkan Akun</span>
               </button>
             </div>
           </div>
@@ -5396,7 +5537,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </div>
               <div className="text-xs text-text-muted truncate">
                 {authUser
-                  ? (authUser?.email || "Tersinkronisasi Cloud")
+                  ? (authUser?.email || "Akun terhubung")
                   : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} pesan tamu tersisa`}
               </div>
             </div>
@@ -5439,10 +5580,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     closeSettingsMenu(false);
                     setIsAuthModalOpen(true);
                   }}
-                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-blue-400 hover:text-blue-300 hover:bg-blue-950/40 focus:bg-blue-950/40 focus:text-blue-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer font-medium"
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-text-primary hover:bg-bg-surface focus:bg-bg-surface focus:text-text-primary focus:outline-none flex items-center gap-2 transition-colors cursor-pointer font-medium"
                 >
-                  <Sparkles className="w-3.5 h-3.5 text-blue-400" />
-                  <span>Masuk / Buat Akun</span>
+                  <Cloud className="w-3.5 h-3.5 text-icon-muted" strokeWidth={1.75} />
+                  <span>Hubungkan Akun</span>
                 </button>
               ) : null}
 
@@ -5500,7 +5641,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 focus:bg-red-950/40 focus:text-red-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer font-medium"
                 >
                   <LogOut className="w-3.5 h-3.5 text-red-400" />
-                  <span>Keluar (Logout)</span>
+                  <span>Keluar dari Akun</span>
                 </button>
               ) : null}
 
@@ -5583,7 +5724,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   type="button"
                   onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                   aria-label="Buka menu profil dan akun"
-                  title={authUser ? "Profil Akun" : "Mode Tamu - Masuk / Buat Akun"}
+                  title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
                   className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
                     authUser
                       ? "bg-purple-600 text-white font-semibold text-xs"
@@ -5688,7 +5829,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 type="button"
                 onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                 aria-label="Buka menu profil dan akun"
-                title={authUser ? "Profil Akun" : "Mode Tamu - Masuk / Buat Akun"}
+                title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
                 className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
                   authUser
                     ? "bg-purple-600 text-white font-semibold text-xs"
@@ -5704,125 +5845,200 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
           </div>
 
-          {/* Shared Header Profile Dropdown */}
+          {/* Shared Header Profile Sheet / Modal (Menyerupai Referensi Gambar 2) */}
           {isProfileDropdownOpen && (
             <>
               {/* Backdrop */}
               <div
-                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs md:bg-transparent"
+                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity"
                 onClick={() => setIsProfileDropdownOpen(false)}
                 aria-hidden="true"
               />
+
+              {/* Popup Container (Bottom-sheet on mobile, floating popover on sm+) */}
               <div
                 ref={profileDropdownRef}
-                className="absolute right-3 sm:right-4 top-14 sm:top-16 z-50 w-72 sm:w-80 rounded-2xl bg-bg-elevated border border-border-strong shadow-2xl p-4 flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-150"
+                className="fixed sm:absolute inset-x-0 bottom-0 sm:bottom-auto sm:inset-x-auto sm:right-3 sm:top-16 z-50 w-full sm:w-[360px] rounded-t-3xl sm:rounded-3xl bg-[#18181b] border-t sm:border border-zinc-800 shadow-2xl p-5 space-y-3 max-h-[92dvh] sm:max-h-none overflow-y-auto animate-in slide-in-from-bottom-4 sm:fade-in sm:zoom-in-95 duration-150"
               >
-                {authUser ? (
-                  <>
-                    <div className="flex items-center gap-3 pb-3 border-b border-border-subtle">
-                      <div className="w-11 h-11 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden shadow-xs">
-                        <UserAvatar url={avatarUrl} name={userName} />
+                {/* Drag handle for mobile */}
+                <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto -mt-1 mb-1 sm:hidden" />
+
+                {/* Top Selesai Action */}
+                <div className="flex justify-end pb-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                  >
+                    Selesai
+                  </button>
+                </div>
+
+                {/* Card 1: User Profile Header Card */}
+                <div className="rounded-2xl bg-zinc-900 border border-zinc-800/80 p-3.5 flex items-center justify-between shadow-xs">
+                  <div className="flex items-center min-w-0 flex-1">
+                    <div className="relative w-12 h-12 rounded-full shrink-0">
+                      <div className="w-12 h-12 rounded-full bg-purple-600 text-white font-semibold text-lg flex items-center justify-center overflow-hidden shadow-xs">
+                        {authUser ? (
+                          <UserAvatar url={avatarUrl} name={userName} />
+                        ) : (
+                          <User className="w-5 h-5 text-zinc-300" />
+                        )}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-text-primary truncate">
-                          {displayName || authUser.user_metadata?.full_name || "Pengguna"}
-                        </div>
-                        <div className="text-xs text-text-muted truncate">
-                          {authUser.email}
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-1 text-[11px] text-emerald-400 font-medium">
-                          <Check className="w-3 h-3 stroke-[2.5]" />
-                          <span>Tersinkronisasi Cloud</span>
-                        </div>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setIsProfileDropdownOpen(false);
+                          setSettingsNameInput(displayName);
+                          setSettingsNameError(null);
+                          setSettingsDefaultAgentInput(defaultAgentId);
+                          setExpandedSettingsSection("account");
+                          setIsSettingsModalOpen(true);
+                        }}
+                        title="Ubah nama tampilan"
+                        aria-label="Ubah nama tampilan"
+                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center hover:bg-zinc-700 cursor-pointer transition-colors shadow-xs"
+                      >
+                        <Pencil className="w-2.5 h-2.5" />
+                      </button>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsProfileDropdownOpen(false);
-                        setSettingsNameInput(displayName);
-                        setSettingsNameError(null);
-                        setSettingsDefaultAgentInput(defaultAgentId);
-                        setIsSettingsModalOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-bg-surface text-text-primary text-xs font-medium transition-colors cursor-pointer"
-                    >
-                      <Settings className="w-4 h-4 text-icon-muted" />
-                      <span>Pengaturan</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={async () => {
-                        setIsProfileDropdownOpen(false);
-                        if (supabase) {
-                          await supabase.auth.signOut();
-                        }
-                        setAuthUser(null);
-                        setAuthToken(null);
-                        setDisplayName(DEFAULT_DISPLAY_NAME);
-                        safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
-                        showToastNotice("Berhasil keluar dari akun.");
-                        void refreshChatHistory();
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-red-500/10 text-red-400 text-xs font-medium transition-colors cursor-pointer"
-                    >
-                      <LogOut className="w-4 h-4" />
-                      <span>Keluar (Logout)</span>
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-3 pb-3 border-b border-border-subtle">
-                      <div className="w-11 h-11 rounded-full bg-bg-surface border border-border-subtle flex items-center justify-center font-bold text-base shrink-0 text-text-secondary">
-                        <User className="w-5 h-5" />
+                    <div className="min-w-0 flex-1 ml-3.5">
+                      <div className="text-sm font-semibold text-zinc-100 truncate">
+                        {displayName || (authUser ? "Pengguna" : "Mode Tamu")}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-sm font-semibold text-text-primary">
-                          Mode Tamu
-                        </div>
-                        <div className="text-xs text-text-muted">
-                          Riwayat tersimpan di perangkat ini
-                        </div>
+                      <div className="text-xs text-zinc-400 truncate">
+                        {authUser?.email || "Riwayat tersimpan di perangkat ini"}
                       </div>
+                      {authUser ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white mt-1 shadow-xs tracking-wide">
+                          PRO
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 mt-1">
+                          Mode Tamu ({Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/5 pesan)
+                        </span>
+                      )}
                     </div>
+                  </div>
 
-                    <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
-                      <div>Masuk dengan Google atau Email untuk mencadangkan percakapan ke cloud secara aman.</div>
-                      <div className="text-[11px] text-blue-300 font-medium mt-1">
-                        {Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} dari {GUEST_MAX_MESSAGES} pesan gratis tersisa
-                      </div>
+                  <div className="w-7 h-7 rounded-full bg-zinc-800/80 flex items-center justify-center text-zinc-400 shrink-0 ml-2">
+                    <ChevronDown className="w-4 h-4" />
+                  </div>
+                </div>
+
+                {/* Card 2: Kelola Akun Google Anda / Masuk dengan Google */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDropdownOpen(false);
+                    if (!authUser) {
+                      setIsAuthModalOpen(true);
+                    } else {
+                      setSettingsNameInput(displayName);
+                      setSettingsNameError(null);
+                      setSettingsDefaultAgentInput(defaultAgentId);
+                      setExpandedSettingsSection("account");
+                      setIsSettingsModalOpen(true);
+                    }
+                  }}
+                  className="w-full rounded-2xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800/80 p-3.5 flex items-center gap-3 transition-colors cursor-pointer text-left shadow-xs"
+                >
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                  </svg>
+                  <span className="text-sm font-medium text-zinc-100">
+                    {authUser ? "Kelola Akun Google Anda" : "Masuk dengan Google"}
+                  </span>
+                </button>
+
+                {/* Card 3: Kelola langganan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (authUser) {
+                      showToastNotice("Paket Axioma Pro Aktif — Bebas akses model unggulan & inferensi cepat.");
+                    } else {
+                      setIsProfileDropdownOpen(false);
+                      setIsAuthModalOpen(true);
+                    }
+                  }}
+                  className="w-full rounded-2xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800/80 p-3.5 flex items-center justify-between transition-colors cursor-pointer text-left shadow-xs"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-5 h-5 rounded-full border border-zinc-400 flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0">
+                      1
                     </div>
+                    <span className="text-sm font-medium text-zinc-100 truncate">Kelola langganan</span>
+                  </div>
+                  <span className="text-xs font-bold text-zinc-400 tracking-wider shrink-0 ml-2">
+                    {authUser ? "PRO" : "GRATIS"}
+                  </span>
+                </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsProfileDropdownOpen(false);
-                        setIsAuthModalOpen(true);
-                      }}
-                      className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold tracking-tight transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
-                    >
-                      <Sparkles className="w-4 h-4" />
-                      <span>Masuk / Buat Akun</span>
-                    </button>
+                {/* Card 4: Setelan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDropdownOpen(false);
+                    setSettingsNameInput(displayName);
+                    setSettingsNameError(null);
+                    setSettingsDefaultAgentInput(defaultAgentId);
+                    setIsSettingsModalOpen(true);
+                  }}
+                  className="w-full rounded-2xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800/80 p-3.5 flex items-center justify-between transition-colors cursor-pointer text-left shadow-xs"
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings className="w-5 h-5 text-zinc-300 shrink-0" strokeWidth={1.75} />
+                    <span className="text-sm font-medium text-zinc-100">Setelan</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
+                </button>
 
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setIsProfileDropdownOpen(false);
-                        setSettingsNameInput(displayName);
-                        setSettingsNameError(null);
-                        setSettingsDefaultAgentInput(defaultAgentId);
-                        setIsSettingsModalOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-bg-surface text-text-primary text-xs font-medium transition-colors cursor-pointer"
-                    >
-                      <Settings className="w-4 h-4 text-icon-muted" />
-                      <span>Pengaturan</span>
-                    </button>
-                  </>
+                {/* Card 5 (when authUser): Keluar dari Akun */}
+                {authUser && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsProfileDropdownOpen(false);
+                      if (supabase) {
+                        await supabase.auth.signOut();
+                      }
+                      setAuthUser(null);
+                      setAuthToken(null);
+                      setDisplayName(DEFAULT_DISPLAY_NAME);
+                      safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
+                      showToastNotice("Berhasil keluar dari akun.");
+                      void refreshChatHistory();
+                    }}
+                    className="w-full rounded-2xl bg-zinc-900/60 hover:bg-red-950/30 border border-zinc-800/60 p-3.5 flex items-center gap-3 text-red-400 hover:text-red-300 transition-colors cursor-pointer text-left shadow-xs"
+                  >
+                    <LogOut className="w-5 h-5 text-red-400 shrink-0" strokeWidth={1.75} />
+                    <span className="text-sm font-medium">Keluar dari Akun</span>
+                  </button>
                 )}
+
+                {/* Bottom Links */}
+                <div className="pt-2 flex items-center justify-center gap-2 text-xs text-zinc-400">
+                  <Link
+                    href="/privasi"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="hover:text-zinc-200 transition-colors"
+                  >
+                    Kebijakan Privasi
+                  </Link>
+                  <span className="text-zinc-600">·</span>
+                  <Link
+                    href="/ketentuan"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="hover:text-zinc-200 transition-colors"
+                  >
+                    Persyaratan Layanan
+                  </Link>
+                </div>
               </div>
             </>
           )}
@@ -7407,12 +7623,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </button>
 
             <div className="flex items-center gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
-                <Sparkles className="w-6 h-6 text-blue-400" />
+              <div className="w-11 h-11 rounded-2xl bg-bg-surface border border-border-subtle flex items-center justify-center shrink-0">
+                <Cloud className="w-5 h-5 text-text-primary" strokeWidth={1.75} />
               </div>
               <div className="min-w-0">
                 <h2 id="guest-limit-title" className="text-base font-semibold text-text-primary">
-                  Batas Pesan Tamu Tercapai
+                  Batas Percakapan Tamu
                 </h2>
                 <p className="text-xs text-text-muted">
                   Kuota {GUEST_MAX_MESSAGES} pesan gratis telah digunakan
@@ -7421,7 +7637,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
 
             <p className="text-sm text-text-secondary leading-relaxed">
-              Anda telah mencapai batas maksimal pesan gratis di Mode Tamu. Masuk dengan Google atau Email untuk melanjutkan percakapan tanpa batas, mencadangkan riwayat obrolan ke cloud, dan menggunakan seluruh fitur Axioma AI.
+              Hubungkan akun Anda untuk melanjutkan percakapan tanpa batas dan menyimpan seluruh riwayat percakapan agar dapat diakses dari perangkat lain.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
@@ -7438,10 +7654,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsGuestLimitModalOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full sm:w-auto flex-1 min-h-[42px] px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                className="w-full sm:w-auto flex-1 min-h-[42px] px-4 py-2.5 rounded-xl text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
-                <Sparkles className="w-4 h-4" />
-                <span>Masuk / Buat Akun</span>
+                <Cloud className="w-4 h-4" strokeWidth={1.75} />
+                <span>Hubungkan Akun</span>
               </button>
             </div>
           </div>

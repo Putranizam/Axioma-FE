@@ -10,7 +10,6 @@ import {
   Loader2,
   CircleAlert,
   CheckCircle2,
-  Sparkles,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -434,7 +433,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               ) : tab === "signup" ? (
                 <>
                   <span>Daftar Akun</span>
-                  <Sparkles className="w-4 h-4 text-blue-400" />
+                  <ArrowRight className="w-4 h-4" />
                 </>
               ) : (
                 <>
