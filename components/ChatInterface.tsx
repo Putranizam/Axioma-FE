@@ -3256,8 +3256,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   };
 
   // Settings modal save handler (#8, #14)
-  const handleSaveSettings = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveSettings = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
     const cleanedName = settingsNameInput.replace(/\s+/g, " ").trim();
 
     setSettingsNameError(null);
@@ -3283,6 +3283,29 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, chosenDefault.id);
 
     setIsSettingsModalOpen(false);
+  };
+
+  const handleSelectDefaultAgent = (agentId: string) => {
+    const chosenDefault =
+      AVAILABLE_AGENTS.find((a) => a.id === agentId) || AVAILABLE_AGENTS[0];
+    setSettingsDefaultAgentInput(chosenDefault.id);
+    setDefaultAgentId(chosenDefault.id);
+    setSelectedAgent(chosenDefault);
+    safeSetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT, chosenDefault.id);
+    safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, chosenDefault.id);
+    showToastNotice(`Model default diubah ke ${chosenDefault.name}`);
+  };
+
+  const handleUpdateDisplayName = (rawName: string) => {
+    const cleanedName = rawName.replace(/\s+/g, " ").trim();
+    setDisplayName(cleanedName);
+    setSettingsNameInput(cleanedName);
+    if (cleanedName) {
+      safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, cleanedName);
+    } else {
+      safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
+    }
+    showToastNotice("Nama tampilan disimpan.");
   };
 
   const appendMessageToChat = (chatId: string, message: Message) => {
@@ -4893,356 +4916,555 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Settings Modal (Menyerupai Referensi Gambar 1) */}
+      {/* Settings Modal (100% Menyerupai Referensi Gambar 1) */}
       {isSettingsModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-md animate-backdrop p-0 sm:p-4 overflow-hidden transition-all duration-300"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md animate-backdrop p-0 sm:p-4 overflow-hidden transition-all duration-300"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsSettingsModalOpen(false);
             }
           }}
         >
-          <form
-            onSubmit={handleSaveSettings}
-            className="w-full sm:max-w-md max-h-[92dvh] sm:max-h-[85dvh] rounded-t-3xl sm:rounded-3xl bg-[#121214] sm:bg-[#18181b] border-t sm:border border-zinc-800 shadow-2xl flex flex-col overflow-hidden animate-sheet-up sm:animate-modal-pop will-change-transform"
+          <div
+            className="fixed inset-x-0 bottom-0 top-6 sm:top-12 z-50 sm:max-w-lg sm:mx-auto rounded-t-[28px] sm:rounded-[28px] bg-[#131314] px-5 pt-3 pb-8 overflow-y-auto flex flex-col shadow-2xl animate-sheet-up sm:animate-modal-pop will-change-transform border-t sm:border border-zinc-800/60 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]"
           >
             {/* Grab handle for mobile */}
-            <div className="pt-3 pb-1 shrink-0 flex justify-center sm:hidden">
-              <div className="w-10 h-1 rounded-full bg-zinc-700/60" />
-            </div>
+            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-2 shrink-0 sm:hidden" />
 
-            {/* Modal Header */}
-            <div className="shrink-0 flex items-center justify-between px-5 pt-3 pb-3">
-              <h2 id="settings-modal-title" className="text-xl sm:text-2xl font-bold tracking-tight text-white">
-                Setelan
-              </h2>
+            {/* Circular Close Button Row (Aligned to right) */}
+            <div className="flex justify-end shrink-0 mb-1">
               <button
                 type="button"
                 onClick={() => setIsSettingsModalOpen(false)}
                 aria-label="Tutup setelan"
-                className="w-8 h-8 rounded-full bg-zinc-800/80 hover:bg-zinc-700 text-zinc-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
+                className="w-10 h-10 rounded-full bg-[#1e1f20] hover:bg-zinc-700 flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer"
               >
-                <X className="w-4 h-4" />
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Scrollable Body */}
-            <div className="flex-1 overflow-y-auto px-5 py-2 space-y-5 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
-              {/* Kategori 1: Account */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-zinc-400 tracking-wide px-1">
-                  Account
-                </div>
-                <div className="rounded-2xl bg-zinc-900 border border-zinc-800/80 overflow-hidden divide-y divide-zinc-800/70">
-                  {/* Manage account */}
-                  <button
-                    type="button"
-                    onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <User className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
-                      <div className="min-w-0">
-                        <span className="text-sm font-medium text-zinc-100 block truncate">Manage account</span>
-                        <span className="text-xs text-zinc-400 block truncate">
-                          {displayName || (authUser ? "Pengguna" : "Mode Tamu")}
-                        </span>
-                      </div>
-                    </div>
-                    <ChevronRight
-                      className={`w-4 h-4 text-zinc-500 shrink-0 transition-transform ${
-                        expandedSettingsSection === "account" ? "rotate-90" : ""
-                      }`}
-                    />
-                  </button>
+            {/* Title "Setelan" (Below close button, left-aligned, big font) */}
+            <h1 id="settings-modal-title" className="text-[32px] font-semibold text-white tracking-tight mt-1 mb-6">
+              Setelan
+            </h1>
 
-                  {/* Expandable Manage account input */}
-                  {expandedSettingsSection === "account" && (
-                    <div className="p-3.5 bg-zinc-950/60 space-y-3">
-                      <div>
-                        <label
-                          htmlFor="settings-display-name"
-                          className="block text-xs font-medium text-zinc-300 mb-1"
-                        >
-                          Nama Tampilan
-                        </label>
-                        <input
-                          ref={settingsNameInputRef}
-                          id="settings-display-name"
-                          type="text"
-                          maxLength={60}
-                          value={settingsNameInput}
-                          aria-invalid={Boolean(settingsNameError)}
-                          onChange={(e) => {
-                            setSettingsNameInput(e.target.value);
-                            if (settingsNameError) setSettingsNameError(null);
-                          }}
-                          placeholder="Masukkan nama tampilan..."
-                          className="w-full min-h-[38px] px-3 py-1.5 rounded-xl bg-zinc-900 border border-zinc-700 text-xs text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
-                        />
-                        {settingsNameError && (
-                          <p role="alert" className="text-[11px] text-red-400 mt-1">
-                            {settingsNameError}
-                          </p>
-                        )}
-                      </div>
-                      {authUser && (
-                        <div className="text-[11px] text-zinc-400">
-                          Email: <span className="font-mono text-zinc-200">{authUser.email}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Batas penggunaan */}
-                  <button
-                    type="button"
-                    onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Clock className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
-                      <span className="text-sm font-medium text-zinc-100 truncate">Batas penggunaan</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
-                      <span>
-                        {authUser
-                          ? "Tanpa Batas"
-                          : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/5 pesan`}
-                      </span>
-                      <ChevronRight
-                        className={`w-4 h-4 text-zinc-500 transition-transform ${
-                          expandedSettingsSection === "quota" ? "rotate-90" : ""
-                        }`}
-                      />
-                    </div>
-                  </button>
-
-                  {/* Expandable Quota Details */}
-                  {expandedSettingsSection === "quota" && (
-                    <div className="p-3.5 bg-zinc-950/60 space-y-2 text-xs">
-                      <p className="text-zinc-300 leading-relaxed">
-                        {authUser
-                          ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan inferensi model AI Axioma."
-                          : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis. Hubungkan akun Anda untuk menikmati percakapan tanpa batas.`}
-                      </p>
-                      {!authUser && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsSettingsModalOpen(false);
-                            setIsAuthModalOpen(true);
-                          }}
-                          className="mt-1 px-3 py-1.5 rounded-lg bg-zinc-100 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
-                        >
-                          Hubungkan Akun
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {/* Kategori 2: Preferensi */}
-              <div className="space-y-2">
-                <div className="text-xs font-semibold text-zinc-400 tracking-wide px-1">
-                  Preferensi
-                </div>
-                <div className="rounded-2xl bg-zinc-900 border border-zinc-800/80 overflow-hidden divide-y divide-zinc-800/70">
-                  {/* Notifikasi */}
-                  <div className="p-3.5 flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Bell className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
-                      <span className="text-sm font-medium text-zinc-100 truncate">Notifikasi</span>
-                    </div>
-                    <span className="text-xs text-zinc-400">Aktif</span>
-                  </div>
-
-                  {/* Model Default */}
-                  <button
-                    type="button"
-                    onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Bot className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
-                      <span className="text-sm font-medium text-zinc-100 truncate">Model Default</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 text-xs text-zinc-400 shrink-0">
-                      <span>
-                        {AVAILABLE_AGENTS.find((a) => a.id === settingsDefaultAgentInput)?.name || "Axioma Pro"}
-                      </span>
-                      <ChevronRight
-                        className={`w-4 h-4 text-zinc-500 transition-transform ${
-                          expandedSettingsSection === "agent" ? "rotate-90" : ""
-                        }`}
-                      />
-                    </div>
-                  </button>
-
-                  {/* Expandable Model Selector */}
-                  {expandedSettingsSection === "agent" && (
-                    <div className="p-3 bg-zinc-950/60 space-y-2">
-                      {AVAILABLE_AGENTS.map((agent) => {
-                        const isChecked = settingsDefaultAgentInput === agent.id;
-                        return (
-                          <label
-                            key={agent.id}
-                            className={`flex items-center justify-between p-2.5 rounded-xl border text-xs cursor-pointer transition-colors ${
-                              isChecked
-                                ? "bg-zinc-850 border-zinc-600 text-white shadow-xs"
-                                : "bg-zinc-900/60 border-zinc-800 text-zinc-300 hover:border-zinc-700"
-                            }`}
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <input
-                                type="radio"
-                                name="defaultAgent"
-                                value={agent.id}
-                                checked={isChecked}
-                                onChange={() => setSettingsDefaultAgentInput(agent.id)}
-                                className="w-3.5 h-3.5 accent-white cursor-pointer shrink-0"
-                              />
-                              <div className="min-w-0">
-                                <div className="font-semibold text-zinc-100">{agent.name}</div>
-                                <div className="text-[11px] text-zinc-400 line-clamp-1">{agent.description}</div>
-                              </div>
-                            </div>
-                            <span className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400 font-medium border border-zinc-700 ml-2 shrink-0">
-                              {agent.tag}
-                            </span>
-                          </label>
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {/* Penyimpanan Riwayat */}
-                  <div className="p-3.5 flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Database className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
-                      <span className="text-sm font-medium text-zinc-100 truncate">Penyimpanan Riwayat</span>
-                    </div>
-                    <span className="text-xs text-zinc-400">
-                      {authUser ? "Cloud & Perangkat" : "Perangkat (Lokal)"}
-                    </span>
-                  </div>
-
-                  {/* Pintasan Keyboard */}
-                  <button
-                    type="button"
-                    onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Keyboard className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
-                      <span className="text-sm font-medium text-zinc-100 truncate">Pintasan Keyboard</span>
-                    </div>
-                    <ChevronRight
-                      className={`w-4 h-4 text-zinc-500 shrink-0 transition-transform ${
-                        expandedSettingsSection === "shortcuts" ? "rotate-90" : ""
-                      }`}
-                    />
-                  </button>
-
-                  {/* Expandable Keyboard Shortcuts */}
-                  {expandedSettingsSection === "shortcuts" && (
-                    <div className="p-3.5 bg-zinc-950/60 space-y-1.5 text-[11px]">
-                      <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                        <span className="text-zinc-400">Cari percakapan</span>
-                        <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
-                          Ctrl / ⌘ K
-                        </kbd>
-                      </div>
-                      <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                        <span className="text-zinc-400">Percakapan baru</span>
-                        <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
-                          Ctrl / ⌘ ⇧ O
-                        </kbd>
-                      </div>
-                      <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                        <span className="text-zinc-400">Hentikan balasan</span>
-                        <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
-                          Esc
-                        </kbd>
-                      </div>
-                      <div className="flex items-center justify-between py-1">
-                        <span className="text-zinc-400">Kirim pesan</span>
-                        <kbd className="px-1.5 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
-                          Enter
-                        </kbd>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Tema Row (Menyerupai Referensi Gambar 1) */}
-                  <div className="p-3.5 flex items-center justify-between">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Moon className="w-4 h-4 text-zinc-400 shrink-0" strokeWidth={1.75} />
-                      <span className="text-sm font-medium text-zinc-100 truncate">Tema</span>
-                    </div>
-                    <div className="flex items-center gap-1.5">
-                      <select
-                        value={themeMode}
-                        onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
-                        className="text-xs font-medium text-zinc-300 bg-transparent border-0 cursor-pointer focus:outline-none pr-1"
-                      >
-                        <option value="system" className="bg-zinc-900 text-white">Default sistem</option>
-                        <option value="dark" className="bg-zinc-900 text-white">Gelap</option>
-                        <option value="light" className="bg-zinc-900 text-white">Terang</option>
-                      </select>
-                      <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0 pointer-events-none" />
-                    </div>
-                  </div>
-
-                  {/* Hapus Semua Percakapan */}
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSettingsModalOpen(false);
-                      setIsClearAllConfirmOpen(true);
-                    }}
-                    className="w-full p-3.5 flex items-center justify-between text-left hover:bg-red-950/20 transition-colors cursor-pointer text-red-400 group"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <Trash className="w-4 h-4 text-red-400 shrink-0" strokeWidth={1.75} />
-                      <span className="text-sm font-medium">Hapus semua percakapan</span>
-                    </div>
-                    <ChevronRight className="w-4 h-4 text-red-400/50 group-hover:text-red-400 transition-colors shrink-0" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Version & Notice info */}
-              <div className="pt-2 text-center text-xs text-zinc-500 space-y-1">
-                <div>Axioma v2.5</div>
-                <div className="text-[11px] leading-relaxed">
-                  Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
-                </div>
-              </div>
+            {/* Category 1: Account */}
+            <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
+              Account
             </div>
-
-            {/* Modal Footer */}
-            <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t border-zinc-800 bg-[#121214] sm:bg-[#18181b]">
+            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden mb-6 divide-y divide-zinc-800/60 border border-zinc-800/40">
+              {/* Manage account */}
               <button
                 type="button"
-                onClick={() => setIsSettingsModalOpen(false)}
-                className="min-h-[38px] px-4 py-2 rounded-xl text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 transition-colors cursor-pointer"
+                onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
+                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
               >
-                Batal
+                <div className="flex items-center min-w-0">
+                  <User className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                  <span className="text-[16px] font-normal text-zinc-100 truncate">Manage account</span>
+                </div>
+                <ChevronRight
+                  className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                    expandedSettingsSection === "account" ? "rotate-90" : ""
+                  }`}
+                />
               </button>
+
+              {/* Expandable Manage account drawer */}
+              {expandedSettingsSection === "account" && (
+                <div className="px-5 py-4 bg-[#171819] space-y-3 border-t border-zinc-800/60">
+                  <div>
+                    <label htmlFor="settings-display-name" className="block text-xs font-medium text-zinc-300 mb-1.5">
+                      Nama Tampilan
+                    </label>
+                    <div className="flex gap-2">
+                      <input
+                        ref={settingsNameInputRef}
+                        id="settings-display-name"
+                        type="text"
+                        maxLength={60}
+                        value={settingsNameInput}
+                        aria-invalid={Boolean(settingsNameError)}
+                        onChange={(e) => {
+                          setSettingsNameInput(e.target.value);
+                          if (settingsNameError) setSettingsNameError(null);
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            handleUpdateDisplayName(settingsNameInput);
+                          }
+                        }}
+                        onBlur={() => {
+                          handleUpdateDisplayName(settingsNameInput);
+                        }}
+                        placeholder="Masukkan nama tampilan..."
+                        className="flex-1 min-h-[40px] px-3.5 py-2 rounded-xl bg-[#1e1f20] border border-zinc-700 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleUpdateDisplayName(settingsNameInput)}
+                        className="px-4 py-2 rounded-xl bg-zinc-200 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
+                      >
+                        Simpan
+                      </button>
+                    </div>
+                    {settingsNameError && (
+                      <p role="alert" className="text-[11px] text-red-400 mt-1">
+                        {settingsNameError}
+                      </p>
+                    )}
+                  </div>
+                  {authUser && (
+                    <div className="text-xs text-zinc-400">
+                      Email terhubung: <span className="font-mono text-zinc-200">{authUser.email}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Batas penggunaan */}
               <button
-                type="submit"
-                className="min-h-[38px] px-5 py-2 rounded-xl text-xs font-semibold text-zinc-900 bg-zinc-100 hover:bg-white transition-colors cursor-pointer shadow-xs"
+                type="button"
+                onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
+                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
               >
-                Simpan
+                <div className="flex items-center min-w-0">
+                  <Clock className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                  <span className="text-[16px] font-normal text-zinc-100 truncate">Batas penggunaan</span>
+                </div>
+                <ChevronRight
+                  className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                    expandedSettingsSection === "quota" ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Expandable Quota Details */}
+              {expandedSettingsSection === "quota" && (
+                <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-zinc-800/60">
+                  <p className="text-zinc-300 leading-relaxed text-sm">
+                    {authUser
+                      ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan inferensi model AI Axioma Pro."
+                      : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
+                  </p>
+                  {!authUser && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSettingsModalOpen(false);
+                        setIsAuthModalOpen(true);
+                      }}
+                      className="mt-2 px-4 py-2 rounded-xl bg-zinc-200 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
+                    >
+                      Hubungkan Akun
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Category 2: Preferensi */}
+            <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
+              Preferensi
+            </div>
+            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden mb-6 divide-y divide-zinc-800/60 border border-zinc-800/40">
+              {/* Notifikasi */}
+              <div className="px-5 py-4 flex items-center justify-between text-left">
+                <div className="flex items-center min-w-0">
+                  <Bell className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                  <span className="text-[16px] font-normal text-zinc-100 truncate">Notifikasi</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
+              </div>
+
+              {/* Model Default */}
+              <button
+                type="button"
+                onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
+                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center min-w-0">
+                  <Bot className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                  <span className="text-[16px] font-normal text-zinc-100 truncate">Model Default</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[14px] text-zinc-400">
+                    {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
+                  </span>
+                  <ChevronRight
+                    className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                      expandedSettingsSection === "agent" ? "rotate-90" : ""
+                    }`}
+                  />
+                </div>
+              </button>
+
+              {/* Expandable Model Selector (Auto-save) */}
+              {expandedSettingsSection === "agent" && (
+                <div className="px-5 py-4 bg-[#171819] space-y-2 border-t border-zinc-800/60">
+                  {AVAILABLE_AGENTS.map((agent) => {
+                    const isChecked = defaultAgentId === agent.id;
+                    return (
+                      <label
+                        key={agent.id}
+                        className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
+                          isChecked
+                            ? "bg-zinc-800/90 border-zinc-600 text-white shadow-xs"
+                            : "bg-[#1e1f20]/60 border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-3 min-w-0">
+                          <input
+                            type="radio"
+                            name="defaultAgent"
+                            value={agent.id}
+                            checked={isChecked}
+                            onChange={() => handleSelectDefaultAgent(agent.id)}
+                            className="w-4 h-4 accent-white cursor-pointer shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <div className="font-semibold text-sm text-zinc-100">{agent.name}</div>
+                            <div className="text-xs text-zinc-400 line-clamp-1">{agent.description}</div>
+                          </div>
+                        </div>
+                        <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 font-medium border border-zinc-700 ml-2 shrink-0">
+                          {agent.tag}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Penyimpanan Riwayat */}
+              <div className="px-5 py-4 flex items-center justify-between text-left">
+                <div className="flex items-center min-w-0">
+                  <Database className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                  <span className="text-[16px] font-normal text-zinc-100 truncate">Penyimpanan Riwayat</span>
+                </div>
+                <span className="text-[14px] text-zinc-400">
+                  {authUser ? "Cloud & Perangkat" : "Perangkat (Lokal)"}
+                </span>
+              </div>
+
+              {/* Pintasan Keyboard */}
+              <button
+                type="button"
+                onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
+                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+              >
+                <div className="flex items-center min-w-0">
+                  <Keyboard className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                  <span className="text-[16px] font-normal text-zinc-100 truncate">Pintasan Keyboard</span>
+                </div>
+                <ChevronRight
+                  className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                    expandedSettingsSection === "shortcuts" ? "rotate-90" : ""
+                  }`}
+                />
+              </button>
+
+              {/* Expandable Keyboard Shortcuts */}
+              {expandedSettingsSection === "shortcuts" && (
+                <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-zinc-800/60">
+                  <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                    <span className="text-zinc-400">Cari percakapan</span>
+                    <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
+                      Ctrl / ⌘ K
+                    </kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                    <span className="text-zinc-400">Percakapan baru</span>
+                    <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
+                      Ctrl / ⌘ ⇧ O
+                    </kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                    <span className="text-zinc-400">Hentikan balasan</span>
+                    <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                      Esc
+                    </kbd>
+                  </div>
+                  <div className="flex items-center justify-between py-1">
+                    <span className="text-zinc-400">Kirim pesan</span>
+                    <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                      Enter
+                    </kbd>
+                  </div>
+                </div>
+              )}
+
+              {/* Tema Row (Menyerupai Referensi Gambar 1) */}
+              <div className="px-5 py-4 flex items-center justify-between text-left">
+                <div className="flex items-center min-w-0">
+                  <Moon className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                  <span className="text-[16px] font-normal text-zinc-100 truncate">Tema</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <select
+                    value={themeMode}
+                    onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
+                    className="text-[14px] font-normal text-zinc-400 bg-transparent border-0 cursor-pointer focus:outline-none pr-1"
+                  >
+                    <option value="system" className="bg-[#1e1f20] text-white">Default sistem</option>
+                    <option value="dark" className="bg-[#1e1f20] text-white">Gelap</option>
+                    <option value="light" className="bg-[#1e1f20] text-white">Terang</option>
+                  </select>
+                  <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0 pointer-events-none" />
+                </div>
+              </div>
+
+              {/* Hapus Semua Percakapan */}
+              <button
+                type="button"
+                onClick={() => {
+                  setIsSettingsModalOpen(false);
+                  setIsClearAllConfirmOpen(true);
+                }}
+                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-red-950/20 transition-colors cursor-pointer text-red-400 group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Trash className="w-5 h-5 text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
+                  <span className="text-[16px] font-normal text-red-400 truncate">Hapus semua percakapan</span>
+                </div>
+                <ChevronRight className="w-5 h-5 text-red-400/50 group-hover:text-red-400 transition-colors shrink-0" />
               </button>
             </div>
-          </form>
+
+            {/* Clean Version Footer */}
+            <div className="pt-2 pb-6 text-center text-xs text-zinc-500 space-y-1">
+              <div>Axioma v2.5</div>
+              <div className="text-[11px] leading-relaxed">
+                Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shared Profile Sheet / Modal (100% Menyerupai Referensi Gambar 2 - Fixed Viewport Placement) */}
+      {isProfileDropdownOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md animate-backdrop p-0 sm:p-4 overflow-hidden transition-all duration-300"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsProfileDropdownOpen(false);
+            }
+          }}
+        >
+          {/* Popup Container (Bottom-sheet on mobile, centered modal on sm+) */}
+          <div
+            ref={profileDropdownRef}
+            className="fixed sm:relative inset-x-0 bottom-0 z-50 sm:max-w-md w-full rounded-t-[28px] sm:rounded-[28px] bg-[#1e1f20] p-5 min-h-[82vh] sm:min-h-[580px] max-h-[92dvh] flex flex-col justify-between shadow-2xl border-t sm:border border-zinc-800/60 animate-sheet-up sm:animate-modal-pop will-change-transform overflow-y-auto"
+          >
+            {/* Top Area: Drag handle & "Selesai" Action */}
+            <div className="shrink-0">
+              <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto -mt-1 mb-2 sm:hidden" />
+
+              <div className="flex justify-end pb-3">
+                <button
+                  type="button"
+                  onClick={() => setIsProfileDropdownOpen(false)}
+                  className="text-[16px] font-medium text-blue-300 hover:text-blue-200 transition-colors cursor-pointer"
+                >
+                  Selesai
+                </button>
+              </div>
+
+              {/* Card 1: Main User Account Card */}
+              <div className="bg-[#131314] rounded-3xl p-4 flex items-center justify-between gap-4 mb-3.5 border border-zinc-800/40 shadow-sm">
+                <div className="flex items-center min-w-0 flex-1">
+                  <div className="relative w-14 h-14 rounded-full shrink-0">
+                    <div className="w-14 h-14 rounded-full bg-blue-600 text-white font-bold text-2xl flex items-center justify-center overflow-hidden shadow-inner">
+                      {authUser ? (
+                        <UserAvatar url={avatarUrl} name={userName} className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="text-2xl font-bold uppercase">{userName?.charAt(0) || "T"}</span>
+                      )}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        setSettingsNameInput(displayName);
+                        setSettingsNameError(null);
+                        setSettingsDefaultAgentInput(defaultAgentId);
+                        setExpandedSettingsSection("account");
+                        setIsSettingsModalOpen(true);
+                      }}
+                      title="Ubah nama tampilan"
+                      aria-label="Ubah nama tampilan"
+                      className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#1e1f20] border border-zinc-700 text-zinc-300 flex items-center justify-center hover:bg-zinc-700 cursor-pointer transition-colors shadow-sm"
+                    >
+                      <Pencil className="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div className="min-w-0 flex-1 ml-4">
+                    <div className="text-[18px] font-semibold text-white truncate">
+                      {displayName || (authUser ? "Pengguna" : "Mode Tamu")}
+                    </div>
+                    <div className="text-[14px] text-zinc-400 truncate">
+                      {authUser?.email || "Mode Tamu (Lokal)"}
+                    </div>
+                    {authUser ? (
+                      <span className="mt-1.5 inline-block px-3 py-0.5 text-xs font-semibold rounded-full bg-blue-950/80 text-blue-200 border border-blue-700/40">
+                        Pro
+                      </span>
+                    ) : (
+                      <span className="mt-1.5 inline-block px-3 py-0.5 text-xs font-semibold rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                        Mode Tamu ({Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/5 pesan)
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDropdownOpen(false);
+                    setSettingsNameInput(displayName);
+                    setSettingsNameError(null);
+                    setSettingsDefaultAgentInput(defaultAgentId);
+                    setExpandedSettingsSection("account");
+                    setIsSettingsModalOpen(true);
+                  }}
+                  aria-label="Pengaturan akun"
+                  className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center shrink-0 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <ChevronDown className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Separate Standalone Capsule Buttons */}
+              <div className="space-y-2.5">
+                {/* Button 1: Kelola Akun Google Anda / Masuk dengan Google */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDropdownOpen(false);
+                    if (!authUser) {
+                      setIsAuthModalOpen(true);
+                    } else {
+                      setSettingsNameInput(displayName);
+                      setSettingsNameError(null);
+                      setSettingsDefaultAgentInput(defaultAgentId);
+                      setExpandedSettingsSection("account");
+                      setIsSettingsModalOpen(true);
+                    }
+                  }}
+                  className="w-full bg-[#131314] hover:bg-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+                    </svg>
+                    <span className="text-[16px] font-medium text-white truncate">
+                      {authUser ? "Kelola Akun Google Anda" : "Masuk dengan Google"}
+                    </span>
+                  </div>
+                </button>
+
+                {/* Button 2: Kelola langganan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (authUser) {
+                      showToastNotice("Paket Axioma Pro Aktif — Bebas akses model unggulan & inferensi cepat.");
+                    } else {
+                      setIsProfileDropdownOpen(false);
+                      setIsAuthModalOpen(true);
+                    }
+                  }}
+                  className="w-full bg-[#131314] hover:bg-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                >
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <div className="w-5 h-5 rounded-full border border-zinc-400 flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0">
+                      1
+                    </div>
+                    <span className="text-[16px] font-medium text-white truncate">Kelola langganan</span>
+                  </div>
+                  <span className="text-xs font-bold text-zinc-400 tracking-wider shrink-0 ml-2">
+                    {authUser ? "PRO" : "GRATIS"}
+                  </span>
+                </button>
+
+                {/* Button 3: Setelan */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsProfileDropdownOpen(false);
+                    setSettingsNameInput(displayName);
+                    setSettingsNameError(null);
+                    setSettingsDefaultAgentInput(defaultAgentId);
+                    setIsSettingsModalOpen(true);
+                  }}
+                  className="w-full bg-[#131314] hover:bg-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                >
+                  <div className="flex items-center gap-3.5">
+                    <Settings className="w-5 h-5 text-zinc-300 shrink-0" strokeWidth={1.75} />
+                    <span className="text-[16px] font-medium text-white">Setelan</span>
+                  </div>
+                </button>
+
+                {/* Button 4: Keluar dari Akun (when authUser) */}
+                {authUser && (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      setIsProfileDropdownOpen(false);
+                      if (supabase) {
+                        await supabase.auth.signOut();
+                      }
+                      setAuthUser(null);
+                      setAuthToken(null);
+                      setDisplayName(DEFAULT_DISPLAY_NAME);
+                      safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
+                      showToastNotice("Berhasil keluar dari akun.");
+                      void refreshChatHistory();
+                    }}
+                    className="w-full bg-[#131314] hover:bg-red-950/30 rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[16px] font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                  >
+                    <LogOut className="w-5 h-5 text-red-400 shrink-0" strokeWidth={1.75} />
+                    <span>Keluar dari Akun</span>
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Footer Links (Exact to Reference Image 2) */}
+            <div className="text-center text-xs text-zinc-400 space-y-2 mt-auto pt-6 pb-2">
+              <div>
+                <Link
+                  href="/privasi"
+                  onClick={() => setIsProfileDropdownOpen(false)}
+                  className="hover:text-zinc-200 transition-colors"
+                >
+                  Kebijakan Privasi
+                </Link>
+              </div>
+              <div className="text-zinc-600 font-bold">•</div>
+              <div>
+                <Link
+                  href="/ketentuan"
+                  onClick={() => setIsProfileDropdownOpen(false)}
+                  className="hover:text-zinc-200 transition-colors"
+                >
+                  Persyaratan Layanan
+                </Link>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
@@ -5891,204 +6113,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </button>
             </div>
           </div>
-
-          {/* Shared Header Profile Sheet / Modal (Menyerupai Referensi Gambar 2) */}
-          {isProfileDropdownOpen && (
-            <>
-              {/* Backdrop */}
-              <div
-                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs animate-backdrop transition-opacity"
-                onClick={() => setIsProfileDropdownOpen(false)}
-                aria-hidden="true"
-              />
-
-              {/* Popup Container (Bottom-sheet on mobile, floating popover on sm+) */}
-              <div
-                ref={profileDropdownRef}
-                className="fixed sm:absolute inset-x-0 bottom-0 sm:bottom-auto sm:inset-x-auto sm:right-3 sm:top-16 z-50 w-full sm:w-[360px] rounded-t-3xl sm:rounded-3xl bg-[#18181b] border-t sm:border border-zinc-800 shadow-2xl p-5 space-y-3 max-h-[92dvh] sm:max-h-none overflow-y-auto animate-sheet-up sm:animate-modal-pop will-change-transform"
-              >
-                {/* Drag handle for mobile */}
-                <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto -mt-1 mb-1 sm:hidden" />
-
-                {/* Top Selesai Action */}
-                <div className="flex justify-end pb-1">
-                  <button
-                    type="button"
-                    onClick={() => setIsProfileDropdownOpen(false)}
-                    className="text-sm font-semibold text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
-                  >
-                    Selesai
-                  </button>
-                </div>
-
-                {/* Card 1: User Profile Header Card */}
-                <div className="rounded-2xl bg-zinc-900 border border-zinc-800/80 p-3.5 flex items-center justify-between shadow-xs">
-                  <div className="flex items-center min-w-0 flex-1">
-                    <div className="relative w-12 h-12 rounded-full shrink-0">
-                      <div className="w-12 h-12 rounded-full bg-purple-600 text-white font-semibold text-lg flex items-center justify-center overflow-hidden shadow-xs">
-                        {authUser ? (
-                          <UserAvatar url={avatarUrl} name={userName} />
-                        ) : (
-                          <User className="w-5 h-5 text-zinc-300" />
-                        )}
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsProfileDropdownOpen(false);
-                          setSettingsNameInput(displayName);
-                          setSettingsNameError(null);
-                          setSettingsDefaultAgentInput(defaultAgentId);
-                          setExpandedSettingsSection("account");
-                          setIsSettingsModalOpen(true);
-                        }}
-                        title="Ubah nama tampilan"
-                        aria-label="Ubah nama tampilan"
-                        className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-zinc-800 border border-zinc-700 text-zinc-300 flex items-center justify-center hover:bg-zinc-700 cursor-pointer transition-colors shadow-xs"
-                      >
-                        <Pencil className="w-2.5 h-2.5" />
-                      </button>
-                    </div>
-
-                    <div className="min-w-0 flex-1 ml-3.5">
-                      <div className="text-sm font-semibold text-zinc-100 truncate">
-                        {displayName || (authUser ? "Pengguna" : "Mode Tamu")}
-                      </div>
-                      <div className="text-xs text-zinc-400 truncate">
-                        {authUser?.email || "Riwayat tersimpan di perangkat ini"}
-                      </div>
-                      {authUser ? (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white mt-1 shadow-xs tracking-wide">
-                          PRO
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium bg-zinc-800 text-zinc-300 border border-zinc-700 mt-1">
-                          Mode Tamu ({Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/5 pesan)
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="w-7 h-7 rounded-full bg-zinc-800/80 flex items-center justify-center text-zinc-400 shrink-0 ml-2">
-                    <ChevronDown className="w-4 h-4" />
-                  </div>
-                </div>
-
-                {/* Card 2: Kelola Akun Google Anda / Masuk dengan Google */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileDropdownOpen(false);
-                    if (!authUser) {
-                      setIsAuthModalOpen(true);
-                    } else {
-                      setSettingsNameInput(displayName);
-                      setSettingsNameError(null);
-                      setSettingsDefaultAgentInput(defaultAgentId);
-                      setExpandedSettingsSection("account");
-                      setIsSettingsModalOpen(true);
-                    }
-                  }}
-                  className="w-full rounded-2xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800/80 p-3.5 flex items-center gap-3 transition-colors cursor-pointer text-left shadow-xs"
-                >
-                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
-                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
-                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
-                  </svg>
-                  <span className="text-sm font-medium text-zinc-100">
-                    {authUser ? "Kelola Akun Google Anda" : "Masuk dengan Google"}
-                  </span>
-                </button>
-
-                {/* Card 3: Kelola langganan */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (authUser) {
-                      showToastNotice("Paket Axioma Pro Aktif — Bebas akses model unggulan & inferensi cepat.");
-                    } else {
-                      setIsProfileDropdownOpen(false);
-                      setIsAuthModalOpen(true);
-                    }
-                  }}
-                  className="w-full rounded-2xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800/80 p-3.5 flex items-center justify-between transition-colors cursor-pointer text-left shadow-xs"
-                >
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-5 h-5 rounded-full border border-zinc-400 flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0">
-                      1
-                    </div>
-                    <span className="text-sm font-medium text-zinc-100 truncate">Kelola langganan</span>
-                  </div>
-                  <span className="text-xs font-bold text-zinc-400 tracking-wider shrink-0 ml-2">
-                    {authUser ? "PRO" : "GRATIS"}
-                  </span>
-                </button>
-
-                {/* Card 4: Setelan */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileDropdownOpen(false);
-                    setSettingsNameInput(displayName);
-                    setSettingsNameError(null);
-                    setSettingsDefaultAgentInput(defaultAgentId);
-                    setIsSettingsModalOpen(true);
-                  }}
-                  className="w-full rounded-2xl bg-zinc-900 hover:bg-zinc-850 border border-zinc-800/80 p-3.5 flex items-center justify-between transition-colors cursor-pointer text-left shadow-xs"
-                >
-                  <div className="flex items-center gap-3">
-                    <Settings className="w-5 h-5 text-zinc-300 shrink-0" strokeWidth={1.75} />
-                    <span className="text-sm font-medium text-zinc-100">Setelan</span>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-zinc-500 shrink-0" />
-                </button>
-
-                {/* Card 5 (when authUser): Keluar dari Akun */}
-                {authUser && (
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      setIsProfileDropdownOpen(false);
-                      if (supabase) {
-                        await supabase.auth.signOut();
-                      }
-                      setAuthUser(null);
-                      setAuthToken(null);
-                      setDisplayName(DEFAULT_DISPLAY_NAME);
-                      safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
-                      showToastNotice("Berhasil keluar dari akun.");
-                      void refreshChatHistory();
-                    }}
-                    className="w-full rounded-2xl bg-zinc-900/60 hover:bg-red-950/30 border border-zinc-800/60 p-3.5 flex items-center gap-3 text-red-400 hover:text-red-300 transition-colors cursor-pointer text-left shadow-xs"
-                  >
-                    <LogOut className="w-5 h-5 text-red-400 shrink-0" strokeWidth={1.75} />
-                    <span className="text-sm font-medium">Keluar dari Akun</span>
-                  </button>
-                )}
-
-                {/* Bottom Links */}
-                <div className="pt-2 flex items-center justify-center gap-2 text-xs text-zinc-400">
-                  <Link
-                    href="/privasi"
-                    onClick={() => setIsProfileDropdownOpen(false)}
-                    className="hover:text-zinc-200 transition-colors"
-                  >
-                    Kebijakan Privasi
-                  </Link>
-                  <span className="text-zinc-600">·</span>
-                  <Link
-                    href="/ketentuan"
-                    onClick={() => setIsProfileDropdownOpen(false)}
-                    className="hover:text-zinc-200 transition-colors"
-                  >
-                    Persyaratan Layanan
-                  </Link>
-                </div>
-              </div>
-            </>
-          )}
 
           {/* Shared Header Agent Menu Dropdown (Fixed across viewports) */}
           {isHeaderAgentMenuOpen && (
