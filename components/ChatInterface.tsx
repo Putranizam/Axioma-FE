@@ -661,6 +661,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState<boolean>(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const [hasMessages, setHasMessages] = useState<boolean>(false);
+  const [imgError, setImgError] = useState<boolean>(false);
 
   // Per-chat loading, generating, and streaming message ID states (#8)
   const [loadingByChat, setLoadingByChat] = useState<Record<string, boolean>>({});
@@ -689,6 +690,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   // User profile & model selection state (persisted in localStorage)
   const [displayName, setDisplayName] = useState<string>(DEFAULT_DISPLAY_NAME);
+  const avatarUrl = authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture || null;
+  const userInitial = (
+    displayName ||
+    authUser?.user_metadata?.full_name ||
+    authUser?.user_metadata?.name ||
+    authUser?.email ||
+    "P"
+  )
+    .trim()
+    .charAt(0)
+    .toUpperCase() || "P";
+
+  useEffect(() => {
+    setImgError(false);
+  }, [avatarUrl]);
+
   const [defaultAgentId, setDefaultAgentId] = useState<Agent["id"]>("axioma-pro");
   const [selectedAgent, setSelectedAgent] = useState<Agent>(AVAILABLE_AGENTS[0]);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState<boolean>(false);
@@ -5175,16 +5192,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             className="flex-1 flex items-center gap-2.5 p-2 rounded-xl hover:bg-bg-surface transition-colors cursor-pointer group text-left min-w-0"
           >
             <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs">
-              {authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture ? (
-                <Image
-                  src={authUser.user_metadata.avatar_url || authUser.user_metadata.picture}
-                  alt="Avatar"
-                  width={32}
-                  height={32}
-                  className="w-full h-full object-cover"
+              {avatarUrl && !imgError ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={avatarUrl}
+                  alt={displayName || "Avatar"}
+                  referrerPolicy="no-referrer"
+                  onError={() => setImgError(true)}
+                  className="w-full h-full object-cover rounded-full"
                 />
               ) : (
-                getAvatarInitials(displayName) || (authUser ? "U" : "P")
+                <span>{userInitial}</span>
               )}
             </div>
             <div className="min-w-0">
@@ -5379,16 +5397,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   title="Profil Akun"
                   className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-purple-600 text-white font-semibold text-sm active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
                 >
-                  {authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture ? (
-                    <Image
-                      src={authUser.user_metadata.avatar_url || authUser.user_metadata.picture}
-                      alt="Profil"
-                      width={44}
-                      height={44}
-                      className="w-full h-full object-cover"
+                  {avatarUrl && !imgError ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={avatarUrl}
+                      alt={displayName || "Profil"}
+                      referrerPolicy="no-referrer"
+                      onError={() => setImgError(true)}
+                      className="w-full h-full object-cover rounded-full"
                     />
                   ) : (
-                    <span>{getAvatarInitials(displayName) || (authUser ? "U" : "P")}</span>
+                    <span>{userInitial}</span>
                   )}
                 </button>
               </div>
@@ -5486,16 +5505,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 title="Profil Akun"
                 className="w-9 h-9 rounded-full bg-purple-600 text-white font-semibold text-xs active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
               >
-                {authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture ? (
-                  <Image
-                    src={authUser.user_metadata.avatar_url || authUser.user_metadata.picture}
-                    alt="Profil"
-                    width={36}
-                    height={36}
-                    className="w-full h-full object-cover"
+                {avatarUrl && !imgError ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={avatarUrl}
+                    alt={displayName || "Profil"}
+                    referrerPolicy="no-referrer"
+                    onError={() => setImgError(true)}
+                    className="w-full h-full object-cover rounded-full"
                   />
                 ) : (
-                  <span>{getAvatarInitials(displayName) || (authUser ? "U" : "P")}</span>
+                  <span>{userInitial}</span>
                 )}
               </button>
             </div>
@@ -5518,16 +5538,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <>
                     <div className="flex items-center gap-3 pb-3 border-b border-border-subtle">
                       <div className="w-11 h-11 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden shadow-xs">
-                        {authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture ? (
-                          <Image
-                            src={authUser.user_metadata.avatar_url || authUser.user_metadata.picture}
-                            alt="Avatar"
-                            width={44}
-                            height={44}
-                            className="w-full h-full object-cover"
+                        {avatarUrl && !imgError ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={avatarUrl}
+                            alt={displayName || "Avatar"}
+                            referrerPolicy="no-referrer"
+                            onError={() => setImgError(true)}
+                            className="w-full h-full object-cover rounded-full"
                           />
                         ) : (
-                          <span>{getAvatarInitials(displayName) || "U"}</span>
+                          <span>{userInitial}</span>
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
