@@ -6526,6 +6526,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           }`}
                         >
                           <Plus className="w-5 h-5 md:hidden" />
+
                           <Paperclip className="w-4 h-4 hidden md:block" />
                         </button>
 
