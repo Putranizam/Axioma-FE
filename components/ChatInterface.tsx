@@ -234,46 +234,23 @@ const STORAGE_KEYS = {
 } as const;
 
 function getGuestChats(): ChatHistoryItem[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEYS.GUEST_CHATS);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+  return [];
 }
 
-function saveGuestChats(chats: ChatHistoryItem[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(STORAGE_KEYS.GUEST_CHATS, JSON.stringify(chats));
-  } catch {}
+function saveGuestChats(_chats: ChatHistoryItem[]): void {
+  // Guest Mode does not persist history
 }
 
-function getGuestMessages(chatId: string): any[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(`${STORAGE_KEYS.GUEST_MSG_PREFIX}${chatId}`);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
+function getGuestMessages(_chatId: string): any[] {
+  return [];
 }
 
-function saveGuestMessages(chatId: string, messages: any[]): void {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(`${STORAGE_KEYS.GUEST_MSG_PREFIX}${chatId}`, JSON.stringify(messages));
-  } catch {}
+function saveGuestMessages(_chatId: string, _messages: any[]): void {
+  // Guest Mode does not persist messages
 }
 
-function deleteGuestChat(chatId: string): void {
-  if (typeof window === "undefined") return;
-  try {
-    const chats = getGuestChats().filter((c) => c.id !== chatId);
-    saveGuestChats(chats);
-    window.localStorage.removeItem(`${STORAGE_KEYS.GUEST_MSG_PREFIX}${chatId}`);
-  } catch {}
+function deleteGuestChat(_chatId: string): void {
+  // No-op
 }
 
 function formatMessageTime(isoOrTimestamp?: string): string {
@@ -939,19 +916,33 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
 
     const themeColor = isDark ? "#000000" : "#ffffff";
+    const barStyle = isDark ? "black-translucent" : "default";
+
     root.style.backgroundColor = themeColor;
     if (document.body) {
       document.body.style.backgroundColor = themeColor;
     }
+
     const metaTags = document.querySelectorAll('meta[name="theme-color"]');
     if (metaTags.length > 0) {
-      metaTags.forEach((el) => el.setAttribute("content", themeColor));
+      metaTags.forEach((el) => {
+        el.removeAttribute("media");
+        el.setAttribute("content", themeColor);
+      });
     } else {
       const meta = document.createElement("meta");
       meta.name = "theme-color";
       meta.content = themeColor;
       document.head.appendChild(meta);
     }
+
+    let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
+    if (!appleMeta) {
+      appleMeta = document.createElement("meta");
+      appleMeta.setAttribute("name", "apple-mobile-web-app-status-bar-style");
+      document.head.appendChild(appleMeta);
+    }
+    appleMeta.setAttribute("content", barStyle);
   }, []);
 
   const handleSetTheme = useCallback(
@@ -2476,6 +2467,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setIsChatAreaLoading(false);
       focusDesktopTextarea();
 
+      // If user is not authenticated (Guest Mode), completely clear in-memory messages
+      if (!authUser) {
+        setChats([]);
+      }
+
       if (activeChatId === "new-chat" && currentSessionChatId && !hasMessages) {
         setIsMobileSidebarOpen(false);
         if (options?.updateUrl !== false) {
@@ -2488,12 +2484,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setCurrentSessionChatId(newSessionId);
       setActiveChatId("new-chat");
       setHasMessages(false);
+      setShowEmptyDecorations(true);
+      setIsEmptyDecorationsExiting(false);
       setIsMobileSidebarOpen(false);
       if (options?.updateUrl !== false) {
         syncBrowserUrl("new-chat", "push");
       }
     },
-    [activeChatId, currentSessionChatId, hasMessages, syncBrowserUrl, focusDesktopTextarea]
+    [activeChatId, currentSessionChatId, hasMessages, authUser, syncBrowserUrl, focusDesktopTextarea]
   );
 
   const loadChatFeedback = useCallback(
@@ -2665,12 +2663,41 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     ]
   );
 
+  // Clean up legacy guest chats from localStorage
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.removeItem(STORAGE_KEYS.GUEST_CHATS);
+        const keysToRemove: string[] = [];
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const k = window.localStorage.key(i);
+          if (k && k.startsWith(STORAGE_KEYS.GUEST_MSG_PREFIX)) {
+            keysToRemove.push(k);
+          }
+        }
+        keysToRemove.forEach((k) => window.localStorage.removeItem(k));
+      } catch {}
+    }
+  }, []);
+
   // Restore active chat from URL (/c/<chat_id>) on initial load and browser Back/Forward (#10, #11)
   useEffect(() => {
     if (!currentUserId) return;
 
     if (!initialRouteLoadedRef.current) {
       initialRouteLoadedRef.current = true;
+
+      // In Guest Mode, never restore chats on refresh or initial load - always start with a clean session!
+      if (!authUser) {
+        setChats([]);
+        setHasMessages(false);
+        setActiveChatId("new-chat");
+        if (typeof window !== "undefined" && window.location.pathname.startsWith("/c/")) {
+          syncBrowserUrl("new-chat", "replace");
+        }
+        return;
+      }
+
       const rawInitial = (initialChatId || "").trim();
       if (rawInitial) {
         if (VALID_UUID_REGEX.test(rawInitial)) {
@@ -3572,51 +3599,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
 
         scrollToBottom(false);
-        promoteChatToTop(
-          returnedChat?.id || sessionPayloadId,
-          returnedChat?.title
-        );
-
-        if (!authUser) {
-          const nowIso = new Date().toISOString();
-          const currentGuestChats = getGuestChats();
-          const existingIdx = currentGuestChats.findIndex((c) => c.id === targetChatId);
-          const autoTitle = (returnedChat?.title || userText.slice(0, 40) || "Percakapan Baru").trim();
-          if (existingIdx >= 0) {
-            currentGuestChats[existingIdx].last_activity_at = nowIso;
-            if (!currentGuestChats[existingIdx].title || currentGuestChats[existingIdx].title === "Percakapan Baru") {
-              currentGuestChats[existingIdx].title = autoTitle;
-            }
-          } else {
-            currentGuestChats.unshift({
-              id: targetChatId,
-              title: autoTitle,
-              created_at: nowIso,
-              last_activity_at: nowIso,
-            });
-          }
-          saveGuestChats(currentGuestChats);
-
-          const existingMsgs = getGuestMessages(targetChatId);
-          const userMsgId = currentUserMsgId || `user-${Date.now()}`;
-          const updatedMsgs = [
-            ...existingMsgs.filter((m) => m.id !== userMsgId && m.id !== finalMsgId),
-            {
-              id: userMsgId,
-              chat_id: targetChatId,
-              role: "user",
-              content: userText,
-              created_at: nowIso,
-            },
-            {
-              id: finalMsgId,
-              chat_id: targetChatId,
-              role: "assistant",
-              content: finalContent,
-              created_at: nowIso,
-            },
-          ];
-          saveGuestMessages(targetChatId, updatedMsgs);
+        if (authUser) {
+          promoteChatToTop(
+            returnedChat?.id || sessionPayloadId,
+            returnedChat?.title
+          );
         }
       } else {
         const result = await response.json().catch(() => null);
@@ -4855,49 +4842,27 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           </button>
         </div>
 
-        {/* New Chat Button + Real-time Search Filter */}
-        <div className="px-3 pb-2 space-y-2 shrink-0">
-          <button
-            type="button"
-            onClick={() => handleCreateNewChat()}
-            className="w-full min-h-11 lg:min-h-0 flex items-center justify-between px-3 py-2 rounded-lg bg-bg-surface hover:bg-bg-subtle active:scale-[0.99] text-text-primary text-xs font-medium tracking-tight transition-all duration-200 border border-border-subtle shadow-xs hover:border-border-strong cursor-pointer"
-          >
-            <span className="flex items-center gap-2">
-              <Plus className="w-3.5 h-3.5 text-icon-muted" />
-              <span>Percakapan Baru</span>
-            </span>
-          </button>
+        {/* Sidebar Actions & Navigation */}
+        {!authUser ? (
+          <div className="px-3 pb-2 space-y-3 shrink-0">
+            {/* New Chat Button */}
+            <button
+              type="button"
+              onClick={() => handleCreateNewChat()}
+              className="w-full min-h-11 lg:min-h-0 flex items-center justify-between px-3 py-2 rounded-lg bg-bg-surface hover:bg-bg-subtle active:scale-[0.99] text-text-primary text-xs font-medium tracking-tight transition-all duration-200 border border-border-subtle shadow-xs hover:border-border-strong cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5 text-icon-muted" />
+                <span>Percakapan Baru</span>
+              </span>
+            </button>
 
-          <div className="relative flex items-center">
-            <Search className="w-3.5 h-3.5 text-icon-muted absolute left-2.5 pointer-events-none" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={isTouchOrMobile ? "Cari percakapan..." : "Cari percakapan... (Ctrl+K)"}
-              aria-label="Cari percakapan"
-              className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
-            />
-            {searchQuery && (
-              <button
-                type="button"
-                onClick={() => setSearchQuery("")}
-                aria-label="Bersihkan pencarian"
-                className="absolute right-2 p-0.5 rounded text-icon-muted hover:text-text-primary transition-colors cursor-pointer"
-              >
-                <X className="w-3 h-3" />
-              </button>
-            )}
-          </div>
-
-          {/* Guest Mode Cloud Sync Prompt Banner */}
-          {!authUser && (
-            <div className="p-2.5 rounded-xl bg-bg-surface border border-border-subtle flex flex-col gap-2 shrink-0">
-              <div className="flex items-start gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
-                <div className="text-[11px] text-text-secondary leading-snug">
-                  <span className="font-semibold text-text-primary block">Simpan di Cloud</span>
+            {/* Guest Mode Cloud Sync Prompt Banner */}
+            <div className="p-3 rounded-xl bg-bg-surface border border-border-subtle flex flex-col gap-2.5 shrink-0">
+              <div className="flex items-start gap-2.5">
+                <Sparkles className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <div className="text-xs text-text-secondary leading-snug">
+                  <span className="font-semibold text-text-primary block text-xs">Simpan di Cloud</span>
                   Masuk untuk mencadangkan percakapan ke cloud secara aman.
                 </div>
               </div>
@@ -4907,16 +4872,55 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsMobileSidebarOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full py-1.5 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold tracking-tight transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer"
+                className="w-full py-2 px-3 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold tracking-tight transition-colors shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <span>Masuk / Buat Akun</span>
               </button>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="px-3 pb-2 space-y-2 shrink-0">
+            {/* New Chat Button for Authenticated Users */}
+            <button
+              type="button"
+              onClick={() => handleCreateNewChat()}
+              className="w-full min-h-11 lg:min-h-0 flex items-center justify-between px-3 py-2 rounded-lg bg-bg-surface hover:bg-bg-subtle active:scale-[0.99] text-text-primary text-xs font-medium tracking-tight transition-all duration-200 border border-border-subtle shadow-xs hover:border-border-strong cursor-pointer"
+            >
+              <span className="flex items-center gap-2">
+                <Plus className="w-3.5 h-3.5 text-icon-muted" />
+                <span>Percakapan Baru</span>
+              </span>
+            </button>
 
-        {/* Grouped Chat History */}
-        <div className="flex-1 overflow-y-auto px-2 py-1 space-y-4">
+            {/* Real-time Search Filter for Authenticated Users */}
+            <div className="relative flex items-center">
+              <Search className="w-3.5 h-3.5 text-icon-muted absolute left-2.5 pointer-events-none" />
+              <input
+                ref={searchInputRef}
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder={isTouchOrMobile ? "Cari percakapan..." : "Cari percakapan... (Ctrl+K)"}
+                aria-label="Cari percakapan"
+                className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  aria-label="Bersihkan pencarian"
+                  className="absolute right-2 p-0.5 rounded text-icon-muted hover:text-text-primary transition-colors cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Grouped Chat History (Only visible when user is logged in) */}
+        {authUser ? (
+          <div className="flex-1 overflow-y-auto px-2 py-1 space-y-4">
           {isSidebarLoading || !clientNow ? (
             <div
               role="status"
@@ -5089,6 +5093,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ))
           )}
         </div>
+      ) : (
+        <div className="flex-1" />
+      )}
 
         {/* User Profile & Settings Menu (Item 4 & Item 7) */}
         <div className="p-2 border-t border-border-subtle shrink-0 relative flex items-center justify-between gap-1">
@@ -5121,10 +5128,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
             <div className="min-w-0">
               <div className="text-xs font-medium tracking-tight text-text-primary truncate">
-                {displayName || authUser?.user_metadata?.full_name || "Pengguna"}
+                {authUser ? (displayName || authUser?.user_metadata?.full_name || "Pengguna") : (displayName || "Mode Tamu")}
               </div>
               <div className="text-xs text-text-muted truncate">
-                {authUser ? "Tersinkronisasi Cloud" : "Mode Tamu (Lokal)"}
+                {authUser ? (authUser?.email || "Tersinkronisasi Cloud") : "Tanpa Akun"}
               </div>
             </div>
           </button>
