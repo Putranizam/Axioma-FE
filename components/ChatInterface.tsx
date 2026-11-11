@@ -4956,12 +4956,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
               Account
             </div>
-            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden mb-6 divide-y divide-zinc-800/60 border border-zinc-800/40 pb-0.5">
+            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden divide-y divide-zinc-800/60 mb-6 border border-zinc-800/40">
               {/* Manage account */}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
-                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-5 py-4 min-h-[58px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <User className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
@@ -5031,7 +5031,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
-                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                className="w-full flex items-center justify-between px-5 py-4 min-h-[58px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <Clock className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
@@ -5311,18 +5311,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="text-[18px] font-semibold text-white truncate">
                       {displayName || (authUser ? "Pengguna" : "Mode Tamu")}
                     </div>
-                    <div className="text-[14px] text-zinc-400 truncate">
+                    <div className="text-[14px] text-zinc-400 truncate mt-0.5">
                       {authUser?.email || "Mode Tamu (Lokal)"}
                     </div>
-                    {authUser ? (
-                      <span className="mt-1.5 inline-block px-3 py-0.5 text-xs font-medium rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
-                        Akses Awal (Trial)
-                      </span>
-                    ) : (
-                      <span className="mt-1.5 inline-block px-3 py-0.5 text-xs font-medium rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
-                        Mode Tamu ({Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/5 pesan)
-                      </span>
-                    )}
                   </div>
                 </div>
 
@@ -5375,26 +5366,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 </button>
 
-                {/* Button 2: Kelola langganan */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    showToastNotice("Fitur langganan Pro segera hadir. Saat ini Anda berada dalam masa Trial gratis.");
-                  }}
-                  className="w-full bg-[#131314] hover:bg-zinc-850 rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm opacity-90"
-                >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <div className="w-5 h-5 rounded-full border border-zinc-400 flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0">
-                      1
-                    </div>
-                    <span className="text-[16px] font-medium text-white truncate">Kelola langganan</span>
-                  </div>
-                  <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 font-medium shrink-0 ml-2">
-                    Segera Hadir
-                  </span>
-                </button>
-
-                {/* Button 3: Setelan */}
+                {/* Button 2: Setelan */}
                 <button
                   type="button"
                   onClick={() => {
@@ -5412,7 +5384,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 </button>
 
-                {/* Button 4: Keluar dari Akun (when authUser) */}
+                {/* Button 3: Keluar dari Akun (when authUser) */}
                 {authUser && (
                   <button
                     type="button"
