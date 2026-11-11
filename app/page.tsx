@@ -2,10 +2,7 @@ import ChatInterface from "@/components/ChatInterface";
 
 export default function Home() {
   return (
-    <main
-      style={{ height: "var(--viewport-height, 100dvh)" }}
-      className="w-full overflow-hidden"
-    >
+    <main className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-black flex flex-col">
       <ChatInterface />
     </main>
   );

@@ -1121,9 +1121,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       if (isModalActiveRef.current) return;
 
       const vv = window.visualViewport;
-      const height = vv ? vv.height : window.innerHeight;
-      document.documentElement.style.setProperty("--viewport-height", `${height}px`);
-
       const isMobile = window.innerWidth < 768;
       const screenH = window.screen?.height || window.innerHeight;
       const isKeyboard = isMobile && vv ? vv.height < screenH - 120 : false;
@@ -4737,8 +4734,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           void handleFilesSelected(e.dataTransfer.files);
         }
       }}
-      style={{ height: "var(--viewport-height, 100dvh)" }}
-      className="flex flex-col lg:flex-row w-full max-w-full bg-bg-primary text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary relative"
+      className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full max-w-full flex flex-col lg:flex-row bg-bg-primary text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -6167,7 +6163,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
             ) && (
               <div
-                className={`md:hidden flex-1 min-h-0 z-10 flex flex-col items-center justify-center px-4 text-center transition-all duration-300 pointer-events-none animate-fade-up will-change-transform ${
+                className={`md:hidden flex-1 min-h-0 overflow-y-auto z-10 flex flex-col items-center justify-center px-4 text-center transition-all duration-300 pointer-events-none animate-fade-up will-change-transform ${
                   isKeyboardOpen ? "mt-0" : "-mt-6 sm:-mt-8"
                 } ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
@@ -6868,15 +6864,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) on Desktop; Docked at Bottom on Mobile */}
           <div
-            className={`w-full px-3 sm:px-4 shrink-0 pt-1.5 sm:pt-2 ${
+            className={`w-full px-3 sm:px-4 shrink-0 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom,12px))] ${
               hasMessages
                 ? "bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)] to-transparent"
                 : "bg-transparent"
-            } relative z-20 ${
-              isKeyboardOpen
-                ? "pb-2"
-                : "pb-[max(0.5rem,env(safe-area-inset-bottom))] sm:pb-[max(0.75rem,env(safe-area-inset-bottom))]"
-            }`}
+            } relative z-20`}
           >
             <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
               <div
@@ -7325,7 +7317,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         }}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder="Minta Axioma..."
-                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary placeholder:text-text-muted text-base focus:outline-none px-1.5 py-2 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out"
+                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary placeholder:text-text-muted text-[16px] md:text-base focus:outline-none px-1.5 py-2 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out touch-manipulation"
                       />
                     </div>
                   )}
