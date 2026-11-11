@@ -209,10 +209,10 @@ declare global {
 
 const RAW_ENV_BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL || "").trim();
 const BACKEND_URL = RAW_ENV_BACKEND_URL
-  ? RAW_ENV_BACKEND_URL.replace(/\/+$/, "")
+  ? RAW_ENV_BACKEND_URL.replace(/\/+$/, "").replace(/\/api$/, "")
   : process.env.NODE_ENV === "development"
     ? "http://localhost:8000"
-    : "";
+    : "https://axioma-be.onrender.com";
 const TURNSTILE_SITE_KEY = (process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || "").trim();
 // Initial response timeout 90s (for Render cold start); idle timeout 30s per chunk (#1)
 const INITIAL_RESPONSE_TIMEOUT_MS = 90_000;
@@ -943,9 +943,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     if (document.body) {
       document.body.style.backgroundColor = themeColor;
     }
-    const metaTag = document.querySelector('meta[name="theme-color"]');
-    if (metaTag) {
-      metaTag.setAttribute("content", themeColor);
+    const metaTags = document.querySelectorAll('meta[name="theme-color"]');
+    if (metaTags.length > 0) {
+      metaTags.forEach((el) => el.setAttribute("content", themeColor));
+    } else {
+      const meta = document.createElement("meta");
+      meta.name = "theme-color";
+      meta.content = themeColor;
+      document.head.appendChild(meta);
     }
   }, []);
 
@@ -1447,13 +1452,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    if (authToken && authUser) {
-      headers["Authorization"] = `Bearer ${authToken}`;
+    const isValidToken =
+      typeof authToken === "string" &&
+      authToken.trim() !== "" &&
+      authToken !== "null" &&
+      authToken !== "undefined";
+
+    if (isValidToken && authUser && authUser.id) {
+      headers["Authorization"] = `Bearer ${authToken.trim()}`;
       headers["X-User-Id"] = authUser.id;
     } else {
       headers["X-Guest-Mode"] = "true";
-      const effectiveUserId = currentUserId || safeGetLocalStorage(STORAGE_KEYS.USER_ID) || "guest";
+      const effectiveUserId =
+        currentUserId && currentUserId !== "null" && currentUserId !== "undefined"
+          ? currentUserId
+          : safeGetLocalStorage(STORAGE_KEYS.USER_ID) || "guest";
       headers["X-User-Id"] = effectiveUserId;
+      delete headers["Authorization"];
     }
     return headers;
   }, [authToken, authUser, currentUserId]);
@@ -1568,32 +1583,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     setGreetingVariantIdx(Math.floor(Math.random() * 3));
   }, [activeChatId]);
 
-  // Modern AI mobile greeting (matching Gemini mobile design):
-  // 1) "Halo {nama}, yuk kita mulai"
-  // 2) "Ada rencana apa hari ini, {nama}?"
-  // 3) "Tanyakan apa saja, {nama}."
-  // When recording: "Tanyakan apa saja, {nama}."
+  // Axioma mobile greeting: "Halo [Nama], apa yang Anda pikirkan?"
   const mobileGreeting = useMemo(() => {
     const cleanName = displayName?.trim();
     const hasName = Boolean(cleanName && cleanName.toLowerCase() !== "pengguna");
-    if (isRecording) {
-      return hasName ? `Tanyakan apa saja,\n${cleanName}.` : "Tanyakan apa saja.";
-    }
     if (hasName) {
-      const variants = [
-        `Halo ${cleanName},\nyuk kita mulai`,
-        `Ada rencana apa hari ini,\n${cleanName}?`,
-        `Tanyakan apa saja,\n${cleanName}.`,
-      ];
-      return variants[greetingVariantIdx % variants.length];
+      return `Halo ${cleanName}, apa yang Anda pikirkan?`;
     }
-    const guestVariants = [
-      "Halo, yuk kita mulai",
-      "Ada rencana apa hari ini?",
-      "Tanyakan apa saja.",
-    ];
-    return guestVariants[greetingVariantIdx % guestVariants.length];
-  }, [displayName, isRecording, greetingVariantIdx]);
+    return "Halo, apa yang Anda pikirkan?";
+  }, [displayName]);
 
   useEffect(() => {
     const nextHasMessages = Boolean(currentMessages.length > 0);
@@ -3624,12 +3622,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         const result = await response.json().catch(() => null);
 
         if (!response.ok || !result?.success) {
+          console.error("[AXIOMA_BACKEND_HTTP_ERROR]", {
+            status: response.status,
+            statusText: response.statusText,
+            url: response.url,
+            body: result,
+          });
+
           if (
             response.status === 503 ||
             result?.code === "daily_quota_exceeded" ||
             (result?.error && result.error.includes("Kuota"))
           ) {
             throw new Error("Kuota AI hari ini sudah habis. Tersedia lagi pukul 07.00 WIB.");
+          }
+          if (response.status === 429) {
+            throw new Error(
+              result?.error || "Terlalu banyak permintaan pesan. Silakan tunggu sebentar lalu coba lagi."
+            );
           }
           const errorDetail =
             result?.error ||
@@ -3724,24 +3734,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         return;
       }
 
-      console.error("Axioma Backend Connection Error:", error);
+      console.error("[AXIOMA_CHAT_ERROR]", {
+        message: error?.message,
+        name: error?.name,
+        stack: error?.stack,
+        targetChatId,
+        backendUrl: BACKEND_URL,
+        isOnline: typeof navigator !== "undefined" ? navigator.onLine : undefined,
+      });
 
       let errorDetail: string;
       const isTimeout =
         abortReason === "timeout" ||
         (error?.name === "AbortError" && !stoppedByUserByChatRef.current[targetChatId]);
-      const isNetworkError =
-        (typeof navigator !== "undefined" && !navigator.onLine) ||
-        error?.name === "TypeError" ||
-        error instanceof TypeError ||
-        (typeof error?.message === "string" && (
-          error.message.includes("Failed to fetch") ||
-          error.message.includes("NetworkError") ||
-          error.message.includes("fetch failed")
-        ));
+      
+      const isExplicitOffline = typeof navigator !== "undefined" && !navigator.onLine;
 
       if (isTimeout) {
-        errorDetail = "Server terlalu lama merespons, coba lagi.";
+        errorDetail = "Server terlalu lama merespons. Server mungkin sedang cold-start, silakan coba lagi.";
       } else if (
         error?.message?.includes("Kuota AI hari ini") ||
         error?.message?.toLowerCase().includes("kuota harian") ||
@@ -3749,10 +3759,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         error?.code === "daily_quota_exceeded"
       ) {
         errorDetail = "Kuota AI hari ini sudah habis. Tersedia lagi pukul 07.00 WIB.";
-      } else if (isNetworkError) {
-        errorDetail = "Koneksi terputus, periksa internet Anda.";
+      } else if (isExplicitOffline) {
+        errorDetail = "Koneksi internet Anda terputus. Periksa jaringan Anda.";
+      } else if (
+        typeof error?.message === "string" &&
+        (error.message.includes("Failed to fetch") ||
+          error.message.includes("NetworkError") ||
+          error.message.includes("fetch failed"))
+      ) {
+        errorDetail = `Tidak dapat terhubung ke server Axioma (${BACKEND_URL}). Pastikan backend aktif.`;
       } else {
-        errorDetail = error?.message || "Terjadi kesalahan yang tidak diketahui.";
+        errorDetail = error?.message || "Terjadi kesalahan saat memproses pesan.";
       }
 
       // If partial text was already streamed before interruption, keep the partial AI message visible above the error retry bubble (#6)
@@ -5089,7 +5106,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             }}
             className="flex-1 flex items-center gap-2.5 p-2 rounded-xl hover:bg-bg-surface transition-colors cursor-pointer group text-left min-w-0"
           >
-            <div className="w-8 h-8 rounded-full bg-purple-600/30 dark:bg-purple-900/40 border border-purple-500/40 text-purple-200 dark:text-purple-300 flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden">
+            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs">
               {authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture ? (
                 <Image
                   src={authUser.user_metadata.avatar_url || authUser.user_metadata.picture}
@@ -5292,7 +5309,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                   aria-label="Buka menu profil dan akun"
                   title="Profil Akun"
-                  className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-purple-600/30 dark:bg-purple-900/40 border border-purple-500/40 text-purple-200 dark:text-purple-300 font-semibold text-sm active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
+                  className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-purple-600 text-white font-semibold text-sm active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
                 >
                   {authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture ? (
                     <Image
@@ -5399,7 +5416,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                 aria-label="Buka menu profil dan akun"
                 title="Profil Akun"
-                className="w-9 h-9 rounded-full bg-purple-600/30 dark:bg-purple-900/40 border border-purple-500/40 text-purple-200 dark:text-purple-300 font-semibold text-xs active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
+                className="w-9 h-9 rounded-full bg-purple-600 text-white font-semibold text-xs active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
               >
                 {authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture ? (
                   <Image
@@ -5432,7 +5449,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {authUser ? (
                   <>
                     <div className="flex items-center gap-3 pb-3 border-b border-border-subtle">
-                      <div className="w-11 h-11 rounded-full bg-purple-600/30 dark:bg-purple-900/40 text-purple-200 dark:text-purple-300 border border-purple-500/40 flex items-center justify-center font-bold text-base shrink-0 overflow-hidden">
+                      <div className="w-11 h-11 rounded-full bg-purple-600 text-white flex items-center justify-center font-bold text-base shrink-0 overflow-hidden shadow-xs">
                         {authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture ? (
                           <Image
                             src={authUser.user_metadata.avatar_url || authUser.user_metadata.picture}
@@ -5617,9 +5634,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         {/* Dynamic Chat Workspace */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-          {/* Ambient bottom radial glow (Gemini dark aesthetic, hidden in light mode for 100% pure white) */}
+          {/* Ambient bottom radial glow (Rich deep cosmic blue aesthetic matching Gemini, hidden in light mode for 100% pure white) */}
           <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-[50vh] hidden dark:block dark:bg-[radial-gradient(ellipse_90%_70%_at_75%_85%,_rgba(37,99,235,0.25),_rgba(30,58,138,0.16)_40%,_transparent_75%)] z-0"
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[60vh] hidden dark:block dark:bg-[radial-gradient(ellipse_85%_65%_at_65%_95%,rgba(37,99,235,0.25)_0%,rgba(30,58,138,0.12)_45%,transparent_75%)] z-0"
             aria-hidden="true"
           />
 
@@ -5631,40 +5648,37 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) && (
               <div
                 className={`md:hidden flex-1 min-h-0 z-10 flex flex-col items-center justify-center px-4 text-center transition-all duration-300 pointer-events-none ${
+                  isKeyboardOpen ? "mt-0" : "-mt-6 sm:-mt-8"
+                } ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                 }`}
               >
-                <div className="w-full max-w-[320px] sm:max-w-md mx-auto flex flex-col items-center px-2">
-                  {/* Brand Logo with subtle glow and smooth entrance (sleek 4-pointed Gemini/Axioma star) */}
-                  <div className={`relative group transition-all duration-200 ${isKeyboardOpen ? "mb-2 sm:mb-3" : "mb-5 sm:mb-6"}`}>
-                    <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/35 via-cyan-400/25 to-indigo-500/35 rounded-full blur-2xl opacity-75 animate-pulse pointer-events-none" />
-                    <svg
-                      viewBox="0 0 48 48"
-                      className={`relative drop-shadow-[0_0_16px_rgba(56,189,248,0.6)] transition-all duration-200 ${
-                        isKeyboardOpen ? "w-9 h-9 sm:w-11 sm:h-11" : "w-12 h-12 sm:w-14 sm:h-14"
+                <div className="w-full max-w-[360px] sm:max-w-md mx-auto flex flex-col items-center px-2">
+                  {/* Brand Logo with subtle glow (Original Axioma A✦ logo in rounded-2xl container) */}
+                  <div className={`relative group transition-all duration-200 ${isKeyboardOpen ? "mb-2.5 sm:mb-3" : "mb-5 sm:mb-6"}`}>
+                    <div className="absolute -inset-3.5 bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-500/25 rounded-full blur-xl opacity-80 pointer-events-none" />
+                    <div
+                      className={`relative rounded-2xl bg-zinc-900/90 dark:bg-[#141416]/95 border border-zinc-700/60 dark:border-white/10 flex items-center justify-center shadow-2xl p-2.5 transition-all duration-200 backdrop-blur-md ${
+                        isKeyboardOpen ? "w-12 h-12 sm:w-14 sm:h-14" : "w-14 h-14 sm:w-16 sm:h-16"
                       }`}
-                      fill="none"
-                      xmlns="http://www.w3.org/2000/svg"
                     >
-                      <defs>
-                        <linearGradient id="axiomaStarGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                          <stop offset="0%" stopColor="#38bdf8" />
-                          <stop offset="35%" stopColor="#818cf8" />
-                          <stop offset="70%" stopColor="#f472b6" />
-                          <stop offset="100%" stopColor="#fbbf24" />
-                        </linearGradient>
-                      </defs>
-                      <path
-                        d="M24 0C24 13.255 13.255 24 0 24C13.255 24 24 34.745 24 48C24 34.745 34.745 24 48 24C34.745 24 24 13.255 24 0Z"
-                        fill="url(#axiomaStarGrad)"
+                      <Image
+                        src="/brand/axioma-logo.png"
+                        alt="Axioma"
+                        width={56}
+                        height={56}
+                        className="w-full h-full object-contain"
+                        priority
                       />
-                    </svg>
+                    </div>
                   </div>
 
                   {/* Sapaan besar */}
                   <h1
-                    className={`font-medium sm:font-semibold text-text-primary tracking-tight leading-[1.25] text-center text-balance whitespace-pre-line transition-all duration-200 ${
-                      isKeyboardOpen ? "text-[22px] sm:text-2xl" : "text-[30px] sm:text-[34px]"
+                    className={`font-semibold tracking-tight text-center text-balance whitespace-pre-line text-zinc-900 dark:text-white transition-all duration-200 ${
+                      isKeyboardOpen
+                        ? "text-2xl sm:text-[26px] leading-tight"
+                        : "text-3xl sm:text-[34px] font-semibold leading-[1.18]"
                     }`}
                   >
                     {mobileGreeting}
@@ -5883,15 +5897,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 return (
                   <div
                     key={message.id}
-                    className="flex justify-start animate-error-shake"
+                    className="flex justify-start animate-error-shake w-full"
                   >
-                    <div className="w-full rounded-2xl bg-red-950/30 border border-red-800/50 px-4 py-3.5 space-y-2.5">
-                      <div className="flex items-start gap-2.5 text-red-200 text-sm font-medium">
-                        <CircleAlert className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                    <div className="w-full rounded-2xl bg-red-50 border border-red-200 text-red-900 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-200 px-4 py-3.5 space-y-2.5 shadow-xs">
+                      <div className="flex items-start gap-2.5 text-sm font-medium">
+                        <CircleAlert className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
                         <div className="space-y-1">
-                          <div>{message.content}</div>
+                          <div className="font-semibold text-red-900 dark:text-red-200">{message.content}</div>
                           {message.errorDetail && (
-                            <div className="text-xs text-red-200/90 font-normal leading-relaxed">
+                            <div className="text-xs text-red-700 dark:text-red-300 font-normal leading-relaxed">
                               {message.errorDetail}
                             </div>
                           )}
@@ -5903,7 +5917,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             type="button"
                             disabled={isLoading || isGenerating}
                             onClick={() => handleRetry(message.id, message.retryPayload!)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-900/50 hover:bg-red-900/70 text-red-100 border border-red-700/50 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white dark:bg-red-900/60 dark:hover:bg-red-900/80 dark:text-red-100 border border-red-600 dark:border-red-700/50 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs"
                           >
                             <RotateCw className="w-3.5 h-3.5" />
                             <span>Coba lagi</span>
@@ -6297,7 +6311,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                   ) && (
                     <div
-                      className={`md:hidden w-full mb-3 flex items-center justify-center gap-2.5 px-1 text-xs font-medium transition-all duration-200 ${
+                      className={`md:hidden w-full mb-3.5 flex items-center justify-center gap-2.5 px-1 text-xs font-medium transition-all duration-200 ${
                         isEmptyDecorationsExiting
                           ? "opacity-0 -translate-y-2 pointer-events-none"
                           : "opacity-100 translate-y-0"
@@ -6313,13 +6327,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </button>
                       <button
                         type="button"
-                        onClick={() => {
-                          showToastNotice("Fitur Tugas akan segera hadir!");
-                        }}
-                        aria-label="Mode Tugas"
-                        className="px-3.5 py-1.5 rounded-full text-text-muted hover:text-text-primary font-medium text-xs sm:text-sm cursor-pointer active:scale-95 transition-all"
+                        onClick={handleOpenVoiceMode}
+                        aria-label="Buka Mode Suara"
+                        className="px-3.5 py-1.5 rounded-full text-text-muted hover:text-text-primary dark:text-[#9aa0a6] dark:hover:text-white font-medium text-xs sm:text-sm cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
                       >
-                        Tugas
+                        <AudioLines className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
+                        <span>Mode Suara</span>
                       </button>
                     </div>
                   )}
@@ -6826,16 +6839,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             );
                           }
 
-                          // Mode Suara button (default when no text/attachment)
+                          // Mode Suara button (default when no text/attachment, sleek dark-navy pill matching Gemini)
                           return (
                             <button
                               type="button"
                               onClick={handleOpenVoiceMode}
                               title="Mode Suara (Percakapan langsung)"
                               aria-label="Mode Suara (Percakapan langsung)"
-                              className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25 active:scale-[0.92] transition-all duration-200 cursor-pointer"
+                              className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center bg-blue-950/70 hover:bg-blue-900/80 text-blue-400 border border-blue-500/30 dark:bg-[#1a273e] dark:hover:bg-[#233452] dark:text-[#60a5fa] dark:border-blue-400/25 shadow-md active:scale-[0.92] transition-all duration-200 cursor-pointer"
                             >
-                              <AudioLines className="w-5 h-5 text-white" />
+                              <AudioLines className="w-5 h-5 text-blue-500 dark:text-[#60a5fa]" />
                             </button>
                           );
                         })()}
@@ -6962,8 +6975,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
               <div
-                className={`text-center text-[11px] sm:text-xs text-text-muted pt-1 sm:pt-2.5 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 ${
-                  isKeyboardOpen ? "hidden" : (!hasMessages ? "hidden md:flex" : "flex")
+                className={`text-center text-[11px] sm:text-xs text-text-muted pt-1.5 sm:pt-2.5 pb-1 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 ${
+                  isKeyboardOpen ? "hidden" : "flex"
                 }`}
               >
                 <span className="md:hidden">Axioma dapat membuat kesalahan.</span>

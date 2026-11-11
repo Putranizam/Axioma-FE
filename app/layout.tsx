@@ -107,10 +107,9 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://axioma-be.onrender.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://axioma-be.onrender.com" />
-        <meta name="theme-color" content="#000000" id="theme-color-meta" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement;var m=window.matchMedia("(prefers-color-scheme: dark)");function apply(){var t=localStorage.getItem("axioma_theme");var isDark=t==="dark"||((!t||t==="system")&&m.matches);var bg=isDark?"#000000":"#ffffff";if(isDark){d.classList.add("dark");d.classList.remove("light");}else{d.classList.remove("dark");d.classList.add("light");}d.style.backgroundColor=bg;if(document.body){document.body.style.backgroundColor=bg;}var meta=document.querySelector('meta[name="theme-color"]');if(meta){meta.setAttribute("content",bg);}}apply();if(m&&m.addEventListener){m.addEventListener("change",function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}else if(m&&m.addListener){m.addListener(function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}}catch(e){}})();`,
+            __html: `(function(){try{var d=document.documentElement;var m=window.matchMedia("(prefers-color-scheme: dark)");function apply(){var t=localStorage.getItem("axioma_theme");var isDark=t==="dark"||((!t||t==="system")&&m.matches);var bg=isDark?"#000000":"#ffffff";if(isDark){d.classList.add("dark");d.classList.remove("light");}else{d.classList.remove("dark");d.classList.add("light");}d.style.backgroundColor=bg;if(document.body){document.body.style.backgroundColor=bg;}var metas=document.querySelectorAll('meta[name="theme-color"]');if(metas.length>0){metas.forEach(function(el){el.setAttribute("content",bg);});}else{var el=document.createElement("meta");el.name="theme-color";el.content=bg;document.head.appendChild(el);}}apply();if(m&&m.addEventListener){m.addEventListener("change",function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}else if(m&&m.addListener){m.addListener(function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}}catch(e){}})();`,
           }}
         />
       </head>
