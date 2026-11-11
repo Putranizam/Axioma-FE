@@ -13,7 +13,14 @@ import {
   Sparkles,
   ArrowRight,
 } from "lucide-react";
-import { supabase, isSupabaseConfigured, SupabaseUser } from "../lib/supabaseClient";
+import {
+  supabase,
+  isSupabaseConfigured,
+  SupabaseUser,
+  GOOGLE_CLIENT_ID,
+  generateNoncePair,
+  signInWithGoogleIdToken,
+} from "../lib/supabaseClient";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -60,19 +67,103 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     if (!supabase || isLoading) return;
     setIsLoading(true);
     setError(null);
+    setSuccessNotice(null);
+
     try {
-      const redirectTo = typeof window !== "undefined" ? window.location.origin : undefined;
-      const { error: authError } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo,
-          queryParams: {
-            access_type: "offline",
-            prompt: "consent",
-          },
-        },
-      });
-      if (authError) throw authError;
+      const clientId = GOOGLE_CLIENT_ID;
+      const origin = typeof window !== "undefined" ? window.location.origin : "";
+      const redirectUri = `${origin}/api/auth/google/callback`;
+
+      const { rawNonce, hashedNonce } = await generateNoncePair();
+
+      // Store rawNonce in session & local storage for cross-page retrieval
+      try {
+        sessionStorage.setItem("axioma_google_raw_nonce", rawNonce);
+        localStorage.setItem("axioma_google_raw_nonce", rawNonce);
+      } catch {}
+
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth?` +
+        `client_id=${encodeURIComponent(clientId)}&` +
+        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
+        `response_type=id_token&` +
+        `scope=${encodeURIComponent("openid email profile")}&` +
+        `nonce=${encodeURIComponent(hashedNonce)}&` +
+        `prompt=select_account`;
+
+      // Check if user is on mobile
+      const isMobile =
+        typeof window !== "undefined" &&
+        (window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
+
+      if (isMobile) {
+        // Direct redirect on mobile avoids Safari/Chrome popup blocker
+        window.location.href = authUrl;
+        return;
+      }
+
+      // Desktop: Open centered popup
+      const width = 500;
+      const height = 620;
+      const left = window.screenX + (window.outerWidth - width) / 2;
+      const top = window.screenY + (window.outerHeight - height) / 2;
+      const popup = window.open(
+        authUrl,
+        "axioma_google_login",
+        `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no`
+      );
+
+      if (!popup || popup.closed || typeof popup.closed === "undefined") {
+        // Popup was blocked by browser, fallback to redirect
+        window.location.href = authUrl;
+        return;
+      }
+
+      let completed = false;
+
+      const messageHandler = async (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        if (event.data?.type === "AXIOMA_GOOGLE_AUTH") {
+          completed = true;
+          window.removeEventListener("message", messageHandler);
+          clearInterval(pollTimer);
+
+          const { idToken, error: authErr } = event.data;
+          if (authErr) {
+            setError(`Gagal masuk dengan Google: ${authErr}`);
+            setIsLoading(false);
+            return;
+          }
+
+          if (idToken) {
+            const { user, error: signInErr } = await signInWithGoogleIdToken(idToken, rawNonce);
+            if (signInErr) {
+              setError(signInErr.message || "Gagal memproses sesi login dengan Google.");
+              setIsLoading(false);
+              return;
+            }
+            if (user) {
+              onSuccess?.(user);
+              onClose();
+            }
+          }
+          setIsLoading(false);
+        }
+      };
+
+      window.addEventListener("message", messageHandler);
+
+      const pollTimer = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(pollTimer);
+          window.removeEventListener("message", messageHandler);
+          setTimeout(() => {
+            if (!completed) {
+              setIsLoading(false);
+            }
+          }, 600);
+        }
+      }, 500);
     } catch (err: any) {
       setError(err?.message || "Gagal masuk dengan Google. Silakan coba lagi.");
       setIsLoading(false);

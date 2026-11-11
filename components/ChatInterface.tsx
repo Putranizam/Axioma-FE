@@ -94,6 +94,7 @@ import {
   supabase,
   isSupabaseConfigured,
   SupabaseUser,
+  signInWithGoogleIdToken,
 } from "../lib/supabaseClient";
 
 // In-app WebView / older browser polyfills and guards (#6)
@@ -1504,6 +1505,66 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       });
     });
   }, [fetchChats]);
+
+  // Handle return from Google OAuth redirect flow (mobile / non-popup)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const storedError =
+      sessionStorage.getItem("axioma_google_auth_error") ||
+      localStorage.getItem("axioma_google_auth_error");
+
+    if (storedError) {
+      try {
+        sessionStorage.removeItem("axioma_google_auth_error");
+        localStorage.removeItem("axioma_google_auth_error");
+      } catch {}
+      showToastNotice(`Gagal masuk dengan Google: ${storedError}`);
+      if (window.location.search.includes("auth=")) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+    }
+
+    const pendingToken =
+      sessionStorage.getItem("axioma_pending_google_id_token") ||
+      localStorage.getItem("axioma_pending_google_id_token");
+
+    if (pendingToken) {
+      const rawNonce =
+        sessionStorage.getItem("axioma_google_raw_nonce") ||
+        localStorage.getItem("axioma_google_raw_nonce");
+
+      try {
+        sessionStorage.removeItem("axioma_pending_google_id_token");
+        localStorage.removeItem("axioma_pending_google_id_token");
+        sessionStorage.removeItem("axioma_google_raw_nonce");
+        localStorage.removeItem("axioma_google_raw_nonce");
+      } catch {}
+
+      if (window.location.search.includes("auth=")) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
+      signInWithGoogleIdToken(pendingToken, rawNonce).then(({ user, error }) => {
+        if (error) {
+          showToastNotice(`Gagal memproses sesi login: ${error.message}`);
+        } else if (user) {
+          setAuthUser(user);
+          const name =
+            user.user_metadata?.full_name ||
+            user.user_metadata?.name ||
+            user.email?.split("@")[0];
+          if (name) {
+            setDisplayName(name);
+            setSettingsNameInput(name);
+            safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, name);
+          }
+          showToastNotice(`Selamat datang, ${name || "Pengguna"}!`);
+          void refreshChatHistory();
+        }
+      });
+    }
+  }, [refreshChatHistory, showToastNotice]);
 
   useEffect(() => {
     if (!currentUserId) return;
