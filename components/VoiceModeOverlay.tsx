@@ -798,7 +798,7 @@ export default function VoiceModeOverlay({
       role="dialog"
       aria-modal="true"
       aria-label="Mode Suara Axioma"
-      className="fixed inset-0 z-50 bg-[#08080a] text-white flex flex-col justify-between overflow-hidden select-none animate-fade-in"
+      className="fixed inset-0 z-50 bg-[#08080a] text-white flex flex-col justify-between overflow-hidden select-none animate-fade-in will-change-transform"
       style={{
         paddingTop: "max(1.25rem, env(safe-area-inset-top))",
         paddingBottom: "max(1.75rem, env(safe-area-inset-bottom))",
@@ -848,7 +848,7 @@ export default function VoiceModeOverlay({
       </div>
 
       {/* Center Interactive Glowing Orb */}
-      <div className="flex-1 flex flex-col items-center justify-center relative my-auto z-10 px-4">
+      <div className="flex-1 flex flex-col items-center justify-center relative my-auto z-10 px-4 animate-fade-up will-change-transform">
         {/* Animated Radial Waves Container */}
         <div className="relative flex items-center justify-center w-72 h-72 sm:w-80 sm:h-80">
           {/* Outer Ripple 1 */}

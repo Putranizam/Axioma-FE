@@ -186,14 +186,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-backdrop transition-all"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-strong shadow-2xl overflow-hidden flex flex-col focus:outline-none animate-in fade-in zoom-in-95 duration-150 relative text-text-primary"
+        className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-strong shadow-2xl overflow-hidden flex flex-col focus:outline-none animate-modal-pop will-change-transform relative text-text-primary"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-2">

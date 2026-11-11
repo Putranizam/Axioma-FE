@@ -64,6 +64,9 @@ import {
   ExternalLink,
   Loader2,
   WifiOff,
+  Sparkles,
+  Film,
+  Palette,
 } from "lucide-react";
 import {
   AttachmentItem,
@@ -94,6 +97,8 @@ const VoiceModeOverlay = dynamic(() => import("./VoiceModeOverlay"), {
 const AuthModal = dynamic(() => import("./AuthModal"), {
   ssr: false,
 });
+
+import { AiImageCard } from "./AiImageCard";
 
 import {
   supabase,
@@ -428,10 +433,24 @@ interface StarterPrompt {
   label: string;
   mode: "send" | "prefill";
   prefillText?: string;
-  icon: "lightbulb" | "mail" | "table" | "code";
+  icon: "lightbulb" | "mail" | "table" | "code" | "image" | "video";
 }
 
 const STARTER_PROMPTS: StarterPrompt[] = [
+  {
+    id: "create-image",
+    label: "Buatkan gambar pemandangan kota futuristik HD",
+    mode: "prefill",
+    prefillText: "Buatkan gambar: pemandangan kota futuristik Jakarta dengan pencahayaan neon sinematik, 8k",
+    icon: "image",
+  },
+  {
+    id: "create-video",
+    label: "Buatkan video drone sinematik pegunungan",
+    mode: "prefill",
+    prefillText: "Buatkan video: kamera drone sinematik terbang di atas puncak pegunungan berkabut saat fajar",
+    icon: "video",
+  },
   {
     id: "explain-simple",
     label: "Jelaskan cara kerja blockchain dengan bahasa sederhana",
@@ -4670,6 +4689,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         return <Table className="w-4 h-4 text-text-muted shrink-0" />;
       case "code":
         return <Code className="w-4 h-4 text-text-muted shrink-0" />;
+      case "image":
+        return <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />;
+      case "video":
+        return <Film className="w-4 h-4 text-purple-400 shrink-0" />;
     }
   };
 
@@ -4723,16 +4746,40 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="absolute -top-12 left-0 right-0 flex items-center justify-between text-white text-xs px-2">
               <span className="truncate max-w-[70vw] font-medium">{lightboxImage.name}</span>
               <div className="flex items-center gap-2">
-                <a
-                  href={lightboxImage.url}
-                  download={lightboxImage.name}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white"
-                  title="Unduh gambar"
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      if (lightboxImage.url.startsWith("data:")) {
+                        const link = document.createElement("a");
+                        link.href = lightboxImage.url;
+                        link.download = `${lightboxImage.name || "axioma-ai-image"}.jpg`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      } else {
+                        const response = await fetch(lightboxImage.url, { mode: "cors" });
+                        const blob = await response.blob();
+                        const blobUrl = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = blobUrl;
+                        link.download = `${lightboxImage.name || "axioma-ai-image"}.jpg`;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
+                      }
+                    } catch {
+                      window.open(lightboxImage.url, "_blank");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white text-zinc-900 text-xs font-medium hover:bg-white/90 active:scale-95 transition-all shadow cursor-pointer"
+                  title="Unduh resolusi tinggi"
+                  aria-label="Unduh gambar HD"
                 >
-                  <Download className="w-4 h-4" />
-                </a>
+                  <Download className="w-3.5 h-3.5 text-zinc-900" />
+                  <span>Unduh HD</span>
+                </button>
                 <button
                   type="button"
                   onClick={() => setLightboxImage(null)}
@@ -4795,14 +4842,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           aria-modal="true"
           aria-labelledby="clear-all-dialog-title"
           aria-describedby="clear-all-dialog-desc"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm touch-none"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm animate-backdrop touch-none"
           onClick={(e) => {
             if (e.target === e.currentTarget && !isClearingAllChats) {
               setIsClearAllConfirmOpen(false);
             }
           }}
         >
-          <div className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain touch-auto animate-user-bubble">
+          <div className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain touch-auto animate-sheet-up sm:animate-modal-pop will-change-transform">
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-red-950/50 border border-red-800/50 flex items-center justify-center shrink-0 text-red-400">
                 <TriangleAlert className="w-4 h-4" />
@@ -4852,7 +4899,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-sm p-0 sm:p-4 overflow-hidden"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 backdrop-blur-md animate-backdrop p-0 sm:p-4 overflow-hidden transition-all duration-300"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsSettingsModalOpen(false);
@@ -4861,7 +4908,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         >
           <form
             onSubmit={handleSaveSettings}
-            className="w-full sm:max-w-md max-h-[92dvh] sm:max-h-[85dvh] rounded-t-3xl sm:rounded-3xl bg-[#121214] sm:bg-[#18181b] border-t sm:border border-zinc-800 shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom-4 sm:zoom-in-95 duration-200"
+            className="w-full sm:max-w-md max-h-[92dvh] sm:max-h-[85dvh] rounded-t-3xl sm:rounded-3xl bg-[#121214] sm:bg-[#18181b] border-t sm:border border-zinc-800 shadow-2xl flex flex-col overflow-hidden animate-sheet-up sm:animate-modal-pop will-change-transform"
           >
             {/* Grab handle for mobile */}
             <div className="pt-3 pb-1 shrink-0 flex justify-center sm:hidden">
@@ -5210,7 +5257,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               setIsMobileSidebarOpen(false);
             }
           }}
-          className="fixed inset-0 z-40 bg-black/65 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-black/65 backdrop-blur-xs animate-backdrop lg:hidden transition-opacity duration-300"
           aria-label="Tutup latar bilah sisi"
         />
       )}
@@ -5218,7 +5265,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed inset-y-0 left-0 z-40 w-[272px] max-w-[85vw] bg-bg-primary border-r border-border-subtle flex flex-col transition-all duration-300 ease-in-out lg:static ${
+        className={`fixed inset-y-0 left-0 z-40 w-[272px] max-w-[85vw] bg-bg-primary border-r border-border-subtle flex flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform lg:static ${
           isDesktopSidebarCollapsed
             ? "lg:w-0 lg:opacity-0 lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
             : "lg:w-[268px] lg:opacity-100 lg:translate-x-0"
@@ -5850,7 +5897,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <>
               {/* Backdrop */}
               <div
-                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs transition-opacity"
+                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-xs animate-backdrop transition-opacity"
                 onClick={() => setIsProfileDropdownOpen(false)}
                 aria-hidden="true"
               />
@@ -5858,7 +5905,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               {/* Popup Container (Bottom-sheet on mobile, floating popover on sm+) */}
               <div
                 ref={profileDropdownRef}
-                className="fixed sm:absolute inset-x-0 bottom-0 sm:bottom-auto sm:inset-x-auto sm:right-3 sm:top-16 z-50 w-full sm:w-[360px] rounded-t-3xl sm:rounded-3xl bg-[#18181b] border-t sm:border border-zinc-800 shadow-2xl p-5 space-y-3 max-h-[92dvh] sm:max-h-none overflow-y-auto animate-in slide-in-from-bottom-4 sm:fade-in sm:zoom-in-95 duration-150"
+                className="fixed sm:absolute inset-x-0 bottom-0 sm:bottom-auto sm:inset-x-auto sm:right-3 sm:top-16 z-50 w-full sm:w-[360px] rounded-t-3xl sm:rounded-3xl bg-[#18181b] border-t sm:border border-zinc-800 shadow-2xl p-5 space-y-3 max-h-[92dvh] sm:max-h-none overflow-y-auto animate-sheet-up sm:animate-modal-pop will-change-transform"
               >
                 {/* Drag handle for mobile */}
                 <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto -mt-1 mb-1 sm:hidden" />
@@ -6129,7 +6176,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
             ) && (
               <div
-                className={`md:hidden flex-1 min-h-0 z-10 flex flex-col items-center justify-center px-4 text-center transition-all duration-300 pointer-events-none ${
+                className={`md:hidden flex-1 min-h-0 z-10 flex flex-col items-center justify-center px-4 text-center transition-all duration-300 pointer-events-none animate-fade-up will-change-transform ${
                   isKeyboardOpen ? "mt-0" : "-mt-6 sm:-mt-8"
                 } ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
@@ -6186,7 +6233,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div
               role="status"
               aria-live="polite"
-              className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-zinc-900/95 dark:bg-zinc-800/95 text-white border border-zinc-700/60 shadow-2xl flex items-center gap-2 text-xs font-medium backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-150 pointer-events-none select-none"
+              className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-zinc-900/95 dark:bg-zinc-800/95 text-white border border-zinc-700/60 shadow-2xl flex items-center gap-2 text-xs font-medium backdrop-blur-md animate-modal-pop duration-200 pointer-events-none select-none will-change-transform"
             >
               <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>Teks disalin!</span>
@@ -6195,9 +6242,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Active State History with Smooth Message Entrance Animations */}
           <div
+            key={activeChatId}
             ref={scrollRef}
             onScroll={handleChatScroll}
-            className={`flex-1 min-h-0 overflow-y-auto transition-opacity duration-200 ease-out ${
+            className={`flex-1 min-h-0 overflow-y-auto transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages ||
               (isChatAreaLoading &&
                 Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat")))
@@ -6514,6 +6562,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               </a>
                             );
                           },
+                          img({ src, alt }) {
+                            if (!src) return null;
+                            return (
+                              <AiImageCard
+                                src={String(src)}
+                                alt={String(alt || "Gambar Hasil AI")}
+                                onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
+                              />
+                            );
+                          },
                         }}
                       >
                         {message.content}
@@ -6680,50 +6738,108 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             })}
 
             {/* AI Thinking Indicator with Wave Dots + Fade-in / Fade-out */}
-            {showThinkingIndicator && (
-              <div
-                role="status"
-                aria-live="polite"
-                className={`flex justify-start transition-[opacity,transform] duration-180 ease-out motion-safe-transform ${
-                  isThinkingFadingOut
-                    ? "opacity-0 -translate-y-1 pointer-events-none"
-                    : "opacity-100 translate-y-0 animate-ai-bubble"
-                }`}
-              >
-                <div className="flex items-center gap-3 px-1 py-1">
-                  <Image
-                    src="/brand/axioma-logo.png"
-                    alt="Axioma"
-                    width={28}
-                    height={28}
-                    className="w-6 h-6 object-contain rounded-md shrink-0 dark:ring-1 dark:ring-white/10"
-                  />
-                  <div className="flex items-center gap-2.5">
-                    <div className="flex items-center gap-1 h-5" aria-hidden="true">
-                      <span
-                        className="w-1.5 h-1.5 rounded-full bg-text-muted animate-thinking-dot"
-                        style={{ animationDelay: "0ms" }}
+            {showThinkingIndicator && (() => {
+              const currentChat = chats.find((c) => c.id === activeChatId);
+              const lastUserMsg =
+                currentChat?.messages
+                  ?.filter((m) => m.sender === "user")
+                  .slice(-1)[0]?.content || "";
+              const isImagePending =
+                /(buatkan|buat|bikin|generate|lukiskan)\s+(gambar|foto|lukisan|ilustrasi|image)/i.test(lastUserMsg) ||
+                /\[mode:\s*gambar\]/i.test(lastUserMsg);
+              const isVideoPending =
+                /(buatkan|buat|bikin|generate)\s+(video|animasi|klip)/i.test(lastUserMsg) ||
+                /\[mode:\s*video\]/i.test(lastUserMsg);
+
+              let thinkingText = "Axioma sedang berpikir…";
+              if (isImagePending) {
+                thinkingText =
+                  waitingSeconds >= 5
+                    ? "✨ Merender gambar berkualitas HD..."
+                    : "🎨 Mengoptimalkan prompt visual dengan Gemini AI...";
+              } else if (isVideoPending) {
+                thinkingText =
+                  waitingSeconds >= 5
+                    ? "🎬 Menghubungi Google Veo 2..."
+                    : "🎬 Merancang koreografi video sinematik...";
+              } else {
+                thinkingText =
+                  waitingSeconds >= 25
+                    ? "Jawaban panjang butuh waktu lebih lama. Anda bisa menekan Stop kapan saja."
+                    : waitingSeconds >= 8
+                    ? "Server sedang disiapkan, mohon tunggu…"
+                    : "Axioma sedang berpikir…";
+              }
+
+              return (
+                <div
+                  role="status"
+                  aria-live="polite"
+                  className={`flex justify-start transition-[opacity,transform] duration-180 ease-out motion-safe-transform ${
+                    isThinkingFadingOut
+                      ? "opacity-0 -translate-y-1 pointer-events-none"
+                      : "opacity-100 translate-y-0 animate-ai-bubble"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 px-1 py-1">
+                    {isImagePending ? (
+                      <div className="w-6 h-6 rounded-md bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                        <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                      </div>
+                    ) : isVideoPending ? (
+                      <div className="w-6 h-6 rounded-md bg-purple-500/15 border border-purple-500/30 flex items-center justify-center shrink-0">
+                        <Film className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+                      </div>
+                    ) : (
+                      <Image
+                        src="/brand/axioma-logo.png"
+                        alt="Axioma"
+                        width={28}
+                        height={28}
+                        className="w-6 h-6 object-contain rounded-md shrink-0 dark:ring-1 dark:ring-white/10"
                       />
-                      <span
-                        className="w-1.5 h-1.5 rounded-full bg-text-muted animate-thinking-dot"
-                        style={{ animationDelay: "150ms" }}
-                      />
-                      <span
-                        className="w-1.5 h-1.5 rounded-full bg-text-muted animate-thinking-dot"
-                        style={{ animationDelay: "300ms" }}
-                      />
+                    )}
+                    <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-1 h-5" aria-hidden="true">
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full animate-thinking-dot ${
+                            isImagePending
+                              ? "bg-amber-400"
+                              : isVideoPending
+                              ? "bg-purple-400"
+                              : "bg-text-muted"
+                          }`}
+                          style={{ animationDelay: "0ms" }}
+                        />
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full animate-thinking-dot ${
+                            isImagePending
+                              ? "bg-amber-400"
+                              : isVideoPending
+                              ? "bg-purple-400"
+                              : "bg-text-muted"
+                          }`}
+                          style={{ animationDelay: "150ms" }}
+                        />
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full animate-thinking-dot ${
+                            isImagePending
+                              ? "bg-amber-400"
+                              : isVideoPending
+                              ? "bg-purple-400"
+                              : "bg-text-muted"
+                          }`}
+                          style={{ animationDelay: "300ms" }}
+                        />
+                      </div>
+                      <span className="text-xs text-text-muted font-medium tracking-tight animate-thinking-label select-none">
+                        {thinkingText}
+                      </span>
                     </div>
-                    <span className="text-xs text-text-muted font-medium tracking-tight animate-thinking-label select-none">
-                      {waitingSeconds >= 25
-                        ? "Jawaban panjang butuh waktu lebih lama. Anda bisa menekan Stop kapan saja."
-                        : waitingSeconds >= 8
-                        ? "Server sedang disiapkan, mohon tunggu…"
-                        : "Axioma sedang berpikir…"}
-                    </span>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Auto-scroll anchor */}
             <div ref={messagesEndRef} className="h-6 shrink-0" />
@@ -7039,10 +7155,78 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               <span className="flex-1">Dokumen PDF</span>
                             </button>
 
-                            {/* 3. Ambil Foto (Touchscreen only) */}
+                            {/* 3. Buat Gambar AI */}
                             <button
                               ref={(el) => {
                                 attachmentItemRefs.current[2] = el;
+                              }}
+                              role="menuitem"
+                              type="button"
+                              onClick={() => {
+                                closeAttachmentMenu(true);
+                                const promptPrefix = "Buatkan gambar: ";
+                                setInputText(promptPrefix);
+                                requestAnimationFrame(() => {
+                                  const el = textareaRef.current;
+                                  if (el) {
+                                    el.focus();
+                                    el.setSelectionRange(promptPrefix.length, promptPrefix.length);
+                                    adjustTextareaHeight();
+                                  }
+                                });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-text-primary hover:bg-bg-surface active:bg-bg-subtle transition-colors cursor-pointer text-left focus:outline-none focus:bg-bg-surface group/item"
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
+                                <Sparkles className="w-4 h-4 text-amber-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span>Buat Gambar AI</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono">HD</span>
+                                </div>
+                                <p className="text-[10px] text-text-muted truncate">Imagen 3 &amp; Flux Photorealistic</p>
+                              </div>
+                            </button>
+
+                            {/* 4. Buat Video AI */}
+                            <button
+                              ref={(el) => {
+                                attachmentItemRefs.current[3] = el;
+                              }}
+                              role="menuitem"
+                              type="button"
+                              onClick={() => {
+                                closeAttachmentMenu(true);
+                                const promptPrefix = "Buatkan video: ";
+                                setInputText(promptPrefix);
+                                requestAnimationFrame(() => {
+                                  const el = textareaRef.current;
+                                  if (el) {
+                                    el.focus();
+                                    el.setSelectionRange(promptPrefix.length, promptPrefix.length);
+                                    adjustTextareaHeight();
+                                  }
+                                });
+                              }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-text-primary hover:bg-bg-surface active:bg-bg-subtle transition-colors cursor-pointer text-left focus:outline-none focus:bg-bg-surface group/item"
+                            >
+                              <div className="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
+                                <Film className="w-4 h-4 text-purple-400" />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between">
+                                  <span>Buat Video AI</span>
+                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 font-mono">Veo 2</span>
+                                </div>
+                                <p className="text-[10px] text-text-muted truncate">Google Veo Cinematic Motion</p>
+                              </div>
+                            </button>
+
+                            {/* 5. Ambil Foto (Touchscreen only) */}
+                            <button
+                              ref={(el) => {
+                                attachmentItemRefs.current[4] = el;
                               }}
                               role="menuitem"
                               type="button"
@@ -7452,10 +7636,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                   ) && (
                     <div
-                      className={`hidden md:grid absolute top-full left-0 right-0 mt-3 sm:mt-4 grid-cols-2 gap-2 sm:gap-2.5 transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
+                      className={`hidden md:grid absolute top-full left-0 right-0 mt-3 sm:mt-4 grid-cols-2 gap-2 sm:gap-2.5 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-safe-transform will-change-transform ${
                         isEmptyDecorationsExiting
                           ? "opacity-0 -translate-y-2.5 pointer-events-none"
-                          : "opacity-100 translate-y-0"
+                          : "opacity-100 translate-y-0 animate-fade-up"
                       }`}
                     >
                       {isChatAreaLoading || greeting === ""
@@ -7605,14 +7789,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="guest-limit-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-backdrop"
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsGuestLimitModalOpen(false);
             }
           }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-subtle p-6 shadow-2xl space-y-5 animate-user-bubble relative">
+          <div className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-subtle p-6 shadow-2xl space-y-5 animate-modal-pop will-change-transform relative">
             <button
               type="button"
               onClick={() => setIsGuestLimitModalOpen(false)}
