@@ -232,26 +232,81 @@ const STORAGE_KEYS = {
   DRAFT_PREFIX: "axioma_draft_",
   GUEST_CHATS: "axioma_guest_chats",
   GUEST_MSG_PREFIX: "axioma_guest_msg_",
+  GUEST_MSG_COUNT: "axioma_guest_msg_count",
 } as const;
 
+export const GUEST_MAX_MESSAGES = 5;
+
+function getGuestMessageCount(): number {
+  if (typeof window === "undefined") return 0;
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.GUEST_MSG_COUNT);
+    const count = raw ? parseInt(raw, 10) : 0;
+    return isNaN(count) ? 0 : count;
+  } catch {
+    return 0;
+  }
+}
+
+function incrementGuestMessageCount(): number {
+  if (typeof window === "undefined") return 1;
+  try {
+    const next = getGuestMessageCount() + 1;
+    localStorage.setItem(STORAGE_KEYS.GUEST_MSG_COUNT, String(next));
+    return next;
+  } catch {
+    return 1;
+  }
+}
+
+function resetGuestMessageCount(): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.removeItem(STORAGE_KEYS.GUEST_MSG_COUNT);
+  } catch {}
+}
+
 function getGuestChats(): ChatHistoryItem[] {
-  return [];
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.GUEST_CHATS);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
-function saveGuestChats(_chats: ChatHistoryItem[]): void {
-  // Guest Mode does not persist history
+function saveGuestChats(chats: ChatHistoryItem[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(STORAGE_KEYS.GUEST_CHATS, JSON.stringify(chats));
+  } catch {}
 }
 
-function getGuestMessages(_chatId: string): any[] {
-  return [];
+function getGuestMessages(chatId: string): Message[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(`${STORAGE_KEYS.GUEST_MSG_PREFIX}${chatId}`);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
 }
 
-function saveGuestMessages(_chatId: string, _messages: any[]): void {
-  // Guest Mode does not persist messages
+function saveGuestMessages(chatId: string, messages: Message[]): void {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(`${STORAGE_KEYS.GUEST_MSG_PREFIX}${chatId}`, JSON.stringify(messages));
+  } catch {}
 }
 
-function deleteGuestChat(_chatId: string): void {
-  // No-op
+function deleteGuestChat(chatId: string): void {
+  if (typeof window === "undefined") return;
+  try {
+    const chats = getGuestChats().filter((c) => c.id !== chatId);
+    saveGuestChats(chats);
+    localStorage.removeItem(`${STORAGE_KEYS.GUEST_MSG_PREFIX}${chatId}`);
+  } catch {}
 }
 
 function formatMessageTime(isoOrTimestamp?: string): string {
@@ -697,6 +752,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [authUser, setAuthUser] = useState<SupabaseUser | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [guestMessageCount, setGuestMessageCount] = useState<number>(0);
+  const [isGuestLimitModalOpen, setIsGuestLimitModalOpen] = useState<boolean>(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState<boolean>(false);
   const profileDropdownRef = useRef<HTMLDivElement>(null);
   const [hasMessages, setHasMessages] = useState<boolean>(false);
@@ -1026,9 +1083,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const isModalActiveRef = useRef<boolean>(false);
   useEffect(() => {
     isModalActiveRef.current = Boolean(
-      isSettingsModalOpen || isClearAllConfirmOpen || editConfirmTarget
+      isSettingsModalOpen || isClearAllConfirmOpen || editConfirmTarget || isGuestLimitModalOpen
     );
-  }, [isSettingsModalOpen, isClearAllConfirmOpen, editConfirmTarget]);
+  }, [isSettingsModalOpen, isClearAllConfirmOpen, editConfirmTarget, isGuestLimitModalOpen]);
 
   // VisualViewport listener for native mobile iOS Safari keyboard handling
   useEffect(() => {
@@ -1292,6 +1349,42 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       subscription.unsubscribe();
     };
   }, []);
+
+  // Synchronize guest message quota count on client mount
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setGuestMessageCount(getGuestMessageCount());
+    }
+  }, []);
+
+  // When user logs in, reset guest quota count
+  useEffect(() => {
+    if (authUser) {
+      resetGuestMessageCount();
+      setGuestMessageCount(0);
+    }
+  }, [authUser]);
+
+  // Guest Mode: Persist chat history metadata in localStorage
+  useEffect(() => {
+    if (!authUser && chatHistory.length > 0) {
+      saveGuestChats(chatHistory);
+    }
+  }, [chatHistory, authUser]);
+
+  // Guest Mode: Debounced persist chat session messages in localStorage
+  useEffect(() => {
+    if (!authUser && chats.length > 0) {
+      const timer = setTimeout(() => {
+        for (const c of chats) {
+          if (c.messages && c.messages.length > 0) {
+            saveGuestMessages(c.id, c.messages);
+          }
+        }
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [chats, authUser]);
 
   // Handle click outside Profile Dropdown
   useEffect(() => {
@@ -2248,7 +2341,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   // Body scroll lock when any dialog or modal is open (without touchAction: none which breaks iOS Safari inner scrolling)
   useEffect(() => {
     const isAnyModalOpen = Boolean(
-      isSettingsModalOpen || isClearAllConfirmOpen || editConfirmTarget
+      isSettingsModalOpen || isClearAllConfirmOpen || editConfirmTarget || isGuestLimitModalOpen
     );
     if (!isAnyModalOpen) return;
     const originalOverflow = document.body.style.overflow;
@@ -2256,7 +2349,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     return () => {
       document.body.style.overflow = originalOverflow;
     };
-  }, [isSettingsModalOpen, isClearAllConfirmOpen, editConfirmTarget]);
+  }, [isSettingsModalOpen, isClearAllConfirmOpen, editConfirmTarget, isGuestLimitModalOpen]);
 
   const closeDesktopAgentMenu = useCallback((restoreFocus = true) => {
     setIsAgentMenuOpen(false);
@@ -2357,6 +2450,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         if (isGenerating) {
           e.preventDefault();
           handleStopGeneration();
+          return;
+        }
+
+        if (isGuestLimitModalOpen) {
+          e.preventDefault();
+          setIsGuestLimitModalOpen(false);
           return;
         }
 
@@ -2680,11 +2779,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         const loadedMessages: Message[] = guestMessagesRaw.map((row: any) => ({
           id: String(row.id || `msg-${Math.random()}`),
-          sender: row.role === "user" ? "user" : "ai",
+          sender: row.role === "user" || row.sender === "user" ? "user" : "ai",
           content: String(row.content || ""),
           created_at: typeof row.created_at === "string" ? row.created_at : undefined,
-          agentId: typeof row.agent_id === "string" ? row.agent_id : undefined,
-          agentName: typeof row.agent_name === "string" ? row.agent_name : undefined,
+          agentId: typeof row.agent_id === "string" ? row.agent_id : (typeof row.agentId === "string" ? row.agentId : undefined),
+          agentName: typeof row.agent_name === "string" ? row.agent_name : (typeof row.agentName === "string" ? row.agentName : undefined),
+          attachments: Array.isArray(row.attachments) ? row.attachments : undefined,
         }));
 
         const returnedTitle = guestChat?.title || "Percakapan";
@@ -3180,6 +3280,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       userText: string,
       voiceMode: boolean
     ): Promise<{ aiReplyText: string; streamReader?: ReadableStreamDefaultReader<Uint8Array> | null }> => {
+      if (!authUser) {
+        const currentCount = getGuestMessageCount();
+        if (currentCount >= GUEST_MAX_MESSAGES) {
+          setIsGuestLimitModalOpen(true);
+          throw new Error("Batas pesan tamu tercapai. Silakan masuk untuk melanjutkan.");
+        }
+        const nextCount = incrementGuestMessageCount();
+        setGuestMessageCount(nextCount);
+      }
+
       let targetChatId = activeChatId;
       let sessionPayloadId = currentSessionChatId;
 
@@ -3231,7 +3341,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         aiReplyText: data.reply || data.content || "",
       };
     },
-    [activeChatId, currentSessionChatId, selectedAgent, buildAuthHeaders, getTurnstileToken]
+    [activeChatId, currentSessionChatId, selectedAgent, buildAuthHeaders, getTurnstileToken, authUser]
   );
 
   // Voice Mode: Save completed turn to chat history and active session
@@ -3718,12 +3828,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
 
         scrollToBottom(false);
-        if (authUser) {
-          promoteChatToTop(
-            returnedChat?.id || sessionPayloadId,
-            returnedChat?.title
-          );
-        }
+        promoteChatToTop(
+          returnedChat?.id || sessionPayloadId,
+          returnedChat?.title
+        );
       } else {
         const result = await response.json().catch(() => null);
 
@@ -3943,6 +4051,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const trimmed = content.trim();
     if (!trimmed || isSubmittingEdit) return;
 
+    if (!authUser) {
+      const currentCount = getGuestMessageCount();
+      if (currentCount >= GUEST_MAX_MESSAGES) {
+        setIsGuestLimitModalOpen(true);
+        return;
+      }
+      const nextCount = incrementGuestMessageCount();
+      setGuestMessageCount(nextCount);
+    }
+
     const msgIdx = currentMessages.findIndex((m) => m.id === msgId);
     if (msgIdx === -1) return;
 
@@ -4009,6 +4127,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   // Regenerate the last AI reply (1c - Buat ulang jawaban 🔄)
   const handleRegenerateLastReply = (aiMessageId: string) => {
     if (isLoading || isGenerating) return;
+
+    if (!authUser) {
+      const currentCount = getGuestMessageCount();
+      if (currentCount >= GUEST_MAX_MESSAGES) {
+        setIsGuestLimitModalOpen(true);
+        return;
+      }
+      const nextCount = incrementGuestMessageCount();
+      setGuestMessageCount(nextCount);
+    }
+
     const targetChat = chats.find((c) => c.id === activeChatId);
     if (!targetChat) return;
 
@@ -4204,6 +4333,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       isSubmittingRef.current
     ) {
       return;
+    }
+
+    if (!authUser) {
+      const currentCount = getGuestMessageCount();
+      if (currentCount >= GUEST_MAX_MESSAGES) {
+        setIsGuestLimitModalOpen(true);
+        return;
+      }
+      const nextCount = incrementGuestMessageCount();
+      setGuestMessageCount(nextCount);
     }
 
     isSubmittingRef.current = true;
@@ -5256,7 +5395,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {authUser ? userName : "Mode Tamu"}
               </div>
               <div className="text-xs text-text-muted truncate">
-                {authUser ? (authUser?.email || "Tersinkronisasi Cloud") : "Klik untuk masuk"}
+                {authUser
+                  ? (authUser?.email || "Tersinkronisasi Cloud")
+                  : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} pesan tamu tersisa`}
               </div>
             </div>
           </button>
@@ -5648,7 +5789,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
 
                     <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 text-xs text-blue-200">
-                      Masuk dengan Google atau Email untuk mencadangkan percakapan ke cloud secara aman.
+                      <div>Masuk dengan Google atau Email untuk mencadangkan percakapan ke cloud secara aman.</div>
+                      <div className="text-[11px] text-blue-300 font-medium mt-1">
+                        {Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} dari {GUEST_MAX_MESSAGES} pesan gratis tersisa
+                      </div>
                     </div>
 
                     <button
@@ -7237,6 +7381,71 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           onSendMessage={handleVoiceModeSendMessage}
           onTurnComplete={handleVoiceModeTurnComplete}
         />
+      )}
+
+      {/* Guest Message Limit Modal */}
+      {isGuestLimitModalOpen && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="guest-limit-title"
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setIsGuestLimitModalOpen(false);
+            }
+          }}
+        >
+          <div className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-subtle p-6 shadow-2xl space-y-5 animate-user-bubble relative">
+            <button
+              type="button"
+              onClick={() => setIsGuestLimitModalOpen(false)}
+              className="absolute top-4 right-4 p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
+              aria-label="Tutup popup"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="flex items-center gap-3.5">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center shrink-0">
+                <Sparkles className="w-6 h-6 text-blue-400" />
+              </div>
+              <div className="min-w-0">
+                <h2 id="guest-limit-title" className="text-base font-semibold text-text-primary">
+                  Batas Pesan Tamu Tercapai
+                </h2>
+                <p className="text-xs text-text-muted">
+                  Kuota {GUEST_MAX_MESSAGES} pesan gratis telah digunakan
+                </p>
+              </div>
+            </div>
+
+            <p className="text-sm text-text-secondary leading-relaxed">
+              Anda telah mencapai batas maksimal pesan gratis di Mode Tamu. Masuk dengan Google atau Email untuk melanjutkan percakapan tanpa batas, mencadangkan riwayat obrolan ke cloud, dan menggunakan seluruh fitur Axioma AI.
+            </p>
+
+            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+              <button
+                type="button"
+                onClick={() => setIsGuestLimitModalOpen(false)}
+                className="w-full sm:w-auto flex-1 min-h-[42px] px-4 py-2.5 rounded-xl text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
+              >
+                Nanti Saja
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsGuestLimitModalOpen(false);
+                  setIsAuthModalOpen(true);
+                }}
+                className="w-full sm:w-auto flex-1 min-h-[42px] px-4 py-2.5 rounded-xl text-xs font-semibold text-white bg-blue-600 hover:bg-blue-500 transition-colors shadow-sm flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+              >
+                <Sparkles className="w-4 h-4" />
+                <span>Masuk / Buat Akun</span>
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Supabase Authentication Modal (Hybrid Auth) */}
