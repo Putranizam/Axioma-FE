@@ -1118,19 +1118,26 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     if (!vv) return;
 
+    let rafId: number | null = null;
+
     const handleViewport = () => {
-      const root = document.getElementById("axioma-app-root");
-      if (root) {
-        root.style.height = `${vv.height}px`;
-        root.style.transform = `translateY(${vv.offsetTop}px)`;
-      }
+      if (rafId !== null) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const root = document.getElementById("axioma-app-root");
+        if (root) {
+          root.style.height = `${vv.height}px`;
+          root.style.transform = `translateY(${vv.offsetTop}px)`;
+        }
 
-      const isMobile = window.innerWidth < 768;
-      const screenH = window.screen?.height || window.innerHeight;
-      const isKeyboard = isMobile && vv.height < screenH - 120;
-      setIsKeyboardOpen(isKeyboard);
+        const isMobile = window.innerWidth < 768;
+        const screenH = window.screen?.height || window.innerHeight;
+        const isKeyboard = isMobile && vv.height < screenH - 120;
+        setIsKeyboardOpen(isKeyboard);
 
-      window.scrollTo(0, 0);
+        if (window.scrollY !== 0) {
+          window.scrollTo(0, 0);
+        }
+      });
     };
 
     vv.addEventListener("resize", handleViewport);
@@ -1138,6 +1145,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     handleViewport();
 
     return () => {
+      if (rafId !== null) cancelAnimationFrame(rafId);
       vv.removeEventListener("resize", handleViewport);
       vv.removeEventListener("scroll", handleViewport);
     };
@@ -4719,6 +4727,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
       }}
       id="axioma-app-root"
+      style={{
+        transition: "height 0.28s cubic-bezier(0.32, 0.72, 0, 1), transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)",
+        willChange: "height, transform",
+      }}
       className="fixed inset-x-0 top-0 h-[100dvh] w-full max-w-full flex flex-col lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden overscroll-none touch-none selection:bg-border-strong selection:text-text-primary"
     >
       {/* Drag & Drop Overlay */}
@@ -6148,21 +6160,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
             ) && (
               <div
-                className={`md:hidden flex-1 min-h-0 overflow-y-auto touch-auto z-10 flex flex-col items-center justify-center px-4 text-center transition-all duration-300 pointer-events-none animate-fade-up will-change-transform ${
-                  isKeyboardOpen || isInputFocused ? "mt-0" : "-mt-6 sm:-mt-8"
+                className={`md:hidden flex-1 min-h-0 overflow-y-auto touch-auto z-10 flex flex-col items-center justify-center px-4 text-center pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-transform ${
+                  isKeyboardOpen || isInputFocused ? "-translate-y-3 sm:-translate-y-4" : "translate-y-0"
                 } ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                 }`}
               >
                 <div className="w-full max-w-[360px] sm:max-w-md mx-auto flex flex-col items-center px-2">
-                  {/* Brand Logo with subtle glow (Original Axioma A✦ logo in rounded-2xl container) */}
-                  <div className={`relative group transition-all duration-200 ${isKeyboardOpen || isInputFocused ? "mb-2 sm:mb-2.5" : "mb-5 sm:mb-6"}`}>
+                  {/* Brand Logo with subtle glow (Ukuran konstan sama persis baik saat keyboard tertutup maupun terbuka) */}
+                  <div className="relative group mb-5 sm:mb-6">
                     <div className="absolute -inset-3.5 bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-500/25 rounded-full blur-xl opacity-80 pointer-events-none" />
-                    <div
-                      className={`relative rounded-2xl bg-zinc-900/90 dark:bg-[#141416]/95 border border-zinc-700/60 dark:border-white/10 flex items-center justify-center shadow-2xl p-2.5 transition-all duration-200 backdrop-blur-md ${
-                        isKeyboardOpen || isInputFocused ? "w-11 h-11 sm:w-12 sm:h-12" : "w-14 h-14 sm:w-16 sm:h-16"
-                      }`}
-                    >
+                    <div className="relative rounded-2xl bg-zinc-900/90 dark:bg-[#141416]/95 border border-zinc-700/60 dark:border-white/10 flex items-center justify-center shadow-2xl p-2.5 backdrop-blur-md w-14 h-14 sm:w-16 sm:h-16">
                       <Image
                         src="/brand/axioma-logo.png"
                         alt="Axioma"
@@ -6174,14 +6182,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
                   </div>
 
-                  {/* Sapaan besar */}
-                  <h1
-                    className={`font-semibold tracking-tight text-center text-balance whitespace-pre-line text-zinc-900 dark:text-white transition-all duration-200 ${
-                      isKeyboardOpen || isInputFocused
-                        ? "text-xl sm:text-2xl leading-snug"
-                        : "text-3xl sm:text-[34px] font-semibold leading-[1.18]"
-                    }`}
-                  >
+                  {/* Sapaan besar (Ukuran konstan sama persis seperti di Gemini) */}
+                  <h1 className="text-2xl sm:text-[26px] font-bold leading-snug tracking-tight text-center text-balance whitespace-pre-line text-zinc-900 dark:text-white">
                     {mobileGreeting}
                   </h1>
                 </div>
@@ -6849,8 +6851,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) on Desktop; Docked at Bottom on Mobile */}
           <div
-            className="shrink-0 w-full px-4 pt-1 pb-2 bg-gradient-to-t from-black via-black to-transparent relative z-20"
+            className={`shrink-0 w-full px-4 pt-1 transition-[padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
+              isKeyboardOpen || isInputFocused
+                ? "pb-1.5"
+                : "pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"
+            } bg-gradient-to-t from-black via-black to-transparent relative z-20`}
           >
+            {/* Ambient Glow Biru-Ungu Lembut di Belakang Area Input (Ala Gemini) */}
+            <div
+              className="pointer-events-none absolute bottom-0 inset-x-0 h-48 bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.22)_0%,rgba(30,58,138,0.08)_45%,transparent_75%)] blur-2xl -z-10"
+              aria-hidden="true"
+            />
             <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
               <div
                 className={`relative w-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform ${
@@ -7216,13 +7227,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </>
                       )}
 
-                        {/* Hidden Native File Inputs */}
+                        {/* Hidden Native File Inputs (tabIndex -1 and aria-hidden to prevent iOS accessory bar ^ v navigation) */}
                         <input
                           ref={imageInputRef}
                           type="file"
+                          tabIndex={-1}
+                          aria-hidden="true"
                           accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
                           multiple
                           className="hidden"
+                          style={{ display: "none" }}
                           onChange={(e) => {
                             if (e.target.files?.length) {
                               void handleFilesSelected(e.target.files);
@@ -7233,9 +7247,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <input
                           ref={pdfInputRef}
                           type="file"
+                          tabIndex={-1}
+                          aria-hidden="true"
                           accept="application/pdf"
                           multiple
                           className="hidden"
+                          style={{ display: "none" }}
                           onChange={(e) => {
                             if (e.target.files?.length) {
                               void handleFilesSelected(e.target.files);
@@ -7246,9 +7263,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <input
                           ref={cameraInputRef}
                           type="file"
+                          tabIndex={-1}
+                          aria-hidden="true"
                           accept="image/*"
                           capture="environment"
                           className="hidden"
+                          style={{ display: "none" }}
                           onChange={(e) => {
                             if (e.target.files?.length) {
                               void handleFilesSelected(e.target.files);
@@ -7284,6 +7304,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <textarea
                         ref={textareaRef}
                         rows={1}
+                        enterKeyHint="send"
+                        autoComplete="off"
+                        autoCorrect="off"
                         value={inputText}
                         onChange={handleTextareaChange}
                         onKeyDown={handleKeyDown}
