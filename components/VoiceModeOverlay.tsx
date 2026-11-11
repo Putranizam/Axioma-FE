@@ -212,7 +212,7 @@ export default function VoiceModeOverlay({
   // Speak AI reply via browser window.speechSynthesis (Text-to-Speech)
   const speakResponse = useCallback(
     (text: string) => {
-      if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      if (typeof window === "undefined" || !("speechSynthesis" in window) || !text) {
         console.warn("[VoiceMode] window.speechSynthesis not supported on this platform");
         resumeListening();
         return;
@@ -228,12 +228,13 @@ export default function VoiceModeOverlay({
         .replace(/\s+/g, " ")
         .trim();
 
-      if (!cleanText) {
+      const textToSpeak = cleanText || text.trim();
+      if (!textToSpeak) {
         resumeListening();
         return;
       }
 
-      console.log("[VoiceMode] Speaking AI reply with SpeechSynthesis:", cleanText);
+      console.log("[VoiceMode] Speaking AI reply with SpeechSynthesis:", textToSpeak);
 
       // Resume audio state if paused or suspended (iOS Safari & Android Chrome)
       try {
@@ -244,7 +245,7 @@ export default function VoiceModeOverlay({
         window.speechSynthesis.cancel(); // Hentikan suara sebelumnya
       } catch {}
 
-      const utterance = new SpeechSynthesisUtterance(cleanText);
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
       utterance.lang = "id-ID"; // Atur bahasa Indonesia
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
@@ -290,16 +291,14 @@ export default function VoiceModeOverlay({
 
       currentUtteranceRef.current = utterance;
 
-      // Jeda 50ms agar pembatalan cancel() selesai pada level OS sebelum speak()
-      setTimeout(() => {
-        try {
-          window.speechSynthesis.resume();
-          window.speechSynthesis.speak(utterance);
-        } catch (err) {
-          console.warn("[VoiceMode] Failed to execute window.speechSynthesis.speak:", err);
-          resumeListening();
-        }
-      }, 50);
+      // Jalankan speak secara langsung dan panggil resume()
+      try {
+        window.speechSynthesis.speak(utterance);
+        window.speechSynthesis.resume();
+      } catch (err) {
+        console.warn("[VoiceMode] Failed to execute window.speechSynthesis.speak:", err);
+        resumeListening();
+      }
     },
     [getIndonesianVoice, resumeListening]
   );
