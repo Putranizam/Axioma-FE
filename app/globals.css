@@ -6,9 +6,9 @@
 @source "../components/**/*.{js,ts,jsx,tsx}";
 
 :root {
-  --background: #09090b;
+  --background: #000000;
   --foreground: #f4f4f5;
-  --bg-primary: #09090b;
+  --bg-primary: #000000;
   --bg-elevated: #121214;
   --bg-surface: #18181b;
   --bg-subtle: #27272a;
@@ -21,18 +21,28 @@
 }
 
 html.light {
-  --background: #f8fafc;
+  --background: #ffffff;
   --foreground: #09090b;
-  --bg-primary: #f8fafc;
+  --bg-primary: #ffffff;
   --bg-elevated: #ffffff;
-  --bg-surface: #f1f5f9;
-  --bg-subtle: #e2e8f0;
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --icon-muted: #64748b;
-  --border-subtle: #e2e8f0;
-  --border-strong: #cbd5e1;
+  --bg-surface: #f4f4f5;
+  --bg-subtle: #e4e4e7;
+  --text-primary: #09090b;
+  --text-secondary: #27272a;
+  --text-muted: #71717a;
+  --icon-muted: #71717a;
+  --border-subtle: #e4e4e7;
+  --border-strong: #d4d4d8;
+}
+
+html.light,
+html.light body {
+  background-color: #ffffff !important;
+}
+
+html.dark,
+html.dark body {
+  background-color: #000000 !important;
 }
 
 @theme inline {

@@ -9,15 +9,7 @@ import {
   X,
   AlertCircle,
 } from "lucide-react";
-import {
-  checkVoiceSupport,
-  getSupportedAudioMimeType,
-  unlockAudioSystem,
-  calculateRms,
-  transcribeAudioBlob,
-  fetchTtsAudioBlob,
-  extractReadySentences,
-} from "../lib/voice";
+import { calculateRms, unlockAudioSystem } from "../lib/voice";
 
 export interface VoiceMessageItem {
   id: string;
@@ -46,51 +38,45 @@ type VoiceState = "idle" | "listening" | "processing" | "speaking" | "error";
 export default function VoiceModeOverlay({
   isOpen,
   onClose,
-  backendUrl,
-  authHeaders,
-  chatId,
+  backendUrl: _backendUrl,
+  authHeaders: _authHeaders,
+  chatId: _chatId,
   agentName,
   onSendMessage,
   onTurnComplete,
-  getTurnstileToken,
+  getTurnstileToken: _getTurnstileToken,
 }: VoiceModeOverlayProps) {
   const [voiceState, setVoiceState] = useState<VoiceState>("idle");
   const [isMuted, setIsMuted] = useState<boolean>(false);
   const [showCaptions, setShowCaptions] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [permissionNotice, setPermissionNotice] = useState<string | null>(null);
+  const [unsupportedNotice, setUnsupportedNotice] = useState<string | null>(null);
   const [inAppNotice, setInAppNotice] = useState<boolean>(false);
   const [volumeLevel, setVolumeLevel] = useState<number>(0);
-  const [messages, setMessages] = useState<VoiceMessageItem[]>([]);
   const [activeSpeechText, setActiveSpeechText] = useState<string>("");
 
-  // Refs for Web Audio API & MediaRecorder
+  // Refs for Web Audio API
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const mediaStreamRef = useRef<MediaStream | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
   const audioElementRef = useRef<HTMLAudioElement | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // VAD & State machine refs
-  const voiceStateRef = useRef<VoiceState>("idle");
-  const isMutedRef = useRef<boolean>(false);
-  const hasSpokenRef = useRef<boolean>(false);
+  // Speech Recognition & Speech Synthesis refs
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
+  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const speechStartTimestampRef = useRef<number>(0);
+  const accumulatedTranscriptRef = useRef<string>("");
+  const hasSpokenRef = useRef<boolean>(false);
+  const shouldListenRef = useRef<boolean>(false);
   const isProcessingTurnRef = useRef<boolean>(false);
-  const activeTtsAbortRef = useRef<AbortController | null>(null);
-  const audioQueueRef = useRef<Array<{ text: string; audioBlobPromise: Promise<Blob | null> }>>([]);
-  const isPlayingAudioRef = useRef<boolean>(false);
-  const turnstileTokenGetterRef = useRef(getTurnstileToken);
-  const playNextInQueueRef = useRef<() => Promise<void>>(async () => {});
-  const startRecordingTurnRef = useRef<() => void>(() => {});
+  const isSpeakingRef = useRef<boolean>(false);
+  const isMutedRef = useRef<boolean>(false);
+  const voiceStateRef = useRef<VoiceState>("idle");
 
-  useEffect(() => {
-    turnstileTokenGetterRef.current = getTurnstileToken;
-  }, [getTurnstileToken]);
-
+  // Keep state refs in sync
   useEffect(() => {
     voiceStateRef.current = voiceState;
   }, [voiceState]);
@@ -99,31 +85,42 @@ export default function VoiceModeOverlay({
     isMutedRef.current = isMuted;
   }, [isMuted]);
 
-  // Teardown all hardware tracks, audio contexts, and timers
+  // Teardown all hardware tracks, recognition, speech synthesis, and timers
   const cleanupHardware = useCallback(() => {
-    if (animationFrameRef.current !== null) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = null;
-    }
+    console.log("[VoiceMode] Cleaning up hardware, recognition, and audio contexts");
+    shouldListenRef.current = false;
+    isProcessingTurnRef.current = false;
+    isSpeakingRef.current = false;
+    hasSpokenRef.current = false;
+    accumulatedTranscriptRef.current = "";
 
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current);
       silenceTimerRef.current = null;
     }
 
-    if (activeTtsAbortRef.current) {
-      activeTtsAbortRef.current.abort();
-      activeTtsAbortRef.current = null;
+    if (animationFrameRef.current !== null) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
     }
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+    // Stop SpeechRecognition
+    if (recognitionRef.current) {
       try {
-        mediaRecorderRef.current.stop();
+        recognitionRef.current.abort();
+      } catch {}
+      recognitionRef.current = null;
+    }
+
+    // Stop SpeechSynthesis
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      try {
+        window.speechSynthesis.cancel();
       } catch {}
     }
-    mediaRecorderRef.current = null;
-    recordedChunksRef.current = [];
+    currentUtteranceRef.current = null;
 
+    // Stop all media stream tracks
     if (mediaStreamRef.current) {
       mediaStreamRef.current.getTracks().forEach((track) => {
         try {
@@ -133,6 +130,7 @@ export default function VoiceModeOverlay({
       mediaStreamRef.current = null;
     }
 
+    // Pause audio element
     if (audioElementRef.current) {
       try {
         audioElementRef.current.pause();
@@ -140,6 +138,7 @@ export default function VoiceModeOverlay({
       } catch {}
     }
 
+    // Close AudioContext
     if (audioContextRef.current && audioContextRef.current.state !== "closed") {
       try {
         void audioContextRef.current.close();
@@ -148,149 +147,166 @@ export default function VoiceModeOverlay({
     }
 
     analyserRef.current = null;
-    audioQueueRef.current = [];
-    isPlayingAudioRef.current = false;
-    isProcessingTurnRef.current = false;
-    hasSpokenRef.current = false;
   }, []);
 
-  // Graceful exit
+  // Graceful exit: stops hardware and closes modal
   const handleEndCall = useCallback(() => {
+    console.log("[VoiceMode] Ending voice session");
     cleanupHardware();
     setVoiceState("idle");
     setVolumeLevel(0);
     onClose();
   }, [cleanupHardware, onClose]);
 
-  // Play next audio in TTS queue
-  const playNextInQueue = useCallback(async () => {
-    if (isPlayingAudioRef.current || audioQueueRef.current.length === 0) {
+  // Get Indonesian voice for SpeechSynthesis
+  const getIndonesianVoice = useCallback((): SpeechSynthesisVoice | null => {
+    if (typeof window === "undefined" || !window.speechSynthesis) return null;
+    const voices = window.speechSynthesis.getVoices();
+    if (!voices || voices.length === 0) return null;
+
+    // 1. Exact id-ID voice
+    const exactId = voices.find(
+      (v) =>
+        v.lang.toLowerCase() === "id-id" ||
+        v.lang.toLowerCase().replace("_", "-") === "id-id"
+    );
+    if (exactId) return exactId;
+
+    // 2. Starts with "id"
+    const prefixId = voices.find((v) => v.lang.toLowerCase().startsWith("id"));
+    if (prefixId) return prefixId;
+
+    // 3. Fallback to default
+    return voices.find((v) => v.default) || voices[0] || null;
+  }, []);
+
+  // Resume listening state after AI speaks or on initial start
+  const resumeListening = useCallback(() => {
+    if (!shouldListenRef.current && voiceStateRef.current !== "speaking" && voiceStateRef.current !== "processing") {
+      // If voice session was closed, do nothing
       return;
     }
 
-    const item = audioQueueRef.current.shift();
-    if (!item) return;
+    console.log("[VoiceMode] Resuming listening state...");
+    isSpeakingRef.current = false;
+    isProcessingTurnRef.current = false;
+    shouldListenRef.current = true;
+    hasSpokenRef.current = false;
+    accumulatedTranscriptRef.current = "";
+    setActiveSpeechText("");
+    setVoiceState("listening");
 
-    isPlayingAudioRef.current = true;
-    try {
-      const blob = await item.audioBlobPromise;
-      if (!blob || blob.size === 0) {
-        isPlayingAudioRef.current = false;
-        void playNextInQueueRef.current();
-        return;
+    if (recognitionRef.current && !isMutedRef.current) {
+      try {
+        recognitionRef.current.start();
+        console.log("[VoiceMode] Recognition started for listening turn");
+      } catch (e: any) {
+        // Recognition might already be running
+        if (e?.name !== "InvalidStateError") {
+          console.warn("[VoiceMode] Error starting recognition:", e);
+        }
       }
-
-      const audioUrl = URL.createObjectURL(blob);
-      if (audioElementRef.current) {
-        const audio = audioElementRef.current;
-        audio.src = audioUrl;
-
-        audio.onended = () => {
-          URL.revokeObjectURL(audioUrl);
-          isPlayingAudioRef.current = false;
-          if (audioQueueRef.current.length > 0) {
-            void playNextInQueueRef.current();
-          } else {
-            // AI finished speaking, transition back to listening
-            setVoiceState("listening");
-            startRecordingTurnRef.current();
-          }
-        };
-
-        audio.onerror = () => {
-          URL.revokeObjectURL(audioUrl);
-          isPlayingAudioRef.current = false;
-          void playNextInQueueRef.current();
-        };
-
-        await audio.play().catch((err) => {
-          console.warn("Audio playback interrupted/rejected:", err);
-          isPlayingAudioRef.current = false;
-          setVoiceState("listening");
-          startRecordingTurnRef.current();
-        });
-      }
-    } catch {
-      isPlayingAudioRef.current = false;
-      void playNextInQueueRef.current();
     }
   }, []);
 
-  useEffect(() => {
-    playNextInQueueRef.current = playNextInQueue;
-  }, [playNextInQueue]);
+  // Speak AI reply via browser window.speechSynthesis
+  const speakAiReply = useCallback(
+    (replyText: string) => {
+      if (typeof window === "undefined" || !window.speechSynthesis) {
+        console.warn("[VoiceMode] window.speechSynthesis not supported on this platform");
+        resumeListening();
+        return;
+      }
 
-  // Process user speech audio blob into AI voice reply
-  const processUserAudioTurn = useCallback(
-    async (audioBlob: Blob) => {
-      if (isProcessingTurnRef.current) return;
+      // Clean text: strip markdown syntax, links, code blocks, excessive symbols
+      const cleanText = replyText
+        .replace(/```[\s\S]*?```/g, "")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/[*_#~>]/g, "")
+        .replace(/^[•\-*]\s+/gm, "")
+        .replace(/\s+/g, " ")
+        .trim();
+
+      if (!cleanText) {
+        resumeListening();
+        return;
+      }
+
+      console.log("[VoiceMode] Speaking AI reply with SpeechSynthesis:", cleanText);
+      try {
+        window.speechSynthesis.cancel(); // Stop any pending speech
+      } catch {}
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = "id-ID";
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+
+      const indonesianVoice = getIndonesianVoice();
+      if (indonesianVoice) {
+        utterance.voice = indonesianVoice;
+      }
+
+      utterance.onstart = () => {
+        console.log("[VoiceMode] SpeechSynthesis started speaking");
+        isSpeakingRef.current = true;
+        setVoiceState("speaking");
+      };
+
+      utterance.onend = () => {
+        console.log("[VoiceMode] SpeechSynthesis finished speaking. Hands-free resuming listening...");
+        isSpeakingRef.current = false;
+        resumeListening();
+      };
+
+      utterance.onerror = (e) => {
+        console.warn("[VoiceMode] SpeechSynthesis utterance error:", e);
+        isSpeakingRef.current = false;
+        resumeListening();
+      };
+
+      currentUtteranceRef.current = utterance;
+      window.speechSynthesis.speak(utterance);
+    },
+    [getIndonesianVoice, resumeListening]
+  );
+
+  // Send completed user transcript to Gemini backend
+  const handleSendTurn = useCallback(
+    async (userText: string) => {
+      const cleanUserText = userText.trim();
+      if (!cleanUserText || isProcessingTurnRef.current) return;
       isProcessingTurnRef.current = true;
+
+      console.log("[VoiceMode] Auto-sending transcript to AI backend:", cleanUserText);
+
+      // Stop recognition while thinking
+      shouldListenRef.current = false;
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch {}
+      }
+
       setVoiceState("processing");
+      setActiveSpeechText(cleanUserText);
 
       try {
-        const token = turnstileTokenGetterRef.current
-          ? await turnstileTokenGetterRef.current().catch(() => undefined)
-          : undefined;
+        // Send message to Gemini backend with voice_mode = true
+        const { aiReplyText, streamReader } = await onSendMessage(cleanUserText, true);
 
-        // 1. Transcribe audio
-        const userText = await transcribeAudioBlob(backendUrl, audioBlob, authHeaders, token);
-
-        if (!userText || !userText.trim()) {
-          // If no speech detected, seamlessly resume listening
-          isProcessingTurnRef.current = false;
-          setVoiceState("listening");
-          startRecordingTurnRef.current();
-          return;
-        }
-
-        // Show user message in live caption
-        const userMsgItem: VoiceMessageItem = {
-          id: `u-${Date.now()}`,
-          sender: "user",
-          text: userText,
-        };
-        setMessages((prev) => [...prev.slice(-6), userMsgItem]);
-        setActiveSpeechText(userText);
-
-        // 2. Request concise AI reply in Voice Mode
-        const aiMsgItem: VoiceMessageItem = {
-          id: `a-${Date.now()}`,
-          sender: "ai",
-          text: "…",
-        };
-        setMessages((prev) => [...prev.slice(-6), aiMsgItem]);
-
-        const abortController = new AbortController();
-        activeTtsAbortRef.current = abortController;
-
-        const { aiReplyText, streamReader } = await onSendMessage(userText, true);
-
-        // Handle streaming TTS if streamReader is available, or full text
         let fullAiText = "";
-        let pendingSentenceBuffer = "";
-
-        const queueSentenceForTts = (sentence: string) => {
-          if (!sentence.trim()) return;
-          const promise = fetchTtsAudioBlob(backendUrl, sentence, authHeaders);
-          audioQueueRef.current.push({ text: sentence, audioBlobPromise: promise });
-          if (!isPlayingAudioRef.current) {
-            setVoiceState("speaking");
-            void playNextInQueue();
-          }
-        };
-
         if (streamReader) {
           const decoder = new TextDecoder();
           let buffer = "";
 
           while (true) {
-            if (abortController.signal.aborted) {
-              try {
-                await streamReader.cancel();
-              } catch {}
-              break;
-            }
-
             const { value, done } = await streamReader.read();
             if (done) break;
 
@@ -308,219 +324,285 @@ export default function VoiceModeOverlay({
                 const payload = JSON.parse(jsonStr);
                 if (payload.type === "chunk" && typeof payload.text === "string") {
                   fullAiText += payload.text;
-                  pendingSentenceBuffer += payload.text;
-
-                  // Update caption text
                   setActiveSpeechText(fullAiText);
-                  setMessages((prev) =>
-                    prev.map((m) => (m.id === aiMsgItem.id ? { ...m, text: fullAiText } : m))
-                  );
-
-                  // Extract ready sentences for incremental TTS
-                  const { sentences, remaining } = extractReadySentences(pendingSentenceBuffer);
-                  if (sentences.length > 0) {
-                    for (const s of sentences) {
-                      queueSentenceForTts(s);
-                    }
-                    pendingSentenceBuffer = remaining;
-                  }
                 }
               } catch {}
             }
           }
-
-          if (pendingSentenceBuffer.trim()) {
-            queueSentenceForTts(pendingSentenceBuffer.trim());
-          }
         } else {
           fullAiText = aiReplyText;
-          setActiveSpeechText(fullAiText);
-          setMessages((prev) =>
-            prev.map((m) => (m.id === aiMsgItem.id ? { ...m, text: fullAiText } : m))
-          );
-          queueSentenceForTts(fullAiText);
         }
 
-        if (onTurnComplete && fullAiText) {
-          onTurnComplete(userText, fullAiText);
+        const cleanReply = fullAiText.trim();
+        if (!cleanReply) {
+          throw new Error("Balasan AI kosong");
         }
+
+        setActiveSpeechText(cleanReply);
+
+        // Notify parent ChatInterface to persist message in chat session
+        if (onTurnComplete) {
+          onTurnComplete(cleanUserText, cleanReply);
+        }
+
+        // Speak AI response with native TTS
+        speakAiReply(cleanReply);
       } catch (err: any) {
-        console.error("Voice turn processing failed:", err);
-        setActiveSpeechText("Gagal mengenali suara, coba lagi");
-        setErrorMessage("Gagal mengenali suara, coba lagi");
-        await new Promise((r) => setTimeout(r, 2200));
-        setErrorMessage(null);
-        setActiveSpeechText("");
-        setVoiceState("listening");
-        startRecordingTurnRef.current();
+        console.error("[VoiceMode] Error processing voice turn:", err);
+        setErrorMessage("Gagal menyusun balasan AI. Mencoba mendengarkan kembali…");
+        setTimeout(() => {
+          setErrorMessage(null);
+          resumeListening();
+        }, 2200);
       } finally {
         isProcessingTurnRef.current = false;
       }
     },
-    [backendUrl, authHeaders, onSendMessage, onTurnComplete, playNextInQueue]
+    [onSendMessage, onTurnComplete, speakAiReply, resumeListening]
   );
 
-  // Start recording the user's audio turn
-  const startRecordingTurn = useCallback(() => {
-    if (voiceStateRef.current === "speaking" || voiceStateRef.current === "processing") {
-      return;
+  // Initialize SpeechRecognition instance
+  const setupSpeechRecognition = useCallback(() => {
+    if (typeof window === "undefined") return null;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SpeechRecognitionClass =
+      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+    if (!SpeechRecognitionClass) {
+      console.warn("[VoiceMode] Web Speech API SpeechRecognition is NOT available in this browser");
+      setUnsupportedNotice(
+        "Browser ini belum mendukung pengenalan suara langsung. Silakan gunakan Google Chrome atau ketik pesan teks."
+      );
+      setVoiceState("error");
+      return null;
     }
 
-    const stream = mediaStreamRef.current;
-    if (!stream || !stream.active) return;
+    const recognition = new SpeechRecognitionClass();
+    recognition.continuous = true;
+    recognition.interimResults = true;
+    recognition.lang = "id-ID";
+    recognition.maxAlternatives = 1;
 
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
-      try {
-        mediaRecorderRef.current.stop();
-      } catch {}
-    }
+    recognition.onaudiostart = () => {
+      console.log("[VoiceMode] onaudiostart: Audio capture started by browser");
+    };
 
-    recordedChunksRef.current = [];
-    hasSpokenRef.current = false;
+    recognition.onsoundstart = () => {
+      console.log("[VoiceMode] onsoundstart: Sound detected");
+    };
 
-    const mimeType = getSupportedAudioMimeType();
-    let recorder: MediaRecorder;
-    try {
-      recorder = mimeType
-        ? new MediaRecorder(stream, { mimeType })
-        : new MediaRecorder(stream);
-    } catch {
-      recorder = new MediaRecorder(stream);
-    }
-
-    recorder.ondataavailable = (e) => {
-      if (e.data && e.data.size > 0) {
-        recordedChunksRef.current.push(e.data);
+    recognition.onspeechstart = () => {
+      console.log("[VoiceMode] onspeechstart: Human speech recognized");
+      // Handle Barge-in: if user starts speaking while AI is speaking, interrupt AI
+      if (isSpeakingRef.current) {
+        console.log("[VoiceMode] Barge-in! User interrupted AI speech");
+        if (typeof window !== "undefined" && window.speechSynthesis) {
+          try {
+            window.speechSynthesis.cancel();
+          } catch {}
+        }
+        isSpeakingRef.current = false;
+        setVoiceState("listening");
       }
     };
 
-    recorder.onstop = () => {
-      if (recordedChunksRef.current.length > 0 && hasSpokenRef.current) {
-        const audioBlob = new Blob(recordedChunksRef.current, {
-          type: recorder.mimeType || "audio/webm",
-        });
-        recordedChunksRef.current = [];
-        void processUserAudioTurn(audioBlob);
+    recognition.onspeechend = () => {
+      console.log("[VoiceMode] onspeechend: Human speech pause/end");
+    };
+
+    recognition.onnomatch = () => {
+      console.warn("[VoiceMode] onnomatch: Speech heard but no transcript matched");
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("[VoiceMode] SpeechRecognition onerror:", event?.error, event);
+      if (event?.error === "not-allowed" || event?.error === "service-not-allowed") {
+        setPermissionNotice(
+          "Izin mikrofon belum diberikan atau diblokir. Silakan aktifkan izin mikrofon di Pengaturan Browser."
+        );
+        setVoiceState("error");
+      } else if (event?.error === "network") {
+        console.warn("[VoiceMode] Speech recognition network warning");
       }
     };
 
-    mediaRecorderRef.current = recorder;
-    try {
-      recorder.start(250); // Collect data every 250ms
-      setVoiceState("listening");
-    } catch (err) {
-      console.warn("Failed to start MediaRecorder:", err);
-    }
-  }, [processUserAudioTurn]);
+    // iOS Safari auto-restart handler
+    recognition.onend = () => {
+      console.log(
+        "[VoiceMode] SpeechRecognition onend. shouldListen:",
+        shouldListenRef.current,
+        "isMuted:",
+        isMutedRef.current,
+        "voiceState:",
+        voiceStateRef.current
+      );
 
-  useEffect(() => {
-    startRecordingTurnRef.current = startRecordingTurn;
-  }, [startRecordingTurn]);
+      // If we are still supposed to be listening and not muted, immediately restart recognition
+      if (
+        shouldListenRef.current &&
+        !isMutedRef.current &&
+        voiceStateRef.current === "listening"
+      ) {
+        try {
+          recognition.start();
+          console.log("[VoiceMode] SpeechRecognition restarted successfully onend");
+        } catch (err: any) {
+          if (err?.name !== "InvalidStateError") {
+            console.warn("[VoiceMode] Auto-restart warning:", err);
+            // Brief delayed retry in case it was transitioning
+            setTimeout(() => {
+              if (
+                shouldListenRef.current &&
+                !isMutedRef.current &&
+                voiceStateRef.current === "listening"
+              ) {
+                try {
+                  recognition.start();
+                } catch {}
+              }
+            }, 300);
+          }
+        }
+      }
+    };
 
-  // VAD loop running on animation frames
-  const runVadLoop = useCallback(() => {
+    // Live result handling & silence auto-send detection (1.5 - 2s)
+    recognition.onresult = (event: any) => {
+      if (
+        !shouldListenRef.current ||
+        isMutedRef.current ||
+        voiceStateRef.current !== "listening"
+      ) {
+        return;
+      }
+
+      let interimTranscript = "";
+      let finalTranscript = "";
+
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        const item = event.results[i];
+        if (item.isFinal) {
+          finalTranscript += item[0].transcript;
+        } else {
+          interimTranscript += item[0].transcript;
+        }
+      }
+
+      if (finalTranscript.trim()) {
+        accumulatedTranscriptRef.current = (
+          accumulatedTranscriptRef.current +
+          " " +
+          finalTranscript.trim()
+        ).trim();
+      }
+
+      const currentLiveSpokenText = (
+        accumulatedTranscriptRef.current +
+        " " +
+        interimTranscript.trim()
+      ).trim();
+
+      if (currentLiveSpokenText) {
+        hasSpokenRef.current = true;
+        setActiveSpeechText(currentLiveSpokenText);
+
+        // Reset silence timer every time user produces speech
+        if (silenceTimerRef.current) {
+          clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = null;
+        }
+
+        // Auto-send on silence (1.6 seconds)
+        silenceTimerRef.current = setTimeout(() => {
+          const textToSend = (
+            accumulatedTranscriptRef.current || currentLiveSpokenText
+          ).trim();
+          if (textToSend && voiceStateRef.current === "listening") {
+            console.log("[VoiceMode] Silence detected (1.6s). Auto-sending:", textToSend);
+            accumulatedTranscriptRef.current = "";
+            void handleSendTurn(textToSend);
+          }
+        }, 1600);
+      }
+    };
+
+    return recognition;
+  }, [handleSendTurn]);
+
+  // Audio Analyser VAD loop for orb volume visualizer
+  const runAudioVisualizerLoop = useCallback(() => {
     const analyser = analyserRef.current;
     if (!analyser) return;
 
     const bufferLength = analyser.fftSize;
     const dataArray = new Uint8Array(bufferLength);
 
-    const checkVolume = () => {
+    const updateVolume = () => {
       if (!analyserRef.current) return;
 
-      const rms = calculateRms(analyserRef.current, dataArray);
-      setVolumeLevel(Math.min(1, rms * 4)); // Scale for UI responsiveness
-
-      const currentVoiceState = voiceStateRef.current;
-      const speechThreshold = 0.032;
-
-      // Handle Barge-in: if user starts speaking while AI is speaking
-      if (currentVoiceState === "speaking" && rms > speechThreshold && !isMutedRef.current) {
-        if (!speechStartTimestampRef.current) {
-          speechStartTimestampRef.current = Date.now();
-        } else if (Date.now() - speechStartTimestampRef.current > 200) {
-          // Sustained user speech detected -> barge-in!
-          if (audioElementRef.current) {
-            try {
-              audioElementRef.current.pause();
-              audioElementRef.current.currentTime = 0;
-            } catch {}
-          }
-          if (activeTtsAbortRef.current) {
-            activeTtsAbortRef.current.abort();
-            activeTtsAbortRef.current = null;
-          }
-          audioQueueRef.current = [];
-          isPlayingAudioRef.current = false;
-          speechStartTimestampRef.current = 0;
-          setVoiceState("listening");
-          startRecordingTurn();
-          animationFrameRef.current = requestAnimationFrame(checkVolume);
-          return;
-        }
-      } else if (currentVoiceState !== "speaking") {
-        speechStartTimestampRef.current = 0;
+      if (voiceStateRef.current === "speaking") {
+        // While AI is speaking, pulse volume with a gentle speaking cadence
+        const time = Date.now() / 150;
+        const wave = (Math.sin(time) + 1) * 0.5;
+        setVolumeLevel(0.25 + wave * 0.45);
+      } else if (voiceStateRef.current === "processing") {
+        setVolumeLevel(0.15);
+      } else if (!isMutedRef.current) {
+        // Calculate microphone RMS volume
+        const rms = calculateRms(analyserRef.current, dataArray);
+        setVolumeLevel(Math.min(1, rms * 4.5));
+      } else {
+        setVolumeLevel(0);
       }
 
-      // Normal turn speech detection (when listening)
-      if (currentVoiceState === "listening" && !isMutedRef.current) {
-        if (rms > speechThreshold) {
-          hasSpokenRef.current = true;
-          if (silenceTimerRef.current) {
-            clearTimeout(silenceTimerRef.current);
-            silenceTimerRef.current = null;
-          }
-        } else if (hasSpokenRef.current) {
-          // User spoke and is now silent: start ~1000ms silence timer
-          if (!silenceTimerRef.current) {
-            silenceTimerRef.current = setTimeout(() => {
-              silenceTimerRef.current = null;
-              if (
-                mediaRecorderRef.current &&
-                mediaRecorderRef.current.state === "recording" &&
-                hasSpokenRef.current
-              ) {
-                try {
-                  mediaRecorderRef.current.stop();
-                } catch {}
-              }
-            }, 1000);
-          }
-        }
-      }
-
-      animationFrameRef.current = requestAnimationFrame(checkVolume);
+      animationFrameRef.current = requestAnimationFrame(updateVolume);
     };
 
-    animationFrameRef.current = requestAnimationFrame(checkVolume);
-  }, [startRecordingTurn]);
+    animationFrameRef.current = requestAnimationFrame(updateVolume);
+  }, []);
 
   // Initialize Voice Session on Modal Open
   const initializeVoiceSession = useCallback(async () => {
+    console.log("[VoiceMode] Initializing voice session...");
     setErrorMessage(null);
     setPermissionNotice(null);
+    setUnsupportedNotice(null);
     setInAppNotice(false);
 
-    const support = checkVoiceSupport();
-    if (support.isInAppBrowser) {
-      setInAppNotice(true);
-      return;
-    }
-    if (!support.hasMediaDevices) {
-      setErrorMessage("Perangkat Anda tidak mendukung input mikrofon.");
-      return;
+    // 0. Detect in-app webview
+    if (typeof navigator !== "undefined") {
+      const ua = navigator.userAgent || "";
+      if (/FBAN|FBAV|Instagram|WhatsApp|Line|Messenger/i.test(ua)) {
+        setInAppNotice(true);
+        return;
+      }
     }
 
     try {
-      // 1. Synchronous user gesture audio system unlock (Essential for iOS Safari!)
-      const AudioContextClass =
-        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      const audioCtx = new AudioContextClass();
-      audioContextRef.current = audioCtx;
+      // 1. Audio unlock for iOS Safari (Crucial!)
+      const AudioCtx =
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      if (AudioCtx) {
+        const audioCtx = new AudioCtx();
+        audioContextRef.current = audioCtx;
+        await unlockAudioSystem(audioCtx, audioElementRef.current);
+      }
 
-      await unlockAudioSystem(audioCtx, audioElementRef.current);
+      // Pre-warm SpeechSynthesis voices
+      if (typeof window !== "undefined" && window.speechSynthesis) {
+        try {
+          window.speechSynthesis.cancel();
+          const empty = new SpeechSynthesisUtterance("");
+          empty.volume = 0;
+          window.speechSynthesis.speak(empty);
+          window.speechSynthesis.getVoices();
+        } catch {}
+      }
 
-      // 2. Request mic stream with echoCancellation and noiseSuppression
+      // 2. Explicit microphone permission request via getUserMedia
+      console.log("[VoiceMode] Requesting getUserMedia stream...");
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           echoCancellation: true,
@@ -530,20 +612,40 @@ export default function VoiceModeOverlay({
       });
       mediaStreamRef.current = stream;
 
-      // 3. Setup Analyser for VAD & Orb visualizer
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 512;
-      analyser.smoothingTimeConstant = 0.4;
-      source.connect(analyser);
-      analyserRef.current = analyser;
+      // 3. Setup Audio Analyser for visualizer
+      if (audioContextRef.current) {
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        const analyser = audioContextRef.current.createAnalyser();
+        analyser.fftSize = 256;
+        analyser.smoothingTimeConstant = 0.35;
+        source.connect(analyser);
+        analyserRef.current = analyser;
+        runAudioVisualizerLoop();
+      }
 
-      // 4. Start VAD loop & first listening turn
-      runVadLoop();
-      startRecordingTurn();
+      // 4. Setup SpeechRecognition
+      const recognition = setupSpeechRecognition();
+      if (!recognition) {
+        return;
+      }
+      recognitionRef.current = recognition;
+
+      // 5. Start listening turn
+      shouldListenRef.current = true;
+      setVoiceState("listening");
+      try {
+        recognition.start();
+        console.log("[VoiceMode] SpeechRecognition started successfully on initial session");
+      } catch (err: any) {
+        console.warn("[VoiceMode] Initial recognition.start warning:", err);
+      }
     } catch (err: any) {
-      console.error("Voice session initialization error:", err);
-      if (err?.name === "NotAllowedError" || err?.name === "PermissionDeniedError") {
+      console.error("[VoiceMode] Voice session initialization failed:", err);
+      if (
+        err?.name === "NotAllowedError" ||
+        err?.name === "PermissionDeniedError" ||
+        err?.name === "SecurityError"
+      ) {
         setPermissionNotice(
           "Izin mikrofon belum diberikan. Silakan izinkan akses mikrofon di Pengaturan Browser Anda untuk menggunakan Mode Suara."
         );
@@ -552,17 +654,37 @@ export default function VoiceModeOverlay({
       }
       setVoiceState("error");
     }
-  }, [runVadLoop, startRecordingTurn]);
+  }, [runAudioVisualizerLoop, setupSpeechRecognition]);
 
-  // Toggle Mute
+  // Toggle Mute / Unmute
   const handleToggleMute = useCallback(() => {
     setIsMuted((prev) => {
       const next = !prev;
+      console.log("[VoiceMode] Toggle mute:", next);
+
+      // Disable/enable microphone track
       if (mediaStreamRef.current) {
         mediaStreamRef.current.getAudioTracks().forEach((track) => {
           track.enabled = !next;
         });
       }
+
+      if (next) {
+        // Muting: stop recognition
+        if (recognitionRef.current) {
+          try {
+            recognitionRef.current.stop();
+          } catch {}
+        }
+      } else {
+        // Unmuting: restart recognition if listening
+        if (voiceStateRef.current === "listening" && shouldListenRef.current && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+          } catch {}
+        }
+      }
+
       return next;
     });
   }, []);
@@ -580,7 +702,7 @@ export default function VoiceModeOverlay({
 
     const handleVisibilityChange = () => {
       if (document.hidden) {
-        // Tab hidden or backgrounded: release mic immediately
+        console.log("[VoiceMode] Page hidden/backgrounded, releasing mic");
         cleanupHardware();
         if (isOpen) {
           onClose();
@@ -590,6 +712,13 @@ export default function VoiceModeOverlay({
 
     window.addEventListener("visibilitychange", handleVisibilityChange);
     window.addEventListener("pagehide", cleanupHardware);
+
+    // Warm up speech synthesis voices on voice change
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        console.log("[VoiceMode] SpeechSynthesis voices loaded:", window.speechSynthesis.getVoices().length);
+      };
+    }
 
     return () => {
       if (initTimer) clearTimeout(initTimer);
@@ -615,15 +744,31 @@ export default function VoiceModeOverlay({
         height: "100dvh",
       }}
     >
-      {/* Hidden reusable audio player for iOS audio continuity */}
-      <audio ref={audioElementRef} playsInline preload="auto" className="hidden" aria-hidden="true" />
+      {/* Hidden reusable audio player for iOS audio context bridge */}
+      <audio
+        ref={audioElementRef}
+        playsInline
+        preload="auto"
+        className="hidden"
+        aria-hidden="true"
+      />
 
       {/* Top Header */}
-      <div className="w-full flex items-center justify-between z-20">
+      <div className="w-full flex items-center justify-between z-20 px-2 sm:px-4">
         <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-sm font-semibold tracking-wide text-white/90">Axioma Voice</span>
-          <span className="text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+          <span
+            className={`w-2.5 h-2.5 rounded-full ${
+              voiceState === "speaking"
+                ? "bg-emerald-400 animate-ping"
+                : voiceState === "processing"
+                ? "bg-amber-400 animate-pulse"
+                : isMuted
+                ? "bg-zinc-500"
+                : "bg-emerald-500 animate-pulse"
+            }`}
+          />
+          <span className="text-sm font-semibold tracking-wide text-white/95">Axioma Voice</span>
+          <span className="text-xs px-2.5 py-0.5 rounded-full bg-white/10 text-white/70 font-medium">
             {agentName || "Axioma Pro"}
           </span>
         </div>
@@ -632,6 +777,7 @@ export default function VoiceModeOverlay({
           type="button"
           onClick={handleEndCall}
           aria-label="Tutup Mode Suara"
+          title="Tutup Mode Suara"
           className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white/80 hover:text-white cursor-pointer"
         >
           <X className="w-5 h-5" />
@@ -639,7 +785,7 @@ export default function VoiceModeOverlay({
       </div>
 
       {/* Center Interactive Glowing Orb */}
-      <div className="flex-1 flex flex-col items-center justify-center relative my-auto z-10">
+      <div className="flex-1 flex flex-col items-center justify-center relative my-auto z-10 px-4">
         {/* Animated Radial Waves Container */}
         <div className="relative flex items-center justify-center w-72 h-72 sm:w-80 sm:h-80">
           {/* Outer Ripple 1 */}
@@ -694,19 +840,19 @@ export default function VoiceModeOverlay({
         </div>
 
         {/* State Label & Guidance */}
-        <div className="mt-8 text-center space-y-1.5 px-4">
+        <div className="mt-8 text-center space-y-1.5 px-4 max-w-sm">
           <p className="text-xl sm:text-2xl font-semibold tracking-tight text-white/95">
             {voiceState === "speaking"
               ? "Axioma berbicara…"
               : voiceState === "processing"
-              ? "Memproses…"
+              ? "Axioma berpikir…"
               : isMuted
               ? "Mikrofon dibisukan"
               : "Mendengarkan…"}
           </p>
           <p className="text-xs sm:text-sm text-white/60 font-normal">
             {voiceState === "speaking"
-              ? "Bicara kapan saja untuk memotong (Barge-in)"
+              ? "Bicara kapan saja untuk memotong"
               : voiceState === "processing"
               ? "Sedang menyusun balasan…"
               : isMuted
@@ -722,7 +868,18 @@ export default function VoiceModeOverlay({
           </div>
         )}
 
-        {/* Error / In-App Browser Notice */}
+        {/* Unsupported Browser Notice (Item 5) */}
+        {unsupportedNotice && (
+          <div className="mt-6 max-w-sm mx-4 p-4 rounded-2xl bg-amber-950/80 border border-amber-600/50 text-amber-200 text-xs space-y-2 text-center shadow-xl">
+            <div className="flex items-center justify-center gap-1.5 font-semibold text-amber-300">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>Browser Belum Mendukung</span>
+            </div>
+            <p>{unsupportedNotice}</p>
+          </div>
+        )}
+
+        {/* In-App Browser Notice */}
         {inAppNotice && (
           <div className="mt-6 max-w-sm mx-4 p-4 rounded-2xl bg-amber-950/80 border border-amber-600/50 text-amber-200 text-xs space-y-2 text-center shadow-xl">
             <div className="flex items-center justify-center gap-1.5 font-semibold text-amber-300">
@@ -730,12 +887,13 @@ export default function VoiceModeOverlay({
               <span>Buka di Browser Utama</span>
             </div>
             <p>
-              Browser in-app (seperti WhatsApp/Instagram) memblokir mikrofon. Salin tautan dan buka di{" "}
-              <strong>Safari</strong> (iPhone) atau <strong>Chrome</strong> (Android).
+              Browser in-app memblokir mikrofon. Salin tautan dan buka di{" "}
+              <strong>Safari</strong> (iOS) atau <strong>Chrome</strong> (Android).
             </p>
           </div>
         )}
 
+        {/* Permission Denied Notice */}
         {permissionNotice && (
           <div className="mt-6 max-w-sm mx-4 p-4 rounded-2xl bg-red-950/80 border border-red-700/50 text-red-200 text-xs space-y-2 text-center shadow-xl">
             <div className="flex items-center justify-center gap-1.5 font-semibold text-red-300">
@@ -746,6 +904,7 @@ export default function VoiceModeOverlay({
           </div>
         )}
 
+        {/* Error Notice */}
         {errorMessage && !permissionNotice && (
           <div className="mt-6 max-w-sm mx-4 p-3 rounded-xl bg-red-900/50 border border-red-700 text-red-200 text-xs text-center shadow-lg">
             {errorMessage}
@@ -753,19 +912,15 @@ export default function VoiceModeOverlay({
         )}
       </div>
 
-      {/* Bottom Controls Bar */}
+      {/* Bottom Controls Bar (Item 4) */}
       <div className="w-full flex items-center justify-center gap-6 sm:gap-8 z-20 pb-2">
-        {/* Toggle Captions / Transcript */}
+        {/* Chat / Keyboard Button: Closes voice mode and returns to text chat with session history */}
         <button
           type="button"
-          onClick={() => setShowCaptions((prev) => !prev)}
-          title={showCaptions ? "Sembunyikan teks" : "Tampilkan teks"}
-          aria-label={showCaptions ? "Sembunyikan teks" : "Tampilkan teks"}
-          className={`w-14 h-14 rounded-full flex items-center justify-center transition-all cursor-pointer border ${
-            showCaptions
-              ? "bg-white/15 border-white/30 text-white"
-              : "bg-white/5 border-white/10 text-white/50 hover:text-white/80"
-          }`}
+          onClick={handleEndCall}
+          title="Kembali ke Percakapan Teks"
+          aria-label="Kembali ke Percakapan Teks"
+          className="w-14 h-14 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 transition-all text-white/80 hover:text-white cursor-pointer border border-white/20"
         >
           <MessageSquare className="w-6 h-6" />
         </button>
@@ -774,8 +929,8 @@ export default function VoiceModeOverlay({
         <button
           type="button"
           onClick={handleEndCall}
-          title="Akhiri Panggilan Suara"
-          aria-label="Akhiri Panggilan Suara"
+          title="Akhiri Mode Suara"
+          aria-label="Akhiri Mode Suara"
           className="w-18 h-18 sm:w-20 sm:h-20 rounded-full flex items-center justify-center bg-red-600 hover:bg-red-500 active:scale-95 text-white shadow-xl shadow-red-600/40 transition-all cursor-pointer"
         >
           <PhoneOff className="w-8 h-8" />
@@ -799,4 +954,3 @@ export default function VoiceModeOverlay({
     </div>
   );
 }
-
