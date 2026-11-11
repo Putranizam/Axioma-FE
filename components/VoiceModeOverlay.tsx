@@ -209,17 +209,17 @@ export default function VoiceModeOverlay({
     }
   }, []);
 
-  // Speak AI reply via browser window.speechSynthesis
-  const speakAiReply = useCallback(
-    (replyText: string) => {
-      if (typeof window === "undefined" || !window.speechSynthesis) {
+  // Speak AI reply via browser window.speechSynthesis (Text-to-Speech)
+  const speakResponse = useCallback(
+    (text: string) => {
+      if (typeof window === "undefined" || !("speechSynthesis" in window)) {
         console.warn("[VoiceMode] window.speechSynthesis not supported on this platform");
         resumeListening();
         return;
       }
 
       // Clean text: strip markdown syntax, links, code blocks, excessive symbols
-      const cleanText = replyText
+      const cleanText = text
         .replace(/```[\s\S]*?```/g, "")
         .replace(/`([^`]+)`/g, "$1")
         .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
@@ -234,12 +234,18 @@ export default function VoiceModeOverlay({
       }
 
       console.log("[VoiceMode] Speaking AI reply with SpeechSynthesis:", cleanText);
+
+      // Resume audio state if paused or suspended (iOS Safari & Android Chrome)
       try {
-        window.speechSynthesis.cancel(); // Stop any pending speech
+        window.speechSynthesis.resume();
+      } catch {}
+
+      try {
+        window.speechSynthesis.cancel(); // Hentikan suara sebelumnya
       } catch {}
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
-      utterance.lang = "id-ID";
+      utterance.lang = "id-ID"; // Atur bahasa Indonesia
       utterance.rate = 1.0;
       utterance.pitch = 1.0;
 
@@ -267,10 +273,22 @@ export default function VoiceModeOverlay({
       };
 
       currentUtteranceRef.current = utterance;
-      window.speechSynthesis.speak(utterance);
+
+      // Jeda 50ms agar pembatalan cancel() selesai pada level OS sebelum speak()
+      setTimeout(() => {
+        try {
+          window.speechSynthesis.resume();
+          window.speechSynthesis.speak(utterance);
+        } catch (err) {
+          console.warn("[VoiceMode] Failed to execute window.speechSynthesis.speak:", err);
+          resumeListening();
+        }
+      }, 50);
     },
     [getIndonesianVoice, resumeListening]
   );
+
+  const speakAiReply = speakResponse;
 
   // Send completed user transcript to Gemini backend
   const handleSendTurn = useCallback(
@@ -308,7 +326,28 @@ export default function VoiceModeOverlay({
 
           while (true) {
             const { value, done } = await streamReader.read();
-            if (done) break;
+            if (done) {
+              const remainder = buffer + decoder.decode();
+              if (remainder.trim()) {
+                const events = remainder.split(/\r?\n\r?\n/);
+                for (const event of events) {
+                  const line = event.split(/\r?\n/).find((l) => l.startsWith("data:"));
+                  if (!line) continue;
+                  const jsonStr = line.slice(5).trim();
+                  if (!jsonStr) continue;
+
+                  try {
+                    const payload = JSON.parse(jsonStr);
+                    if (payload.type === "chunk" && typeof payload.text === "string") {
+                      fullAiText += payload.text;
+                    } else if (payload.type === "done" && typeof payload.data === "string" && !fullAiText) {
+                      fullAiText = payload.data;
+                    }
+                  } catch {}
+                }
+              }
+              break;
+            }
 
             buffer += decoder.decode(value, { stream: true });
             const events = buffer.split(/\r?\n\r?\n/);
@@ -325,6 +364,9 @@ export default function VoiceModeOverlay({
                 if (payload.type === "chunk" && typeof payload.text === "string") {
                   fullAiText += payload.text;
                   setActiveSpeechText(fullAiText);
+                } else if (payload.type === "done" && typeof payload.data === "string" && !fullAiText) {
+                  fullAiText = payload.data;
+                  setActiveSpeechText(fullAiText);
                 }
               } catch {}
             }
@@ -333,11 +375,16 @@ export default function VoiceModeOverlay({
           fullAiText = aiReplyText;
         }
 
+        if (!fullAiText && aiReplyText) {
+          fullAiText = aiReplyText;
+        }
+
         const cleanReply = fullAiText.trim();
         if (!cleanReply) {
           throw new Error("Balasan AI kosong");
         }
 
+        console.log("[VoiceMode] Balasan AI diterima penuh, memicu Text-to-Speech:", cleanReply);
         setActiveSpeechText(cleanReply);
 
         // Notify parent ChatInterface to persist message in chat session
@@ -345,9 +392,9 @@ export default function VoiceModeOverlay({
           onTurnComplete(cleanUserText, cleanReply);
         }
 
-        // Speak AI response with native TTS
-        speakAiReply(cleanReply);
-      } catch (err: any) {
+        // Panggil fungsi pemutar suara (Text-to-Speech)
+        speakResponse(cleanReply);
+      } catch (err: unknown) {
         console.error("[VoiceMode] Error processing voice turn:", err);
         setErrorMessage("Gagal menyusun balasan AI. Mencoba mendengarkan kembali…");
         setTimeout(() => {
@@ -358,7 +405,7 @@ export default function VoiceModeOverlay({
         isProcessingTurnRef.current = false;
       }
     },
-    [onSendMessage, onTurnComplete, speakAiReply, resumeListening]
+    [onSendMessage, onTurnComplete, speakResponse, resumeListening]
   );
 
   // Initialize SpeechRecognition instance
@@ -580,23 +627,28 @@ export default function VoiceModeOverlay({
     }
 
     try {
-      // 1. Audio unlock for iOS Safari (Crucial!)
+      // 1. Audio unlock & resume for iOS Safari & Android Chrome (Crucial!)
       const AudioCtx =
         window.AudioContext ||
         (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
       if (AudioCtx) {
         const audioCtx = new AudioCtx();
         audioContextRef.current = audioCtx;
+        if (audioCtx.state === "suspended") {
+          await audioCtx.resume().catch(() => {});
+        }
         await unlockAudioSystem(audioCtx, audioElementRef.current);
       }
 
-      // Pre-warm SpeechSynthesis voices
-      if (typeof window !== "undefined" && window.speechSynthesis) {
+      // Pre-warm & unlock SpeechSynthesis voices
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
         try {
-          window.speechSynthesis.cancel();
-          const empty = new SpeechSynthesisUtterance("");
-          empty.volume = 0;
-          window.speechSynthesis.speak(empty);
+          window.speechSynthesis.resume();
+          const prime = new SpeechSynthesisUtterance(" ");
+          prime.volume = 0.01;
+          prime.rate = 2.0;
+          prime.lang = "id-ID";
+          window.speechSynthesis.speak(prime);
           window.speechSynthesis.getVoices();
         } catch {}
       }

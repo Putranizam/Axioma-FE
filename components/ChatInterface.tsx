@@ -2045,20 +2045,28 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     if (isRecording) {
       cancelVoiceRecording();
     }
-    // Synchronously unlock audio system and speech synthesis in user gesture for iOS Safari compatibility
+    // Synchronously unlock audio system and speech synthesis in user gesture for iOS Safari & Android compatibility
     try {
-      const AudioCtxClass =
-        window.AudioContext ||
-        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      if (AudioCtxClass) {
-        const dummyCtx = new AudioCtxClass();
-        void unlockAudioSystem(dummyCtx);
-      }
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-        const silentUtterance = new SpeechSynthesisUtterance("");
-        silentUtterance.volume = 0;
-        window.speechSynthesis.speak(silentUtterance);
+      if (typeof window !== "undefined") {
+        const AudioCtxClass =
+          window.AudioContext ||
+          (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+        if (AudioCtxClass) {
+          const dummyCtx = new AudioCtxClass();
+          if (dummyCtx.state === "suspended") {
+            void dummyCtx.resume().catch(() => {});
+          }
+          void unlockAudioSystem(dummyCtx);
+        }
+        if ("speechSynthesis" in window) {
+          window.speechSynthesis.resume();
+          window.speechSynthesis.cancel();
+          const primeUtterance = new SpeechSynthesisUtterance(" ");
+          primeUtterance.volume = 0.01;
+          primeUtterance.rate = 2.0;
+          primeUtterance.lang = "id-ID";
+          window.speechSynthesis.speak(primeUtterance);
+        }
       }
     } catch {}
 
