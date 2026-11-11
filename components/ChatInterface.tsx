@@ -807,6 +807,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+  const [kbOffset, setKbOffset] = useState<number>(0);
 
   // User profile & model selection state (persisted in localStorage)
   const [displayName, setDisplayName] = useState<string>(DEFAULT_DISPLAY_NAME);
@@ -1113,41 +1114,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     );
   }, [isSettingsModalOpen, isClearAllConfirmOpen, editConfirmTarget, isGuestLimitModalOpen]);
 
-  // VisualViewport listener for native mobile iOS Safari & Android keyboard handling
+  // VisualViewport keyboard height calculator (Zero jitter / Single Bottom-Bar Translate)
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     if (!vv) return;
 
-    let rafId: number | null = null;
-
-    const handleViewport = () => {
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const root = document.getElementById("axioma-app-root");
-        if (root) {
-          root.style.height = `${vv.height}px`;
-          root.style.transform = `translateY(${vv.offsetTop}px)`;
-        }
-
-        const isMobile = window.innerWidth < 768;
-        const screenH = window.screen?.height || window.innerHeight;
-        const isKeyboard = isMobile && vv.height < screenH - 120;
-        setIsKeyboardOpen(isKeyboard);
-
-        if (window.scrollY !== 0) {
-          window.scrollTo(0, 0);
-        }
-      });
+    const onResize = () => {
+      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKbOffset(offset);
+      setIsKeyboardOpen(offset > 120);
     };
 
-    vv.addEventListener("resize", handleViewport);
-    vv.addEventListener("scroll", handleViewport);
-    handleViewport();
+    vv.addEventListener("resize", onResize);
+    vv.addEventListener("scroll", onResize);
+    onResize();
 
     return () => {
-      if (rafId !== null) cancelAnimationFrame(rafId);
-      vv.removeEventListener("resize", handleViewport);
-      vv.removeEventListener("scroll", handleViewport);
+      vv.removeEventListener("resize", onResize);
+      vv.removeEventListener("scroll", onResize);
     };
   }, []);
 
@@ -4727,11 +4711,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
       }}
       id="axioma-app-root"
-      style={{
-        transition: "height 0.28s cubic-bezier(0.32, 0.72, 0, 1), transform 0.28s cubic-bezier(0.32, 0.72, 0, 1)",
-        willChange: "height, transform",
-      }}
-      className="fixed inset-x-0 top-0 h-[100dvh] w-full max-w-full flex flex-col lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden overscroll-none touch-none selection:bg-border-strong selection:text-text-primary"
+      className="fixed inset-0 w-full h-full max-w-full flex flex-col lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5904,7 +5884,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="sticky top-0 z-20 shrink-0 w-full min-h-[56px] h-auto flex items-center justify-between px-3 sm:px-4 bg-black/90 backdrop-blur-md border-b-0 md:border-b md:border-border-subtle pt-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-2.5 md:py-0 md:h-14">
+        <header className="sticky top-0 z-30 shrink-0 w-full min-h-[56px] h-auto flex items-center justify-between px-3 sm:px-4 bg-black/90 backdrop-blur-md border-b-0 md:border-b md:border-border-subtle pt-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-2.5 md:py-0 md:h-14">
           {/* Mobile Header (< md) - Modern AI Pattern */}
           <div className="flex md:hidden items-center justify-between w-full">
             {/* Left: 44px circular hamburger menu */}
@@ -5917,7 +5897,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <Menu className="w-5 h-5" />
             </button>
 
-            {/* Center: Axioma + model name without border box */}
+            {/* Center: Axioma + model name without border box (Persis Gemini) */}
             <button
               ref={headerAgentTriggerRef}
               type="button"
@@ -5927,12 +5907,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full active:opacity-75 transition-opacity cursor-pointer focus:outline-none"
               aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
             >
-              <span className="font-semibold text-base tracking-tight text-text-primary">
-                Axioma
-              </span>
-              <span className="text-sm font-normal text-text-muted flex items-center gap-0.5">
-                {selectedAgent.shortName}
-                <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+              <span className="text-[18px] font-medium text-zinc-100 flex items-center gap-1.5 tracking-tight">
+                <span>Axioma {selectedAgent.shortName}</span>
+                <ChevronDown className="w-4 h-4 text-zinc-400" />
               </span>
             </button>
 
@@ -6160,9 +6137,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
             ) && (
               <div
-                className={`md:hidden flex-1 min-h-0 overflow-y-auto touch-auto z-10 flex flex-col items-center justify-center px-4 text-center pointer-events-none transition-transform duration-300 ease-[cubic-bezier(0.2,0.8,0.2,1)] will-change-transform ${
-                  isKeyboardOpen || isInputFocused ? "-translate-y-3 sm:-translate-y-4" : "translate-y-0"
-                } ${
+                style={{
+                  transform: kbOffset > 0 ? `translate3d(0, -${kbOffset * 0.45}px, 0)` : undefined,
+                }}
+                className={`md:hidden flex-1 min-h-0 overflow-y-auto touch-auto z-10 flex flex-col items-center justify-center px-4 text-center pointer-events-none will-change-transform ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                 }`}
               >
@@ -6182,8 +6160,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
                   </div>
 
-                  {/* Sapaan besar (Ukuran konstan sama persis seperti di Gemini) */}
-                  <h1 className="text-2xl sm:text-[26px] font-bold leading-snug tracking-tight text-center text-balance whitespace-pre-line text-zinc-900 dark:text-white">
+                  {/* Sapaan besar (Persis ukuran dan ketebalan font Gemini) */}
+                  <h1 className="text-[28px] sm:text-[32px] font-medium leading-[1.25] tracking-[-0.02em] text-zinc-100 text-center max-w-[320px] mx-auto text-balance whitespace-pre-line">
                     {mobileGreeting}
                   </h1>
                 </div>
@@ -6219,6 +6197,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             key={activeChatId}
             ref={scrollRef}
             onScroll={handleChatScroll}
+            style={{
+              paddingBottom: kbOffset > 0 ? `${kbOffset}px` : undefined,
+            }}
             className={`flex-1 min-h-0 overflow-y-auto touch-auto transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages ||
               (isChatAreaLoading &&
@@ -6851,11 +6832,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) on Desktop; Docked at Bottom on Mobile */}
           <div
-            className={`shrink-0 w-full px-4 pt-1 transition-[padding] duration-300 ease-[cubic-bezier(0.32,0.72,0,1)] ${
-              isKeyboardOpen || isInputFocused
+            style={{
+              transform: kbOffset > 0 ? `translate3d(0, -${kbOffset}px, 0)` : undefined,
+            }}
+            className={`shrink-0 w-full px-4 pt-1 ${
+              kbOffset > 0
                 ? "pb-1.5"
                 : "pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"
-            } bg-gradient-to-t from-black via-black to-transparent relative z-20`}
+            } bg-gradient-to-t from-black via-black to-transparent relative z-20 will-change-transform`}
           >
             {/* Ambient Glow Biru-Ungu Lembut di Belakang Area Input (Ala Gemini) */}
             <div
@@ -6922,7 +6906,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         type="button"
                         onClick={() => textareaRef.current?.focus()}
                         aria-label="Mode Percakapan Teks"
-                        className="px-4 py-1.5 rounded-full bg-zinc-900 text-white dark:bg-[#1e1f20] dark:text-white border border-zinc-700/60 dark:border-white/10 font-medium text-xs sm:text-sm shadow-xs cursor-pointer active:scale-95 transition-all"
+                        className="px-4 py-2 rounded-full bg-black/90 text-white border border-white/10 font-medium text-[14px] shadow-sm cursor-pointer active:scale-95 transition-all"
                       >
                         Percakapan
                       </button>
@@ -6930,9 +6914,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         type="button"
                         onClick={handleOpenVoiceMode}
                         aria-label="Buka Mode Suara"
-                        className="px-3.5 py-1.5 rounded-full text-text-muted hover:text-text-primary dark:text-[#9aa0a6] dark:hover:text-white font-medium text-xs sm:text-sm cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
+                        className="px-4 py-2 rounded-full text-zinc-400 hover:text-white font-medium text-[14px] cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
                       >
-                        <AudioLines className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
+                        <AudioLines className="w-4 h-4 text-blue-400 shrink-0" />
                         <span>Mode Suara</span>
                       </button>
                     </div>
@@ -7026,8 +7010,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Polished Input Box (Mobile: rounded-full pill container ~56px; Desktop: rounded-[22px]) */}
-                <div className="bg-bg-elevated border border-border-subtle/80 rounded-full md:rounded-[22px] px-2.5 py-1.5 md:p-2 min-h-[52px] sm:min-h-[56px] shadow-2xl flex items-center w-full gap-1.5 sm:gap-2 transition-[border-color,box-shadow,border-radius] duration-200 hover:border-border-strong focus-within:border-border-strong focus-within:ring-2 focus-within:ring-border-subtle">
+                {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[28px] px-4 py-2.5 bg-[#1e1f20]) */}
+                <div className="bg-[#1e1f20] border border-white/10 rounded-[28px] px-4 py-2.5 min-h-[56px] shadow-2xl flex items-center w-full gap-2.5 transition-all hover:border-zinc-700 focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-white/10">
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
                     const isAttachmentsFull = pendingAttachments.length >= 4;
@@ -7052,15 +7036,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           disabled={isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice}
                           title={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
                           aria-label={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
-                          className={`w-10 h-10 min-w-[40px] min-h-[40px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full flex items-center justify-center transition-all ${
+                          className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all ${
                             isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice
-                              ? "text-icon-muted opacity-40 cursor-not-allowed pointer-events-none"
-                              : "text-text-secondary hover:text-text-primary hover:bg-bg-surface active:scale-95 cursor-pointer"
+                              ? "text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none"
+                              : "text-zinc-300 hover:text-white hover:bg-white/10 active:scale-95 cursor-pointer -ml-1"
                           }`}
                         >
-                          <Plus className="w-5 h-5 md:hidden" />
-
-                          <Paperclip className="w-4 h-4 hidden md:block" />
+                          <Plus className="w-6 h-6" />
                         </button>
 
                         {/* Tooltip when 4 attachments reached */}
@@ -7325,7 +7307,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         }}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder="Minta Axioma..."
-                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary placeholder:text-text-muted text-[16px] md:text-base focus:outline-none px-1.5 py-2 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out touch-manipulation"
+                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-zinc-400 text-[17px] sm:text-[18px] font-normal focus:outline-none px-2 py-1 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out touch-manipulation"
                       />
                     </div>
                   )}
@@ -7450,9 +7432,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={handleToggleVoiceRecording}
                             title="Dikte suara (Bahasa Indonesia)"
                             aria-label="Mulai dikte"
-                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full md:rounded-xl flex items-center justify-center text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-all cursor-pointer border border-transparent active:scale-95"
+                            className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer border border-transparent active:scale-95"
                           >
-                            <Mic className="w-5 h-5 lg:w-4 lg:h-4" />
+                            <Mic className="w-5 h-5" />
                           </button>
                         ) : (
                           <>
