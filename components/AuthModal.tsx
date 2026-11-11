@@ -17,9 +17,6 @@ import {
   supabase,
   isSupabaseConfigured,
   SupabaseUser,
-  GOOGLE_CLIENT_ID,
-  generateNoncePair,
-  signInWithGoogleIdToken,
 } from "../lib/supabaseClient";
 
 interface AuthModalProps {
@@ -42,10 +39,13 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
 
   useEffect(() => {
     if (isOpen) {
-      setError(null);
-      setSuccessNotice(null);
-      setIsLoading(false);
-      setTimeout(() => emailInputRef.current?.focus(), 100);
+      const timer = setTimeout(() => {
+        setError(null);
+        setSuccessNotice(null);
+        setIsLoading(false);
+        emailInputRef.current?.focus();
+      }, 0);
+      return () => clearTimeout(timer);
     }
   }, [isOpen, tab]);
 
@@ -63,109 +63,40 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
 
   const configured = isSupabaseConfigured();
 
-  const handleGoogleLogin = async () => {
-    if (!supabase || isLoading) return;
-    setIsLoading(true);
-    setError(null);
-    setSuccessNotice(null);
-
+  const handleGoogleLogin = () => {
     try {
-      const clientId = GOOGLE_CLIENT_ID;
+      setIsLoading(true);
+      setError(null);
+      setSuccessNotice(null);
+
+      const clientId =
+        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ||
+        "664336778701-gqrpatehv6pvliigpdoilk7et8fo0cdi.apps.googleusercontent.com";
       const origin = typeof window !== "undefined" ? window.location.origin : "";
       const redirectUri = `${origin}/api/auth/google/callback`;
 
-      const { rawNonce, hashedNonce } = await generateNoncePair();
+      // Nonce acak untuk OpenID Connect (karena Skip nonce checks sudah aktif di Supabase)
+      const nonce =
+        Math.random().toString(36).substring(2, 15) +
+        Math.random().toString(36).substring(2, 15) +
+        Date.now().toString(36);
 
-      // Store rawNonce in session & local storage for cross-page retrieval
-      try {
-        sessionStorage.setItem("axioma_google_raw_nonce", rawNonce);
-        localStorage.setItem("axioma_google_raw_nonce", rawNonce);
-      } catch {}
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: "id_token",
+        scope: "openid email profile",
+        nonce: nonce,
+        prompt: "select_account",
+      });
 
-      const authUrl =
-        `https://accounts.google.com/o/oauth2/v2/auth?` +
-        `client_id=${encodeURIComponent(clientId)}&` +
-        `redirect_uri=${encodeURIComponent(redirectUri)}&` +
-        `response_type=id_token&` +
-        `scope=${encodeURIComponent("openid email profile")}&` +
-        `nonce=${encodeURIComponent(hashedNonce)}&` +
-        `prompt=select_account`;
+      const googleAuthUrl = `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 
-      // Check if user is on mobile
-      const isMobile =
-        typeof window !== "undefined" &&
-        (window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
-
-      if (isMobile) {
-        // Direct redirect on mobile avoids Safari/Chrome popup blocker
-        window.location.href = authUrl;
-        return;
-      }
-
-      // Desktop: Open centered popup
-      const width = 500;
-      const height = 620;
-      const left = window.screenX + (window.outerWidth - width) / 2;
-      const top = window.screenY + (window.outerHeight - height) / 2;
-      const popup = window.open(
-        authUrl,
-        "axioma_google_login",
-        `width=${width},height=${height},left=${left},top=${top},status=no,menubar=no,toolbar=no`
-      );
-
-      if (!popup || popup.closed || typeof popup.closed === "undefined") {
-        // Popup was blocked by browser, fallback to redirect
-        window.location.href = authUrl;
-        return;
-      }
-
-      let completed = false;
-
-      const messageHandler = async (event: MessageEvent) => {
-        if (event.origin !== window.location.origin) return;
-        if (event.data?.type === "AXIOMA_GOOGLE_AUTH") {
-          completed = true;
-          window.removeEventListener("message", messageHandler);
-          clearInterval(pollTimer);
-
-          const { idToken, error: authErr } = event.data;
-          if (authErr) {
-            setError(`Gagal masuk dengan Google: ${authErr}`);
-            setIsLoading(false);
-            return;
-          }
-
-          if (idToken) {
-            const { user, error: signInErr } = await signInWithGoogleIdToken(idToken, rawNonce);
-            if (signInErr) {
-              setError(signInErr.message || "Gagal memproses sesi login dengan Google.");
-              setIsLoading(false);
-              return;
-            }
-            if (user) {
-              onSuccess?.(user);
-              onClose();
-            }
-          }
-          setIsLoading(false);
-        }
-      };
-
-      window.addEventListener("message", messageHandler);
-
-      const pollTimer = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(pollTimer);
-          window.removeEventListener("message", messageHandler);
-          setTimeout(() => {
-            if (!completed) {
-              setIsLoading(false);
-            }
-          }, 600);
-        }
-      }, 500);
-    } catch (err: any) {
-      setError(err?.message || "Gagal masuk dengan Google. Silakan coba lagi.");
+      // Arahkan user langsung ke Google OAuth2 endpoint
+      window.location.href = googleAuthUrl;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Gagal mengarahkan ke login Google.";
+      setError(msg);
       setIsLoading(false);
     }
   };
@@ -237,8 +168,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           "Tautan masuk (Magic Link) telah dikirim ke email Anda! Buka tautan tersebut untuk masuk otomatis."
         );
       }
-    } catch (err: any) {
-      const msg = err?.message || "Terjadi kesalahan saat autentikasi.";
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Terjadi kesalahan saat autentikasi.";
       if (msg.includes("Invalid login credentials")) {
         setError("Email atau kata sandi tidak cocok. Silakan periksa kembali.");
       } else if (msg.includes("User already registered")) {
