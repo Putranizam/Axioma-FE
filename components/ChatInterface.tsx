@@ -4956,12 +4956,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
               Account
             </div>
-            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden mb-6 divide-y divide-zinc-800/60 border border-zinc-800/40">
+            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden mb-6 divide-y divide-zinc-800/60 border border-zinc-800/40 pb-0.5">
               {/* Manage account */}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
-                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <User className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
@@ -5031,7 +5031,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
-                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <Clock className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
@@ -5072,9 +5072,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
               Preferensi
             </div>
-            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden mb-6 divide-y divide-zinc-800/60 border border-zinc-800/40">
+            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden mb-6 divide-y divide-zinc-800/60 border border-zinc-800/40 pb-0.5">
               {/* Notifikasi */}
-              <div className="px-5 py-4 flex items-center justify-between text-left">
+              <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
                 <div className="flex items-center min-w-0">
                   <Bell className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
                   <span className="text-[16px] font-normal text-zinc-100 truncate">Notifikasi</span>
@@ -5086,14 +5086,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
-                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-850 transition-colors cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <Bot className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
                   <span className="text-[16px] font-normal text-zinc-100 truncate">Model Default</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-[14px] text-zinc-400">
+                <div className="flex items-center gap-2 shrink-0">
+                  <span className="text-[14px] text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
                     {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
                   </span>
                   <ChevronRight
@@ -5142,13 +5142,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               )}
 
               {/* Penyimpanan Riwayat */}
-              <div className="px-5 py-4 flex items-center justify-between text-left">
-                <div className="flex items-center min-w-0">
+              <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left">
+                <div className="flex items-center shrink-0">
                   <Database className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-zinc-100 truncate">Penyimpanan Riwayat</span>
+                  <span className="text-[16px] font-normal text-zinc-100 whitespace-nowrap">Penyimpanan Riwayat</span>
                 </div>
-                <span className="text-[14px] text-zinc-400">
-                  {authUser ? "Cloud & Perangkat" : "Perangkat (Lokal)"}
+                <span className="text-[14px] text-zinc-400 whitespace-nowrap shrink-0 text-right">
+                  {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
                 </span>
               </div>
 
@@ -5156,7 +5156,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
-                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <Keyboard className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
@@ -5200,16 +5200,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               )}
 
               {/* Tema Row (Menyerupai Referensi Gambar 1) */}
-              <div className="px-5 py-4 flex items-center justify-between text-left">
+              <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
                 <div className="flex items-center min-w-0">
                   <Moon className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
                   <span className="text-[16px] font-normal text-zinc-100 truncate">Tema</span>
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 shrink-0">
                   <select
                     value={themeMode}
                     onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
-                    className="text-[14px] font-normal text-zinc-400 bg-transparent border-0 cursor-pointer focus:outline-none pr-1"
+                    className="appearance-none bg-transparent text-[14px] font-normal text-zinc-400 border-0 cursor-pointer focus:outline-none pr-1 text-right"
                   >
                     <option value="system" className="bg-[#1e1f20] text-white">Default sistem</option>
                     <option value="dark" className="bg-[#1e1f20] text-white">Gelap</option>
@@ -5226,7 +5226,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsSettingsModalOpen(false);
                   setIsClearAllConfirmOpen(true);
                 }}
-                className="w-full px-5 py-4 flex items-center justify-between text-left hover:bg-red-950/20 transition-colors cursor-pointer text-red-400 group"
+                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-red-950/20 transition-colors cursor-pointer text-red-400 group"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Trash className="w-5 h-5 text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
@@ -5315,11 +5315,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {authUser?.email || "Mode Tamu (Lokal)"}
                     </div>
                     {authUser ? (
-                      <span className="mt-1.5 inline-block px-3 py-0.5 text-xs font-semibold rounded-full bg-blue-950/80 text-blue-200 border border-blue-700/40">
-                        Pro
+                      <span className="mt-1.5 inline-block px-3 py-0.5 text-xs font-medium rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                        Akses Awal (Trial)
                       </span>
                     ) : (
-                      <span className="mt-1.5 inline-block px-3 py-0.5 text-xs font-semibold rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
+                      <span className="mt-1.5 inline-block px-3 py-0.5 text-xs font-medium rounded-full bg-zinc-800 text-zinc-300 border border-zinc-700">
                         Mode Tamu ({Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/5 pesan)
                       </span>
                     )}
@@ -5379,14 +5379,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <button
                   type="button"
                   onClick={() => {
-                    if (authUser) {
-                      showToastNotice("Paket Axioma Pro Aktif — Bebas akses model unggulan & inferensi cepat.");
-                    } else {
-                      setIsProfileDropdownOpen(false);
-                      setIsAuthModalOpen(true);
-                    }
+                    showToastNotice("Fitur langganan Pro segera hadir. Saat ini Anda berada dalam masa Trial gratis.");
                   }}
-                  className="w-full bg-[#131314] hover:bg-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                  className="w-full bg-[#131314] hover:bg-zinc-850 rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm opacity-90"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <div className="w-5 h-5 rounded-full border border-zinc-400 flex items-center justify-center text-[10px] font-bold text-zinc-300 shrink-0">
@@ -5394,8 +5389,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
                     <span className="text-[16px] font-medium text-white truncate">Kelola langganan</span>
                   </div>
-                  <span className="text-xs font-bold text-zinc-400 tracking-wider shrink-0 ml-2">
-                    {authUser ? "PRO" : "GRATIS"}
+                  <span className="text-xs px-2.5 py-1 rounded-full bg-zinc-800 text-zinc-400 font-medium shrink-0 ml-2">
+                    Segera Hadir
                   </span>
                 </button>
 
