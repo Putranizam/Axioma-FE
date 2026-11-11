@@ -2061,11 +2061,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         if ("speechSynthesis" in window) {
           window.speechSynthesis.resume();
           window.speechSynthesis.cancel();
-          const primeUtterance = new SpeechSynthesisUtterance(" ");
-          primeUtterance.volume = 0.01;
-          primeUtterance.rate = 2.0;
-          primeUtterance.lang = "id-ID";
-          window.speechSynthesis.speak(primeUtterance);
+          window.speechSynthesis.getVoices?.();
         }
       }
     } catch {}
@@ -5422,7 +5418,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                   aria-label="Buka menu profil dan akun"
                   title="Profil Akun"
-                  className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-purple-600 text-white font-semibold text-sm active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
+                  className="w-8 h-8 rounded-full bg-purple-600 text-white font-semibold text-xs active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
                 >
                   <UserAvatar url={avatarUrl} name={userName} />
                 </button>

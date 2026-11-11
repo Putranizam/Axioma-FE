@@ -158,10 +158,10 @@ export default function VoiceModeOverlay({
     onClose();
   }, [cleanupHardware, onClose]);
 
-  // Get Indonesian voice for SpeechSynthesis
+  // Get Indonesian voice for SpeechSynthesis (strictly Indonesian only, never English fallback)
   const getIndonesianVoice = useCallback((): SpeechSynthesisVoice | null => {
-    if (typeof window === "undefined" || !window.speechSynthesis) return null;
-    const voices = window.speechSynthesis.getVoices();
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+    const voices = window.speechSynthesis.getVoices?.() || [];
     if (!voices || voices.length === 0) return null;
 
     // 1. Exact id-ID voice
@@ -176,8 +176,8 @@ export default function VoiceModeOverlay({
     const prefixId = voices.find((v) => v.lang.toLowerCase().startsWith("id"));
     if (prefixId) return prefixId;
 
-    // 3. Fallback to default
-    return voices.find((v) => v.default) || voices[0] || null;
+    // Return null so the browser's native engine resolves language 'id-ID' automatically
+    return null;
   }, []);
 
   // Resume listening state after AI speaks or on initial start
@@ -655,16 +655,12 @@ export default function VoiceModeOverlay({
         await unlockAudioSystem(audioCtx, audioElementRef.current);
       }
 
-      // Pre-warm & unlock SpeechSynthesis voices
+      // Pre-warm & unlock SpeechSynthesis voices without blocking queue
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         try {
           window.speechSynthesis.resume();
-          const prime = new SpeechSynthesisUtterance(" ");
-          prime.volume = 0.01;
-          prime.rate = 2.0;
-          prime.lang = "id-ID";
-          window.speechSynthesis.speak(prime);
-          window.speechSynthesis.getVoices();
+          window.speechSynthesis.cancel();
+          window.speechSynthesis.getVoices?.();
         } catch {}
       }
 
