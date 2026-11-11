@@ -366,7 +366,7 @@ body {
 @keyframes aiBubbleIn {
   0% {
     opacity: 0;
-    transform: translate3d(0, 6px, 0);
+    transform: translate3d(0, 10px, 0);
   }
   100% {
     opacity: 1;
@@ -420,12 +420,23 @@ body {
 
 @keyframes streamBlockFade {
   0% {
-    opacity: 0.35;
-    transform: translate3d(0, 2px, 0);
+    opacity: 0.15;
+    transform: translate3d(0, 3px, 0);
   }
   100% {
     opacity: 1;
     transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes streamCursorPulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+  50% {
+    opacity: 0.2;
+    transform: scaleY(0.85);
   }
 }
 
@@ -446,7 +457,7 @@ body {
 }
 
 .animate-ai-bubble {
-  animation: aiBubbleIn 200ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  animation: aiBubbleIn 300ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: transform, opacity;
 }
 
@@ -464,20 +475,27 @@ body {
   animation: thinkingTextPulse 1.8s ease-in-out infinite;
 }
 
-/* Smooth fade-in on newly appended markdown blocks & inline blinking cursor (▍) during streaming */
+/* Smooth fade-in on newly appended markdown blocks & glowing typing cursor during streaming */
+.streaming-prose {
+  position: relative;
+  will-change: contents;
+}
+
 .streaming-prose > *:last-child {
-  animation: streamBlockFade 180ms ease-out forwards;
+  animation: streamBlockFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 .streaming-prose > *:last-child::after {
-  content: "▍";
+  content: "";
   display: inline-block;
-  margin-left: 2px;
-  color: var(--text-primary);
-  font-weight: 400;
-  line-height: 1;
-  vertical-align: baseline;
-  animation: streamCursorBlink 0.85s steps(2, start) infinite;
+  width: 6px;
+  height: 15px;
+  margin-left: 4px;
+  vertical-align: -2px;
+  background: linear-gradient(135deg, #3b82f6, #6366f1);
+  border-radius: 2px;
+  animation: streamCursorPulse 0.8s ease-in-out infinite;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
 }
 
 /* Reduced Motion Accessibility: replace movement/scale/shake with simple opacity fades */

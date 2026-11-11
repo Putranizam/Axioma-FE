@@ -728,13 +728,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   // User profile & model selection state (persisted in localStorage)
   const [displayName, setDisplayName] = useState<string>(DEFAULT_DISPLAY_NAME);
-  const avatarUrl = authUser?.user_metadata?.avatar_url || authUser?.user_metadata?.picture || null;
-  const userName =
-    displayName ||
-    authUser?.user_metadata?.full_name ||
-    authUser?.user_metadata?.name ||
-    authUser?.email ||
-    "Pengguna";
+  const avatarUrl = authUser
+    ? authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || null
+    : null;
+  const userName = authUser
+    ? displayName ||
+      authUser.user_metadata?.full_name ||
+      authUser.user_metadata?.name ||
+      authUser.email ||
+      "Pengguna"
+    : "Mode Tamu";
 
   const [defaultAgentId, setDefaultAgentId] = useState<Agent["id"]>("axioma-pro");
   const [selectedAgent, setSelectedAgent] = useState<Agent>(AVAILABLE_AGENTS[0]);
@@ -769,6 +772,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [inputText, setInputText] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<boolean>(false);
+  const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Attachment state (Stage 2)
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
@@ -1278,6 +1283,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       } else {
         setAuthUser(null);
         setAuthToken(null);
+        setDisplayName(DEFAULT_DISPLAY_NAME);
+        safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
       }
     });
 
@@ -4389,7 +4396,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       fallbackCopyText(text);
     }
     setCopiedId(id);
-    setTimeout(() => setCopiedId(null), 2000);
+    setCopied(true);
+    if (copiedTimerRef.current) {
+      clearTimeout(copiedTimerRef.current);
+    }
+    copiedTimerRef.current = setTimeout(() => {
+      setCopiedId(null);
+      setCopied(false);
+      copiedTimerRef.current = null;
+    }, 2000);
   };
 
   // Feedback 👍 / 👎 toggle + optional comment for 👎 (server-backed with real UUIDs) (#4)
@@ -5225,15 +5240,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             }}
             className="flex-1 flex items-center gap-2.5 p-2 rounded-xl hover:bg-bg-surface transition-colors cursor-pointer group text-left min-w-0"
           >
-            <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs">
-              <UserAvatar url={avatarUrl} name={userName} />
+            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs">
+              {authUser ? (
+                <div className="w-full h-full rounded-full bg-purple-600 text-white flex items-center justify-center">
+                  <UserAvatar url={avatarUrl} name={userName} />
+                </div>
+              ) : (
+                <div className="w-full h-full rounded-full bg-bg-surface border border-border-subtle text-text-secondary flex items-center justify-center">
+                  <User className="w-4 h-4" />
+                </div>
+              )}
             </div>
             <div className="min-w-0">
               <div className="text-xs font-medium tracking-tight text-text-primary truncate">
-                {authUser ? (displayName || authUser?.user_metadata?.full_name || "Pengguna") : (displayName || "Mode Tamu")}
+                {authUser ? userName : "Mode Tamu"}
               </div>
               <div className="text-xs text-text-muted truncate">
-                {authUser ? (authUser?.email || "Tersinkronisasi Cloud") : "Tanpa Akun"}
+                {authUser ? (authUser?.email || "Tersinkronisasi Cloud") : "Klik untuk masuk"}
               </div>
             </div>
           </button>
@@ -5328,6 +5351,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     }
                     setAuthUser(null);
                     setAuthToken(null);
+                    setDisplayName(DEFAULT_DISPLAY_NAME);
+                    safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
                     showToastNotice("Berhasil keluar dari akun.");
                     void refreshChatHistory();
                   }}
@@ -5417,10 +5442,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   type="button"
                   onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                   aria-label="Buka menu profil dan akun"
-                  title="Profil Akun"
-                  className="w-8 h-8 rounded-full bg-purple-600 text-white font-semibold text-xs active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
+                  title={authUser ? "Profil Akun" : "Mode Tamu - Masuk / Buat Akun"}
+                  className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
+                    authUser
+                      ? "bg-purple-600 text-white font-semibold text-xs"
+                      : "bg-bg-surface border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+                  }`}
                 >
-                  <UserAvatar url={avatarUrl} name={userName} />
+                  {authUser ? (
+                    <UserAvatar url={avatarUrl} name={userName} />
+                  ) : (
+                    <User className="w-4 h-4 text-text-secondary" />
+                  )}
                 </button>
               </div>
             </div>
@@ -5514,10 +5547,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 type="button"
                 onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                 aria-label="Buka menu profil dan akun"
-                title="Profil Akun"
-                className="w-9 h-9 rounded-full bg-purple-600 text-white font-semibold text-xs active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden"
+                title={authUser ? "Profil Akun" : "Mode Tamu - Masuk / Buat Akun"}
+                className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
+                  authUser
+                    ? "bg-purple-600 text-white font-semibold text-xs"
+                    : "bg-bg-surface border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+                }`}
               >
-                <UserAvatar url={avatarUrl} name={userName} />
+                {authUser ? (
+                  <UserAvatar url={avatarUrl} name={userName} />
+                ) : (
+                  <User className="w-4 h-4 text-text-secondary" />
+                )}
               </button>
             </div>
           </div>
@@ -5579,6 +5620,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         }
                         setAuthUser(null);
                         setAuthToken(null);
+                        setDisplayName(DEFAULT_DISPLAY_NAME);
+                        safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
                         showToastNotice("Berhasil keluar dari akun.");
                         void refreshChatHistory();
                       }}
@@ -5778,6 +5821,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
           )}
 
+          {/* Floating Toast Feedback "Teks disalin!" */}
+          {copied && (
+            <div
+              role="status"
+              aria-live="polite"
+              className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-zinc-900/95 dark:bg-zinc-800/95 text-white border border-zinc-700/60 shadow-2xl flex items-center gap-2 text-xs font-medium backdrop-blur-md animate-in fade-in slide-in-from-bottom-2 duration-150 pointer-events-none select-none"
+            >
+              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <span>Teks disalin!</span>
+            </div>
+          )}
+
           {/* Active State History with Smooth Message Entrance Animations */}
           <div
             ref={scrollRef}
@@ -5944,19 +5999,27 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             {userTime}
                           </span>
                         )}
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(message.content, `user-${message.id}`)}
-                          title="Salin pesan"
-                          aria-label="Salin pesan pengguna"
-                          className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
-                        >
-                          {copiedId === `user-${message.id}` ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
+                        <div className="relative flex items-center">
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(message.content, `user-${message.id}`)}
+                            title="Salin pesan"
+                            aria-label="Salin pesan pengguna"
+                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
+                          >
+                            {copiedId === `user-${message.id}` ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          {copiedId === `user-${message.id}` && (
+                            <span className="absolute right-full mr-1.5 px-2 py-0.5 rounded-md bg-zinc-900 text-white text-[11px] font-medium whitespace-nowrap shadow-md border border-zinc-800 animate-in fade-in zoom-in-95 duration-150 z-30 flex items-center gap-1 pointer-events-none">
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span>Teks disalin!</span>
+                            </span>
                           )}
-                        </button>
+                        </div>
                         <button
                           type="button"
                           onClick={() => handleStartEditUserMessage(message)}
@@ -6016,11 +6079,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               return (
                 <div
                   key={message.id}
-                  className="w-full flex justify-start animate-ai-bubble group relative"
+                  className="w-full flex justify-start animate-ai-bubble group relative transition-all duration-300 ease-out animate-in fade-in-0 slide-in-from-bottom-2"
                 >
                   <div className="w-full space-y-2 sm:space-y-3 min-w-0">
                     <div
-                      className={`axioma-markdown max-w-[70ch] text-text-secondary text-[15px] leading-[1.7] tracking-normal break-words ${
+                      className={`axioma-markdown max-w-[70ch] text-text-secondary text-[15px] leading-[1.7] tracking-normal break-words transition-opacity duration-200 ${
                         isStreamingThisMessage ? "streaming-prose" : ""
                       }`}
                     >
@@ -6108,19 +6171,27 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     >
                       <div className="flex items-center gap-1 text-icon-muted">
                         {/* Copy button */}
-                        <button
-                          type="button"
-                          onClick={() => handleCopy(message.content, message.id)}
-                          title={copiedId === message.id ? "Tersalin" : "Salin jawaban"}
-                          className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center"
-                          aria-label="Salin teks"
-                        >
-                          {copiedId === message.id ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
+                        <div className="relative flex items-center">
+                          <button
+                            type="button"
+                            onClick={() => handleCopy(message.content, message.id)}
+                            title={copiedId === message.id ? "Tersalin" : "Salin jawaban"}
+                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center"
+                            aria-label="Salin teks"
+                          >
+                            {copiedId === message.id ? (
+                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                            ) : (
+                              <Copy className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                          {copiedId === message.id && (
+                            <span className="absolute left-full ml-1.5 px-2 py-0.5 rounded-md bg-zinc-900 text-white text-[11px] font-medium whitespace-nowrap shadow-md border border-zinc-800 animate-in fade-in zoom-in-95 duration-150 z-30 flex items-center gap-1 pointer-events-none">
+                              <Check className="w-3 h-3 text-emerald-400" />
+                              <span>Teks disalin!</span>
+                            </span>
                           )}
-                        </button>
+                        </div>
 
                         {/* Thumbs Up 👍 */}
                         <button
