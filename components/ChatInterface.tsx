@@ -807,7 +807,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
-  const [kbOffset, setKbOffset] = useState<number>(0);
 
   // User profile & model selection state (persisted in localStorage)
   const [displayName, setDisplayName] = useState<string>(DEFAULT_DISPLAY_NAME);
@@ -1114,24 +1113,31 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     );
   }, [isSettingsModalOpen, isClearAllConfirmOpen, editConfirmTarget, isGuestLimitModalOpen]);
 
-  // VisualViewport keyboard height calculator (Zero jitter / Single Bottom-Bar Translate)
+  // VisualViewport direct position & height lock (100% Persis Gemini, zero jitter/bounce)
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     if (!vv) return;
 
-    const onResize = () => {
-      const offset = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-      setKbOffset(offset);
-      setIsKeyboardOpen(offset > 120);
+    const syncViewport = () => {
+      const appEl = document.getElementById("axioma-viewport-lock");
+      if (appEl) {
+        appEl.style.top = `${vv.offsetTop}px`;
+        appEl.style.height = `${vv.height}px`;
+      }
+
+      const isMobile = window.innerWidth < 768;
+      const screenH = window.screen?.height || window.innerHeight;
+      const isKeyboard = isMobile && vv.height < screenH - 120;
+      setIsKeyboardOpen(isKeyboard);
     };
 
-    vv.addEventListener("resize", onResize);
-    vv.addEventListener("scroll", onResize);
-    onResize();
+    vv.addEventListener("resize", syncViewport);
+    vv.addEventListener("scroll", syncViewport);
+    syncViewport();
 
     return () => {
-      vv.removeEventListener("resize", onResize);
-      vv.removeEventListener("scroll", onResize);
+      vv.removeEventListener("resize", syncViewport);
+      vv.removeEventListener("scroll", syncViewport);
     };
   }, []);
 
@@ -4710,8 +4716,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           void handleFilesSelected(e.dataTransfer.files);
         }
       }}
-      id="axioma-app-root"
-      className="fixed inset-0 w-full h-full max-w-full flex flex-col lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary"
+      id="axioma-viewport-lock"
+      className="fixed left-0 right-0 top-0 h-[100dvh] w-full max-w-full flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5518,6 +5524,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isTouchOrMobile ? "Cari percakapan..." : "Cari percakapan... (Ctrl+K)"}
                 aria-label="Cari percakapan"
+                disabled={!isMobileSidebarOpen && isTouchOrMobile}
+                tabIndex={isMobileSidebarOpen || !isTouchOrMobile ? 0 : -1}
                 className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
               />
               {searchQuery && (
@@ -6137,23 +6145,20 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
             ) && (
               <div
-                style={{
-                  transform: kbOffset > 0 ? `translate3d(0, -${kbOffset * 0.45}px, 0)` : undefined,
-                }}
-                className={`md:hidden flex-1 min-h-0 overflow-y-auto touch-auto z-10 flex flex-col items-center justify-center px-4 text-center pointer-events-none will-change-transform ${
+                className={`md:hidden flex-1 min-h-0 overflow-y-auto touch-auto z-10 flex flex-col items-center justify-center px-6 text-center pointer-events-none ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                 }`}
               >
-                <div className="w-full max-w-[360px] sm:max-w-md mx-auto flex flex-col items-center px-2">
-                  {/* Brand Logo with subtle glow (Ukuran konstan sama persis baik saat keyboard tertutup maupun terbuka) */}
-                  <div className="relative group mb-5 sm:mb-6">
-                    <div className="absolute -inset-3.5 bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-500/25 rounded-full blur-xl opacity-80 pointer-events-none" />
-                    <div className="relative rounded-2xl bg-zinc-900/90 dark:bg-[#141416]/95 border border-zinc-700/60 dark:border-white/10 flex items-center justify-center shadow-2xl p-2.5 backdrop-blur-md w-14 h-14 sm:w-16 sm:h-16">
+                <div className="w-full max-w-[340px] mx-auto flex flex-col items-center">
+                  {/* Brand Logo with subtle glow (Ukuran proporsional ala Gemini Star) */}
+                  <div className="relative group mb-3 sm:mb-4">
+                    <div className="absolute -inset-3 bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-500/25 rounded-full blur-xl opacity-80 pointer-events-none" />
+                    <div className="relative rounded-2xl bg-zinc-900/90 dark:bg-[#141416]/95 border border-zinc-700/60 dark:border-white/10 flex items-center justify-center shadow-2xl p-2 backdrop-blur-md w-12 h-12 sm:w-14 sm:h-14">
                       <Image
                         src="/brand/axioma-logo.png"
                         alt="Axioma"
-                        width={56}
-                        height={56}
+                        width={48}
+                        height={48}
                         className="w-full h-full object-contain"
                         priority
                       />
@@ -6161,7 +6166,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
 
                   {/* Sapaan besar (Persis ukuran dan ketebalan font Gemini) */}
-                  <h1 className="text-[28px] sm:text-[32px] font-medium leading-[1.25] tracking-[-0.02em] text-zinc-100 text-center max-w-[320px] mx-auto text-balance whitespace-pre-line">
+                  <h1 className="text-[26px] sm:text-[28px] leading-[1.28] font-medium text-white text-center max-w-[300px] mx-auto text-balance whitespace-pre-line tracking-tight">
                     {mobileGreeting}
                   </h1>
                 </div>
@@ -6197,9 +6202,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             key={activeChatId}
             ref={scrollRef}
             onScroll={handleChatScroll}
-            style={{
-              paddingBottom: kbOffset > 0 ? `${kbOffset}px` : undefined,
-            }}
             className={`flex-1 min-h-0 overflow-y-auto touch-auto transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages ||
               (isChatAreaLoading &&
@@ -6832,18 +6834,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) on Desktop; Docked at Bottom on Mobile */}
           <div
-            style={{
-              transform: kbOffset > 0 ? `translate3d(0, -${kbOffset}px, 0)` : undefined,
-            }}
             className={`shrink-0 w-full px-4 pt-1 ${
-              kbOffset > 0
+              isKeyboardOpen
                 ? "pb-1.5"
                 : "pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"
-            } bg-gradient-to-t from-black via-black to-transparent relative z-20 will-change-transform`}
+            } bg-gradient-to-t from-black via-black to-transparent relative z-20`}
           >
             {/* Ambient Glow Biru-Ungu Lembut di Belakang Area Input (Ala Gemini) */}
             <div
-              className="pointer-events-none absolute bottom-0 inset-x-0 h-48 bg-[radial-gradient(ellipse_at_bottom,rgba(37,99,235,0.22)_0%,rgba(30,58,138,0.08)_45%,transparent_75%)] blur-2xl -z-10"
+              className="pointer-events-none absolute bottom-0 inset-x-0 h-52 bg-[radial-gradient(ellipse_at_bottom,rgba(29,78,216,0.28)_0%,rgba(15,23,42,0)_70%)] blur-2xl -z-10"
               aria-hidden="true"
             />
             <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
@@ -7010,8 +7009,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[28px] px-4 py-2.5 bg-[#1e1f20]) */}
-                <div className="bg-[#1e1f20] border border-white/10 rounded-[28px] px-4 py-2.5 min-h-[56px] shadow-2xl flex items-center w-full gap-2.5 transition-all hover:border-zinc-700 focus-within:border-zinc-600 focus-within:ring-1 focus-within:ring-white/10">
+                {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[28px] px-4 py-2.5 bg-[#1e1f22]) */}
+                <div className="bg-[#1e1f22] border border-white/[0.04] rounded-[28px] px-4 py-2.5 min-h-[56px] shadow-2xl flex items-center w-full gap-2.5 transition-colors focus-within:border-white/[0.08]">
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
                     const isAttachmentsFull = pendingAttachments.length >= 4;
