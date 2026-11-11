@@ -254,20 +254,36 @@ export default function VoiceModeOverlay({
         utterance.voice = indonesianVoice;
       }
 
+      let keepAliveTimer: NodeJS.Timeout | null = null;
+
       utterance.onstart = () => {
         console.log("[VoiceMode] SpeechSynthesis started speaking");
         isSpeakingRef.current = true;
         setVoiceState("speaking");
+
+        if (keepAliveTimer) clearInterval(keepAliveTimer);
+        keepAliveTimer = setInterval(() => {
+          if (!isSpeakingRef.current) {
+            if (keepAliveTimer) clearInterval(keepAliveTimer);
+            return;
+          }
+          try {
+            window.speechSynthesis.pause();
+            window.speechSynthesis.resume();
+          } catch {}
+        }, 10000);
       };
 
       utterance.onend = () => {
         console.log("[VoiceMode] SpeechSynthesis finished speaking. Hands-free resuming listening...");
+        if (keepAliveTimer) clearInterval(keepAliveTimer);
         isSpeakingRef.current = false;
         resumeListening();
       };
 
       utterance.onerror = (e) => {
         console.warn("[VoiceMode] SpeechSynthesis utterance error:", e);
+        if (keepAliveTimer) clearInterval(keepAliveTimer);
         isSpeakingRef.current = false;
         resumeListening();
       };

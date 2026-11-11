@@ -189,3 +189,61 @@ export function extractReadySentences(text: string): { sentences: string[]; rema
   return { sentences, remaining };
 }
 
+/**
+ * Speaks text using browser window.speechSynthesis (Text-to-Speech)
+ * Automatically cancels previous utterances, sets Indonesian language (id-ID),
+ * and handles mobile Safari / Android audio resumption.
+ */
+export function speakResponse(
+  text: string,
+  options?: {
+    rate?: number;
+    lang?: string;
+    onStart?: () => void;
+    onEnd?: () => void;
+    onError?: (err: unknown) => void;
+  }
+): SpeechSynthesisUtterance | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    console.warn("[speakResponse] SpeechSynthesis is not supported in this environment");
+    return null;
+  }
+
+  const cleanText = text
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/[*_#~>]/g, "")
+    .replace(/^[•\-*]\s+/gm, "")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!cleanText) return null;
+
+  try {
+    window.speechSynthesis.resume();
+  } catch {}
+
+  try {
+    window.speechSynthesis.cancel();
+  } catch {}
+
+  const utterance = new SpeechSynthesisUtterance(cleanText);
+  utterance.lang = options?.lang || "id-ID";
+  utterance.rate = options?.rate ?? 1.0;
+
+  if (options?.onStart) utterance.onstart = () => options.onStart?.();
+  if (options?.onEnd) utterance.onend = () => options.onEnd?.();
+  if (options?.onError) utterance.onerror = (e) => options.onError?.(e);
+
+  try {
+    window.speechSynthesis.speak(utterance);
+    window.speechSynthesis.resume();
+  } catch (err) {
+    console.warn("[speakResponse] speechSynthesis.speak failed:", err);
+  }
+
+  return utterance;
+}
+
+
