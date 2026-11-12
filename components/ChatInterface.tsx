@@ -1223,43 +1223,39 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     isGuestLimitModalOpen,
   ]);
 
-  // VisualViewport direct position & height lock (100% Persis Gemini, zero jitter/bounce)
+  // VisualViewport direct height lock (Anti-jitter & anti-loop: only updates on resize with >2px threshold)
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     if (!vv) return;
+    let rafId: number;
+    let lastHeight = vv.height;
 
-    const updateViewport = () => {
-      const el = document.getElementById("axioma-viewport-lock");
-      if (!el) return;
-      // Kunci container persis di area layar yang terlihat di atas keyboard
-      el.style.height = `${vv.height}px`;
-      el.style.top = `${vv.offsetTop}px`;
+    const onResize = () => {
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const el = document.getElementById("axioma-viewport-lock");
+        if (!el) return;
+        // Hanya update jika selisih tinggi > 2px untuk mencegah micro-jitter iOS
+        if (Math.abs(vv.height - lastHeight) > 2) {
+          lastHeight = vv.height;
+          el.style.height = `${Math.round(vv.height)}px`;
+        }
 
-      if (window.scrollY !== 0 || window.scrollX !== 0) {
-        window.scrollTo(0, 0);
-      }
-
-      const isMobile = window.innerWidth < 768;
-      const screenH = window.screen?.height || window.innerHeight;
-      const isKeyboard = isMobile && vv.height < screenH - 100;
-      setIsKeyboardOpen(isKeyboard);
+        const isMobile = window.innerWidth < 768;
+        const screenH = window.screen?.height || window.innerHeight;
+        const isKeyboard = isMobile && vv.height < screenH - 100;
+        setIsKeyboardOpen(isKeyboard);
+      });
     };
 
-    const handleWindowScroll = () => {
-      if (window.scrollY !== 0 || window.scrollX !== 0) {
-        window.scrollTo(0, 0);
-      }
-    };
+    // Set nilai awal
+    const el = document.getElementById("axioma-viewport-lock");
+    if (el) el.style.height = `${Math.round(vv.height)}px`;
 
-    vv.addEventListener("resize", updateViewport);
-    vv.addEventListener("scroll", updateViewport);
-    window.addEventListener("scroll", handleWindowScroll, { passive: true });
-    updateViewport();
-
+    vv.addEventListener("resize", onResize);
     return () => {
-      vv.removeEventListener("resize", updateViewport);
-      vv.removeEventListener("scroll", updateViewport);
-      window.removeEventListener("scroll", handleWindowScroll);
+      cancelAnimationFrame(rafId);
+      vv.removeEventListener("resize", onResize);
     };
   }, []);
 
@@ -1940,8 +1936,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
+    if (!textarea.value || !textarea.value.trim() || !textarea.value.includes("\n")) {
+      textarea.style.height = "24px";
+      textarea.style.overflowY = "hidden";
+      return;
+    }
     textarea.style.height = "auto";
-    const nextHeight = Math.min(textarea.scrollHeight, TEXTAREA_MAX_HEIGHT_PX);
+    const nextHeight = Math.max(24, Math.min(textarea.scrollHeight, TEXTAREA_MAX_HEIGHT_PX));
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY =
       textarea.scrollHeight > TEXTAREA_MAX_HEIGHT_PX ? "auto" : "hidden";
@@ -4828,7 +4829,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-viewport-lock"
       style={{ transition: "none" }}
-      className="fixed inset-x-0 top-0 h-[100dvh] w-full max-w-full flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed inset-x-0 top-0 flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none w-full max-w-full"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -7427,23 +7428,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onPaste={handlePaste}
                         onFocus={() => {
                           setIsInputFocused(true);
-                          setTimeout(() => {
-                            window.scrollTo(0, 0);
-                            if (typeof window !== "undefined" && window.visualViewport) {
-                              const el = document.getElementById("axioma-viewport-lock");
-                              if (el) {
-                                el.style.height = `${window.visualViewport.height}px`;
-                                el.style.top = `${window.visualViewport.offsetTop}px`;
-                              }
-                            }
-                          }, 50);
                         }}
                         onBlur={() => {
                           setIsInputFocused(false);
                         }}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder="Minta Axioma..."
-                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out touch-manipulation"
+                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 max-h-36 md:max-h-48 leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
                       />
                     </div>
                   )}
