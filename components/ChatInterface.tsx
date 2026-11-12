@@ -867,7 +867,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isUserScrolledUp, setIsUserScrolledUp] = useState<boolean>(false);
   const [greeting, setGreeting] = useState<string>("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
-  const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
 
   // User profile & model selection state (persisted in localStorage)
@@ -1223,41 +1222,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     isGuestLimitModalOpen,
   ]);
 
-  // VisualViewport direct height lock (Anti-jitter & anti-loop: only updates on resize with >2px threshold)
-  useEffect(() => {
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    if (!vv) return;
-    let rafId: number;
-    let lastHeight = vv.height;
-
-    const onResize = () => {
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const el = document.getElementById("axioma-viewport-lock");
-        if (!el) return;
-        // Hanya update jika selisih tinggi > 2px untuk mencegah micro-jitter iOS
-        if (Math.abs(vv.height - lastHeight) > 2) {
-          lastHeight = vv.height;
-          el.style.height = `${Math.round(vv.height)}px`;
-        }
-
-        const isMobile = window.innerWidth < 768;
-        const screenH = window.screen?.height || window.innerHeight;
-        const isKeyboard = isMobile && vv.height < screenH - 100;
-        setIsKeyboardOpen(isKeyboard);
-      });
-    };
-
-    // Set nilai awal
-    const el = document.getElementById("axioma-viewport-lock");
-    if (el) el.style.height = `${Math.round(vv.height)}px`;
-
-    vv.addEventListener("resize", onResize);
-    return () => {
-      cancelAnimationFrame(rafId);
-      vv.removeEventListener("resize", onResize);
-    };
-  }, []);
 
   const focusDesktopTextarea = useCallback(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
@@ -1936,7 +1900,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
     if (!textarea) return;
-    if (!textarea.value || !textarea.value.trim() || !textarea.value.includes("\n")) {
+    const val = textarea.value || "";
+    if (!val || (!val.includes("\n") && val.length < 45)) {
       textarea.style.height = "24px";
       textarea.style.overflowY = "hidden";
       return;
@@ -4828,8 +4793,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
       }}
       id="axioma-viewport-lock"
-      style={{ transition: "none" }}
-      className="fixed inset-x-0 top-0 flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none w-full max-w-full"
+      className="fixed inset-0 w-full h-[100dvh] flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -7434,6 +7398,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         }}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder="Minta Axioma..."
+                        style={{ height: "24px" }}
                         className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 max-h-36 md:max-h-48 leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
                       />
                     </div>
@@ -7775,7 +7740,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
               <div
                 className={`text-center text-[11px] sm:text-xs text-text-muted pt-1.5 sm:pt-2.5 pb-1 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 ${
-                  isKeyboardOpen || isInputFocused ? "hidden" : "flex"
+                  isInputFocused ? "hidden" : "flex"
                 }`}
               >
                 <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
