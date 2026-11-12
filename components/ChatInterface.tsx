@@ -1232,12 +1232,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const syncViewport = () => {
       const el = document.getElementById("axioma-viewport-lock");
       if (!el) return;
-      // Kunci tinggi dan posisi Y persis di area visualViewport yang sedang aktif di layar
-      el.style.height = `${Math.round(vv.height)}px`;
-      el.style.transform = `translate3d(0, ${Math.round(vv.offsetTop)}px, 0)`;
-      if (window.scrollY !== 0) {
-        window.scrollTo(0, 0);
-      }
+      // Kunci tinggi dan posisi top dengan layout coordinates visualViewport
+      const offsetTop = Math.max(0, Math.round(vv.offsetTop));
+      const height = Math.round(vv.height);
+      el.style.height = `${height}px`;
+      el.style.top = `${offsetTop}px`;
+      el.style.transform = "none";
     };
 
     // Polling 60fps selama 450ms saat input focus/blur agar transisi keyboard iOS mulus seperti Gemini
@@ -2520,7 +2520,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const closeAttachmentMenu = useCallback((restoreFocus = true) => {
     setIsAttachmentMenuOpen(false);
     if (restoreFocus) {
-      requestAnimationFrame(() => attachmentTriggerRef.current?.focus());
+      requestAnimationFrame(() => {
+        if (document.activeElement !== textareaRef.current) {
+          attachmentTriggerRef.current?.focus();
+        }
+      });
     }
   }, []);
 
@@ -4401,13 +4405,41 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         )
       );
     } catch (err: any) {
-      setPendingAttachments((prev) =>
-        prev.map((a) =>
-          a.id === item.id
-            ? { ...a, status: "error", error: err.message || "Gagal mengunggah berkas." }
-            : a
-        )
-      );
+      console.warn("Upload backend failed, creating local compressed fallback:", err);
+      try {
+        const { blob, fileName } = await compressAndOrientImage(item.file).catch(() => ({
+          blob: item.file,
+          fileName: item.name,
+        }));
+        const reader = new FileReader();
+        const base64Data = await new Promise<string>((resolve) => {
+          reader.onloadend = () => resolve((reader.result as string) || item.previewUrl);
+          reader.onerror = () => resolve(item.previewUrl);
+          reader.readAsDataURL(blob);
+        });
+        const fallbackAtt: AttachmentItem = {
+          id: item.id,
+          original_name: fileName || item.name,
+          mime_type: blob.type || "image/jpeg",
+          size_bytes: blob.size,
+          signed_url: base64Data,
+        };
+        setPendingAttachments((prev) =>
+          prev.map((a) =>
+            a.id === item.id
+              ? { ...a, status: "ready", progress: 100, serverAttachment: fallbackAtt }
+              : a
+          )
+        );
+      } catch {
+        setPendingAttachments((prev) =>
+          prev.map((a) =>
+            a.id === item.id
+              ? { ...a, status: "error", error: err.message || "Gagal mengunggah berkas." }
+              : a
+          )
+        );
+      }
     }
   };
 
@@ -4839,7 +4871,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-viewport-lock"
       style={{ height: "100dvh", transition: "none" }}
-      className="fixed top-0 left-0 right-0 w-full flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,transform]"
+      className="fixed top-0 left-0 right-0 w-full flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -6194,7 +6226,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
                 className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
                   authUser
-                    ? "bg-purple-600 text-white font-semibold text-xs"
+                    ? "bg-purple-600 text-white font-semibold text-xs uppercase"
                     : "bg-bg-surface border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
                 }`}
               >
@@ -7161,11 +7193,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[30px] px-4 bg-[#1e1f22]) */}
                 <div
-                  onTouchStart={() => {
-                    if (document.activeElement !== textareaRef.current) {
-                      textareaRef.current?.focus({ preventScroll: true });
-                    }
-                  }}
                   className="bg-[#1e1f22] border border-white/[0.03] rounded-[30px] min-h-[56px] px-4 flex items-center shadow-lg w-full gap-2.5 transition-colors focus-within:border-white/[0.06]"
                 >
                   {/* Active Attachment Button & Popover Menu */}
@@ -7180,6 +7207,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           aria-expanded={isAttachmentMenuOpen}
                           onClick={() => {
                             if (isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice) return;
+                            textareaRef.current?.blur();
                             setIsAttachmentMenuOpen((prev) => !prev);
                           }}
                           onKeyDown={(e) => {
@@ -7244,7 +7272,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               role="menuitem"
                               type="button"
                               onClick={() => {
-                                closeAttachmentMenu(true);
+                                closeAttachmentMenu(false);
                                 imageInputRef.current?.click();
                               }}
                               className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
@@ -7263,7 +7291,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               role="menuitem"
                               type="button"
                               onClick={() => {
-                                closeAttachmentMenu(true);
+                                closeAttachmentMenu(false);
                                 pdfInputRef.current?.click();
                               }}
                               className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
@@ -7282,7 +7310,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               role="menuitem"
                               type="button"
                               onClick={() => {
-                                closeAttachmentMenu(true);
+                                closeAttachmentMenu(false);
                                 const promptPrefix = "Buatkan gambar: ";
                                 setInputText(promptPrefix);
                                 requestAnimationFrame(() => {
@@ -7310,7 +7338,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               role="menuitem"
                               type="button"
                               onClick={() => {
-                                closeAttachmentMenu(true);
+                                closeAttachmentMenu(false);
                                 const promptPrefix = "Buatkan video: ";
                                 setInputText(promptPrefix);
                                 requestAnimationFrame(() => {
@@ -7338,7 +7366,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               role="menuitem"
                               type="button"
                               onClick={() => {
-                                closeAttachmentMenu(true);
+                                closeAttachmentMenu(false);
                                 cameraInputRef.current?.click();
                               }}
                               className="hidden [@media(pointer:coarse)]:flex w-full items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
@@ -7445,9 +7473,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onPaste={handlePaste}
                         onFocus={() => {
                           setIsInputFocused(true);
-                          if (typeof window !== "undefined" && window.scrollY !== 0) {
-                            window.scrollTo(0, 0);
-                          }
                         }}
                         onBlur={() => {
                           setIsInputFocused(false);

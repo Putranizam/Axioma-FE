@@ -24,8 +24,8 @@ export interface PendingAttachment {
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
 export const MAX_FILES_PER_MESSAGE = 4;
-export const MAX_IMAGE_DIMENSION = 2048;
-export const COMPRESSION_QUALITY = 0.85;
+export const MAX_IMAGE_DIMENSION = 1600;
+export const COMPRESSION_QUALITY = 0.8;
 
 export const ALLOWED_IMAGE_TYPES = new Set([
   "image/jpeg",
