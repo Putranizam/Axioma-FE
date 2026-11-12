@@ -1223,27 +1223,48 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   ]);
 
 
-  // Sinkronisasi --app-height untuk iOS & Android (Tanpa jitter / tanpa loop)
+  // Sinkronisasi Viewport iOS & Android (60fps requestAnimationFrame polling saat focusin/focusout + visualViewport)
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
     if (!vv) return;
 
-    const setAppHeight = () => {
-      // Kunci tinggi aplikasi tepat sebesar ruang layar yang terlihat di atas keyboard (bekerja di iOS & Android)
-      document.documentElement.style.setProperty("--app-height", `${Math.round(vv.height)}px`);
-      // Cegah iOS Safari menggeser body ke atas
-      if (window.scrollY !== 0 || vv.offsetTop !== 0) {
+    let rafId: number;
+    const syncViewport = () => {
+      const el = document.getElementById("axioma-viewport-lock");
+      if (!el) return;
+      // Kunci tinggi dan posisi Y persis di area visualViewport yang sedang aktif di layar
+      el.style.height = `${Math.round(vv.height)}px`;
+      el.style.transform = `translate3d(0, ${Math.round(vv.offsetTop)}px, 0)`;
+      if (window.scrollY !== 0) {
         window.scrollTo(0, 0);
       }
     };
 
-    vv.addEventListener("resize", setAppHeight);
-    vv.addEventListener("scroll", setAppHeight);
-    setAppHeight();
+    // Polling 60fps selama 450ms saat input focus/blur agar transisi keyboard iOS mulus seperti Gemini
+    const startSmoothSync = () => {
+      const start = performance.now();
+      const tick = (now: number) => {
+        syncViewport();
+        if (now - start < 450) {
+          rafId = requestAnimationFrame(tick);
+        }
+      };
+      cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(tick);
+    };
+
+    vv.addEventListener("resize", syncViewport);
+    vv.addEventListener("scroll", syncViewport);
+    window.addEventListener("focusin", startSmoothSync);
+    window.addEventListener("focusout", startSmoothSync);
+    syncViewport();
 
     return () => {
-      vv.removeEventListener("resize", setAppHeight);
-      vv.removeEventListener("scroll", setAppHeight);
+      cancelAnimationFrame(rafId);
+      vv.removeEventListener("resize", syncViewport);
+      vv.removeEventListener("scroll", syncViewport);
+      window.removeEventListener("focusin", startSmoothSync);
+      window.removeEventListener("focusout", startSmoothSync);
     };
   }, []);
 
@@ -4817,7 +4838,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
       }}
       id="axioma-viewport-lock"
-      className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] max-h-[var(--app-height)] flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      style={{ height: "100dvh", transition: "none" }}
+      className="fixed top-0 left-0 right-0 w-full flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,transform]"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -7138,7 +7160,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 )}
 
                 {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[30px] px-4 bg-[#1e1f22]) */}
-                <div className="bg-[#1e1f22] border border-white/[0.03] rounded-[30px] min-h-[56px] px-4 flex items-center shadow-lg w-full gap-2.5 transition-colors focus-within:border-white/[0.06]">
+                <div
+                  onTouchStart={() => {
+                    if (document.activeElement !== textareaRef.current) {
+                      textareaRef.current?.focus({ preventScroll: true });
+                    }
+                  }}
+                  className="bg-[#1e1f22] border border-white/[0.03] rounded-[30px] min-h-[56px] px-4 flex items-center shadow-lg w-full gap-2.5 transition-colors focus-within:border-white/[0.06]"
+                >
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
                     const isAttachmentsFull = pendingAttachments.length >= 4;
@@ -7416,6 +7445,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onPaste={handlePaste}
                         onFocus={() => {
                           setIsInputFocused(true);
+                          if (typeof window !== "undefined" && window.scrollY !== 0) {
+                            window.scrollTo(0, 0);
+                          }
                         }}
                         onBlur={() => {
                           setIsInputFocused(false);
