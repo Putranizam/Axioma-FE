@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import { Download, Eye, Sparkles, Loader2, CircleAlert } from "lucide-react";
+import { Download, Eye, Palette, Loader2, CircleAlert } from "lucide-react";
 
 interface AiImageCardProps {
   src: string;
@@ -89,9 +89,9 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
 
       {/* Top Badge Overlay */}
       {isLoaded && (
-        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md text-white text-[11px] font-medium border border-white/10 pointer-events-none shadow-sm">
-          <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-          <span>Gambar AI HD</span>
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md text-zinc-200 text-[11px] font-medium border border-white/10 pointer-events-none shadow-sm">
+          <Palette className="w-3.5 h-3.5 text-zinc-300" />
+          <span>Studio Visual</span>
         </div>
       )}
 
@@ -115,8 +115,8 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
               type="button"
               onClick={handleDownload}
               disabled={isDownloading}
-              title="Unduh resolusi tinggi"
-              aria-label="Unduh gambar HD"
+              title="Unduh gambar"
+              aria-label="Unduh gambar"
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-zinc-900 font-medium text-xs hover:bg-white/90 active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
               {isDownloading ? (
@@ -124,7 +124,7 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
               ) : (
                 <Download className="w-3.5 h-3.5 text-zinc-900" />
               )}
-              <span>Unduh HD</span>
+              <span>Unduh Gambar</span>
             </button>
           </div>
         </div>

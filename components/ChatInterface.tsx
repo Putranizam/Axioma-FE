@@ -100,6 +100,7 @@ const AuthModal = dynamic(() => import("./AuthModal"), {
 });
 
 import { AiImageCard } from "./AiImageCard";
+import { AiVideoCard } from "./AiVideoCard";
 
 import {
   supabase,
@@ -762,6 +763,53 @@ function getAvatarInitials(fullName: string): string {
   return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
 }
 
+function detectMediaIntent(text: string): { type: "image" | "video" | null; visualPrompt: string } {
+  if (!text || typeof text !== "string") return { type: null, visualPrompt: "" };
+  const raw = text.trim();
+  const lower = raw.toLowerCase();
+
+  // Video triggers
+  const videoKeywords = [
+    /\b(buatkan|buat|bikin|generate|render|ciptakan|animasikan|videokan)\s+(video|animasi|klip|clip|motion|sinematik)\b/i,
+    /\b(animasikan|videokan|buat\s*video|buatkan\s*video|bikin\s*video|generate\s*video|buat\s*klip|buatkan\s*klip)\b/i,
+    /\b(video|animasi|klip)\s+(tentang|dari|seorang|seekor|sebuah|suatu|suasana|pemandangan|karakter)\b/i,
+    /\[mode:\s*(video|animasi)\]/i,
+    /^buatkan\s+video\s*:/i,
+    /^buat\s+video\s*:/i,
+  ];
+
+  const isVideo = videoKeywords.some((rgx) => rgx.test(lower));
+  if (isVideo) {
+    let cleaned = raw;
+    cleaned = cleaned.replace(/^\[mode:\s*(video|animasi)\]\s*:?/i, "");
+    cleaned = cleaned.replace(/^(tolong|coba|bisa\s+(kamu\s+)?)?\s*(buatkan|buat|bikin|generate|animasikan|videokan|render|ciptakan)\s*(video|animasi|klip|clip|motion|sinematik)?\s*(tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i, "");
+    cleaned = cleaned.replace(/^(video|animasi|klip)\s*(tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i, "");
+    return { type: "video", visualPrompt: cleaned.trim() || raw };
+  }
+
+  // Image triggers
+  const imageKeywords = [
+    /\b(buatkan|buat|bikin|generate|lukiskan|lukis|gambarkan|gambari|gambarin|render|ciptakan)\s+(gambar|foto|lukisan|ilustrasi|visual|image|artwork|wallpaper|poster)\b/i,
+    /\b(lukiskan|gambarkan|gambarin|buat\s*gambar|buatkan\s*gambar|bikin\s*gambar|generate\s*image|buat\s*foto|buatkan\s*foto)\b/i,
+    /\b(ilustrasi|lukisan|gambar|foto|image)\s+(tentang|dari|seorang|seekor|sebuah|suatu|suasana|pemandangan|karakter)\b/i,
+    /\b(buatkan|buat|bikin|generate)\s+.*\s+(dalam bentuk|sebagai|berupa|menjadi)\s+(gambar|foto|ilustrasi|visual)\b/i,
+    /\[mode:\s*(gambar|image)\]/i,
+    /^buatkan\s+gambar\s*:/i,
+    /^buat\s+gambar\s*:/i,
+  ];
+
+  const isImage = imageKeywords.some((rgx) => rgx.test(lower));
+  if (isImage) {
+    let cleaned = raw;
+    cleaned = cleaned.replace(/^\[mode:\s*(gambar|image)\]\s*:?/i, "");
+    cleaned = cleaned.replace(/^(tolong|coba|bisa\s+(kamu\s+)?)?\s*(buatkan|buat|bikin|generate|lukiskan|lukis|gambarkan|gambarin|render|ciptakan)\s*(gambar|foto|lukisan|ilustrasi|visual|image|artwork|wallpaper|poster)?\s*(tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i, "");
+    cleaned = cleaned.replace(/^(gambar|foto|lukisan|ilustrasi|image)\s*(tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i, "");
+    return { type: "image", visualPrompt: cleaned.trim() || raw };
+  }
+
+  return { type: null, visualPrompt: raw };
+}
+
 interface UserAvatarProps {
   url?: string | null;
   name?: string | null;
@@ -868,6 +916,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [greeting, setGreeting] = useState<string>("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+  const [activeMediaMode, setActiveMediaMode] = useState<"image" | "video" | null>(null);
+  const activeMediaModeRef = useRef<"image" | "video" | null>(null);
 
   // User profile & model selection state (persisted in localStorage)
   const [displayName, setDisplayName] = useState<string>(DEFAULT_DISPLAY_NAME);
@@ -3677,7 +3727,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     targetChatId: string,
     sessionPayloadId: string,
     userText: string,
-    options?: { regenerate?: boolean; tempUserMsgId?: string; attachmentIds?: string[] }
+    options?: { regenerate?: boolean; tempUserMsgId?: string; attachmentIds?: string[]; mediaMode?: "image" | "video" }
   ) => {
     setChatLoading(targetChatId, true);
     setChatGenerating(targetChatId, true);
@@ -3759,6 +3809,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             regenerate: Boolean(options?.regenerate),
             turnstile_token: currentTurnstileToken || undefined,
             attachment_ids: options?.attachmentIds?.length ? options.attachmentIds : undefined,
+            media_mode: options?.mediaMode || undefined,
             history: !authUser
               ? (chats.find((c) => c.id === targetChatId)?.messages || [])
                   .filter((m) => !m.isError && m.content.trim())
@@ -4503,7 +4554,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   };
 
-  const sendTextMessage = async (rawText: string, attachedItems?: AttachmentItem[]) => {
+  const sendTextMessage = async (
+    rawText: string,
+    attachedItems?: AttachmentItem[],
+    mediaModeOverride?: "image" | "video"
+  ) => {
     const userText = rawText.trim();
     const effectiveAttachments = attachedItems || [];
     if (
@@ -4611,10 +4666,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       appendMessageToChat(activeChatId, newUserMsg);
     }
 
+    const detectedIntent = detectMediaIntent(userText);
+    const mediaModeToSend = mediaModeOverride || (activeMediaModeRef.current ? activeMediaModeRef.current : detectedIntent.type);
+
     setChatLoading(targetChatId, true);
     await requestAiReply(targetChatId, sessionPayloadId, userText, {
       tempUserMsgId,
       attachmentIds: effectiveAttachments.map((a) => a.id),
+      mediaMode: mediaModeToSend || undefined,
     });
   };
 
@@ -4648,8 +4707,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       .filter((a) => a.status === "ready" && a.serverAttachment)
       .map((a) => a.serverAttachment!);
 
+    const currentMediaMode = activeMediaModeRef.current || activeMediaMode;
+    setActiveMediaMode(null);
+    activeMediaModeRef.current = null;
     setPendingAttachments([]);
-    await sendTextMessage(rawInput, readyServerAttachments);
+    await sendTextMessage(rawInput, readyServerAttachments, currentMediaMode || undefined);
   };
 
   useEffect(() => {
@@ -6707,6 +6769,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           },
                           img({ src, alt }) {
                             if (!src) return null;
+                            const isVideo =
+                              String(alt || "").toLowerCase().startsWith("video:") ||
+                              /\.(mp4|webm|mov)(\?.*)?$/i.test(String(src));
+                            if (isVideo) {
+                              const videoTitle =
+                                String(alt || "").replace(/^video:\s*/i, "") || "Adegan Video";
+                              return <AiVideoCard src={String(src)} title={videoTitle} />;
+                            }
                             return (
                               <AiImageCard
                                 src={String(src)}
@@ -6880,31 +6950,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               );
             })}
 
-            {/* AI Thinking Indicator with Wave Dots + Fade-in / Fade-out */}
+            {/* AI Thinking Indicator with Wave Dots + Shimmer Skeleton Loader */}
             {showThinkingIndicator && (() => {
               const currentChat = chats.find((c) => c.id === activeChatId);
               const lastUserMsg =
                 currentChat?.messages
                   ?.filter((m) => m.sender === "user")
                   .slice(-1)[0]?.content || "";
-              const isImagePending =
-                /(buatkan|buat|bikin|generate|lukiskan)\s+(gambar|foto|lukisan|ilustrasi|image)/i.test(lastUserMsg) ||
-                /\[mode:\s*gambar\]/i.test(lastUserMsg);
-              const isVideoPending =
-                /(buatkan|buat|bikin|generate)\s+(video|animasi|klip)/i.test(lastUserMsg) ||
-                /\[mode:\s*video\]/i.test(lastUserMsg);
+              const mediaIntent = detectMediaIntent(lastUserMsg);
+              const isImagePending = mediaIntent.type === "image" || activeMediaModeRef.current === "image";
+              const isVideoPending = mediaIntent.type === "video" || activeMediaModeRef.current === "video";
 
               let thinkingText = "Axioma sedang berpikir…";
               if (isImagePending) {
-                thinkingText =
-                  waitingSeconds >= 5
-                    ? "✨ Merender gambar berkualitas HD..."
-                    : "🎨 Mengoptimalkan prompt visual...";
+                thinkingText = "Sedang merender visual...";
               } else if (isVideoPending) {
-                thinkingText =
-                  waitingSeconds >= 5
-                    ? "🎬 Menghasilkan klip video sinematik..."
-                    : "🎬 Merancang koreografi adegan video...";
+                thinkingText = "Sedang merender adegan video...";
               } else {
                 thinkingText =
                   waitingSeconds >= 25
@@ -6918,7 +6979,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <div
                   role="status"
                   aria-live="polite"
-                  className={`flex justify-start transition-[opacity,transform] duration-180 ease-out motion-safe-transform ${
+                  className={`flex flex-col gap-2.5 justify-start transition-[opacity,transform] duration-180 ease-out motion-safe-transform ${
                     isThinkingFadingOut
                       ? "opacity-0 -translate-y-1 pointer-events-none"
                       : "opacity-100 translate-y-0 animate-ai-bubble"
@@ -6926,12 +6987,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 >
                   <div className="flex items-center gap-3 px-1 py-1">
                     {isImagePending ? (
-                      <div className="w-6 h-6 rounded-md bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
-                        <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-pulse" />
+                      <div className="w-6 h-6 rounded-md bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0">
+                        <Palette className="w-3.5 h-3.5 text-zinc-300 animate-pulse" />
                       </div>
                     ) : isVideoPending ? (
-                      <div className="w-6 h-6 rounded-md bg-purple-500/15 border border-purple-500/30 flex items-center justify-center shrink-0">
-                        <Film className="w-3.5 h-3.5 text-purple-400 animate-pulse" />
+                      <div className="w-6 h-6 rounded-md bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0">
+                        <Video className="w-3.5 h-3.5 text-zinc-300 animate-pulse" />
                       </div>
                     ) : (
                       <Image
@@ -6945,33 +7006,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="flex items-center gap-2.5">
                       <div className="flex items-center gap-1 h-5" aria-hidden="true">
                         <span
-                          className={`w-1.5 h-1.5 rounded-full animate-thinking-dot ${
-                            isImagePending
-                              ? "bg-amber-400"
-                              : isVideoPending
-                              ? "bg-purple-400"
-                              : "bg-text-muted"
-                          }`}
+                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-400"
                           style={{ animationDelay: "0ms" }}
                         />
                         <span
-                          className={`w-1.5 h-1.5 rounded-full animate-thinking-dot ${
-                            isImagePending
-                              ? "bg-amber-400"
-                              : isVideoPending
-                              ? "bg-purple-400"
-                              : "bg-text-muted"
-                          }`}
+                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-400"
                           style={{ animationDelay: "150ms" }}
                         />
                         <span
-                          className={`w-1.5 h-1.5 rounded-full animate-thinking-dot ${
-                            isImagePending
-                              ? "bg-amber-400"
-                              : isVideoPending
-                              ? "bg-purple-400"
-                              : "bg-text-muted"
-                          }`}
+                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-400"
                           style={{ animationDelay: "300ms" }}
                         />
                       </div>
@@ -6980,6 +7023,33 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </span>
                     </div>
                   </div>
+
+                  {/* Elegant Skeleton Shimmer Box during visual/video rendering */}
+                  {(isImagePending || isVideoPending) && (
+                    <div className="ml-9 w-full max-w-sm sm:max-w-md aspect-video rounded-2xl bg-zinc-900/80 border border-white/10 overflow-hidden relative p-4 flex flex-col justify-between shadow-lg">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          {isImagePending ? (
+                            <Palette className="w-4 h-4 text-zinc-400 animate-pulse" />
+                          ) : (
+                            <Video className="w-4 h-4 text-zinc-400 animate-pulse" />
+                          )}
+                          <span className="text-xs text-zinc-400 font-medium">
+                            {isImagePending ? "Studio Visual" : "Studio Video"}
+                          </span>
+                        </div>
+                        <span className="text-[11px] text-zinc-500 font-mono animate-pulse">Memproses...</span>
+                      </div>
+                      <div className="w-full space-y-1.5">
+                        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
+                          <div className="w-2/5 h-full rounded-full bg-zinc-400 animate-pulse" />
+                        </div>
+                        <p className="text-[11px] text-zinc-500 text-right font-mono">
+                          {isImagePending ? "Merender gambar..." : "Merender adegan video..."}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })()}
@@ -7191,6 +7261,32 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
+                {/* Active Media Generation Mode Badge */}
+                {activeMediaMode && (
+                  <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full bg-zinc-900/95 border border-white/10 w-fit backdrop-blur-md animate-fade-in shadow-md select-none">
+                    {activeMediaMode === "image" ? (
+                      <Palette className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                    ) : (
+                      <Video className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                    )}
+                    <span className="text-xs text-zinc-200 font-medium">
+                      {activeMediaMode === "image" ? "Mode Buat Gambar" : "Mode Buat Video"}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveMediaMode(null);
+                        activeMediaModeRef.current = null;
+                      }}
+                      title="Batal mode media"
+                      aria-label="Batal mode media"
+                      className="ml-1 w-4 h-4 rounded-full hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[30px] px-4 bg-[#1e1f22]) */}
                 <div
                   className="bg-[#1e1f22] border border-white/[0.03] rounded-[30px] min-h-[56px] px-4 flex items-center shadow-lg w-full gap-2.5 transition-colors focus-within:border-white/[0.06]"
@@ -7311,13 +7407,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               type="button"
                               onClick={() => {
                                 closeAttachmentMenu(false);
-                                const promptPrefix = "Buatkan gambar: ";
-                                setInputText(promptPrefix);
+                                setActiveMediaMode("image");
+                                activeMediaModeRef.current = "image";
+                                setInputText("");
                                 requestAnimationFrame(() => {
                                   const el = textareaRef.current;
                                   if (el) {
                                     el.focus();
-                                    el.setSelectionRange(promptPrefix.length, promptPrefix.length);
                                     adjustTextareaHeight();
                                   }
                                 });
@@ -7339,13 +7435,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               type="button"
                               onClick={() => {
                                 closeAttachmentMenu(false);
-                                const promptPrefix = "Buatkan video: ";
-                                setInputText(promptPrefix);
+                                setActiveMediaMode("video");
+                                activeMediaModeRef.current = "video";
+                                setInputText("");
                                 requestAnimationFrame(() => {
                                   const el = textareaRef.current;
                                   if (el) {
                                     el.focus();
-                                    el.setSelectionRange(promptPrefix.length, promptPrefix.length);
                                     adjustTextareaHeight();
                                   }
                                 });
@@ -7478,7 +7574,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           setIsInputFocused(false);
                         }}
                         aria-label="Ketik pesan untuk Axioma"
-                        placeholder="Minta Axioma..."
+                        placeholder={
+                          activeMediaMode === "image"
+                            ? "Deskripsikan gambar yang ingin dibuat..."
+                            : activeMediaMode === "video"
+                            ? "Deskripsikan video sinematik yang ingin dibuat..."
+                            : "Minta Axioma..."
+                        }
                         style={{ height: "24px" }}
                         className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 min-h-[24px] max-h-[120px] leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
                       />
