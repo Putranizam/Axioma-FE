@@ -1155,33 +1155,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   // VisualViewport direct position & height lock (100% Persis Gemini, zero jitter/bounce)
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!vv) return;
 
-    const preventWindowScroll = () => {
-      if (typeof window !== "undefined" && (window.scrollY !== 0 || window.scrollX !== 0)) {
-        window.scrollTo(0, 0);
-      }
-    };
-
-    window.addEventListener("scroll", preventWindowScroll, { passive: true });
-
-    if (!vv) {
-      return () => {
-        window.removeEventListener("scroll", preventWindowScroll);
-      };
-    }
-
-    const syncViewport = () => {
-      // Force layout viewport back to (0, 0) if Safari attempted to pan
-      if (typeof window !== "undefined" && (window.scrollY !== 0 || window.scrollX !== 0)) {
-        window.scrollTo(0, 0);
-      }
-
-      const appEl = document.getElementById("axioma-viewport-lock");
-      if (appEl) {
-        // Pin strictly to 0px from top so Header is never pushed off screen
-        appEl.style.top = "0px";
-        appEl.style.height = `${vv.height}px`;
-      }
+    const updateViewport = () => {
+      const el = document.getElementById("axioma-viewport-lock");
+      if (!el) return;
+      // Kunci container persis di area layar yang terlihat di atas keyboard
+      el.style.height = `${vv.height}px`;
+      el.style.top = `${vv.offsetTop}px`;
 
       const isMobile = window.innerWidth < 768;
       const screenH = window.screen?.height || window.innerHeight;
@@ -1189,14 +1170,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setIsKeyboardOpen(isKeyboard);
     };
 
-    vv.addEventListener("resize", syncViewport);
-    vv.addEventListener("scroll", syncViewport);
-    syncViewport();
+    vv.addEventListener("resize", updateViewport);
+    vv.addEventListener("scroll", updateViewport);
+    updateViewport();
 
     return () => {
-      window.removeEventListener("scroll", preventWindowScroll);
-      vv.removeEventListener("resize", syncViewport);
-      vv.removeEventListener("scroll", syncViewport);
+      vv.removeEventListener("resize", updateViewport);
+      vv.removeEventListener("scroll", updateViewport);
     };
   }, []);
 
@@ -4764,7 +4744,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
       }}
       id="axioma-viewport-lock"
-      className="fixed left-0 right-0 top-0 h-[100dvh] w-full max-w-full flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary"
+      style={{ transition: "none" }}
+      className="fixed inset-x-0 top-0 h-[100dvh] w-full max-w-full flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5945,7 +5926,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="sticky top-0 z-30 shrink-0 w-full min-h-[56px] h-auto flex items-center justify-between px-3 sm:px-4 bg-black/90 backdrop-blur-md border-b-0 md:border-b md:border-border-subtle pt-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-2.5 md:py-0 md:h-14">
+        <header className="sticky top-0 z-20 shrink-0 w-full min-h-[56px] h-auto flex items-center justify-between px-4 py-3 bg-black/80 backdrop-blur-md border-b-0 md:border-b md:border-border-subtle md:py-0 md:h-14">
           {/* Mobile Header (< md) - Modern AI Pattern */}
           <div className="flex md:hidden items-center justify-between w-full">
             {/* Left: 36px (w-9 h-9) circular hamburger menu */}
@@ -5992,7 +5973,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                   aria-label="Buka menu profil dan akun"
                   title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                  className="w-9 h-9 rounded-full bg-[#1e1f20] border-none flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-[#e3e3e3] text-sm font-semibold"
+                  className="w-9 h-9 rounded-full bg-[#1e1f20] border-none flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-[#e3e3e3] text-sm font-semibold uppercase"
                 >
                   {authUser ? (
                     <UserAvatar url={avatarUrl} name={userName} className="w-full h-full object-cover" />
@@ -6881,13 +6862,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)]/80 to-transparent z-10" />
           )}
 
-          {/* Input Console: Smoothly Glides from Center (Welcome) to Bottom Dock (Active) on Desktop; Docked at Bottom on Mobile */}
+          {/* Input Console (Anak 3) */}
           <div
-            className={`shrink-0 w-full px-4 pt-1 ${
-              isKeyboardOpen
-                ? "pb-1"
-                : "pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"
-            } bg-gradient-to-t from-black via-black to-transparent relative z-20`}
+            className="shrink-0 w-full px-4 pt-1 pb-2 bg-black z-20 relative"
           >
             {/* Ambient Glow Biru-Ungu Lembut di Belakang Area Input (Ala Gemini) */}
             <div
@@ -6896,12 +6873,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             />
             <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
               <div
-                className={`relative w-full transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform ${
+                className={`relative w-full ${
                   hasMessages ||
                   (isChatAreaLoading &&
                     Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat")))
                     ? "translate-y-0"
-                    : "translate-y-0 md:-translate-y-[30vh]"
+                    : "translate-y-0 md:-translate-y-[30vh] md:transition-transform md:duration-300 md:ease-[cubic-bezier(0.22,1,0.36,1)]"
                 }`}
               >
                 {/* Desktop Greeting (Hidden on mobile where greeting is vertically centered in the viewport) */}
@@ -7331,18 +7308,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onPaste={handlePaste}
                         onFocus={() => {
                           setIsInputFocused(true);
-                          if (typeof window !== "undefined") {
+                          setTimeout(() => {
                             window.scrollTo(0, 0);
-                            requestAnimationFrame(() => {
-                              if (window.scrollY !== 0) window.scrollTo(0, 0);
-                            });
-                            setTimeout(() => {
-                              if (window.scrollY !== 0) window.scrollTo(0, 0);
-                            }, 100);
-                            setTimeout(() => {
-                              if (window.scrollY !== 0) window.scrollTo(0, 0);
-                            }, 300);
-                          }
+                            if (typeof window !== "undefined" && window.visualViewport) {
+                              const el = document.getElementById("axioma-viewport-lock");
+                              if (el) {
+                                el.style.height = `${window.visualViewport.height}px`;
+                                el.style.top = `${window.visualViewport.offsetTop}px`;
+                              }
+                            }
+                          }, 50);
                         }}
                         onBlur={() => {
                           setIsInputFocused(false);
