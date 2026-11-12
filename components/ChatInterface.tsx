@@ -67,6 +67,7 @@ import {
   Sparkles,
   Film,
   Palette,
+  Video,
 } from "lucide-react";
 import {
   AttachmentItem,
@@ -708,10 +709,47 @@ function getTimeGroupLabel(timestampMs: number, now: Date): TimeGroupLabel {
   return "Lebih lama";
 }
 
+function toTitleCase(str: string): string {
+  if (!str) return "";
+  return str
+    .trim()
+    .toLowerCase()
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function getRandomGreeting(name?: string | null, isAuth?: boolean): string {
+  const cleanName = name?.trim();
+  const hasValidName = Boolean(
+    isAuth && cleanName && cleanName.toLowerCase() !== "pengguna" && cleanName.toLowerCase() !== "mode tamu"
+  );
+
+  if (hasValidName && cleanName) {
+    const formattedName = toTitleCase(cleanName);
+    const userGreetings = [
+      `Halo ${formattedName}, apa yang Anda pikirkan?`,
+      `Apa yang sebaiknya kita fokuskan, ${formattedName}?`,
+      `Ada ide atau rencana baru hari ini, ${formattedName}?`,
+      `Halo ${formattedName}, apa yang bisa saya bantu?`,
+      `Siap menganalisis sesuatu hari ini, ${formattedName}?`,
+    ];
+    return userGreetings[Math.floor(Math.random() * userGreetings.length)];
+  }
+
+  const guestGreetings = [
+    "Halo, apa yang Anda pikirkan?",
+    "Apa yang sebaiknya kita fokuskan hari ini?",
+    "Ada topik menarik yang ingin kita bahas?",
+    "Halo, apa yang bisa saya bantu hari ini?",
+  ];
+  return guestGreetings[Math.floor(Math.random() * guestGreetings.length)];
+}
+
 function formatGreetingName(fullName: string): string {
   const trimmed = fullName.trim();
   if (!trimmed) return "";
-  return trimmed.split(/\s+/)[0];
+  return toTitleCase(trimmed.split(/\s+/)[0]);
 }
 
 function getAvatarInitials(fullName: string): string {
@@ -760,7 +798,7 @@ function UserAvatar({ url, name, className = "" }: UserAvatarProps) {
     );
   }
 
-  return <span>{initial}</span>;
+  return <span className="uppercase font-semibold select-none">{initial}</span>;
 }
 
 export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}) {
@@ -813,13 +851,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const avatarUrl = authUser
     ? authUser.user_metadata?.avatar_url || authUser.user_metadata?.picture || null
     : null;
-  const userName = authUser
+  const rawUserName = authUser
     ? displayName ||
       authUser.user_metadata?.full_name ||
       authUser.user_metadata?.name ||
-      authUser.email ||
+      authUser.email?.split("@")[0] ||
       "Pengguna"
     : "Mode Tamu";
+  const userName = toTitleCase(rawUserName);
 
   const [defaultAgentId, setDefaultAgentId] = useState<Agent["id"]>("axioma-pro");
   const [selectedAgent, setSelectedAgent] = useState<Agent>(AVAILABLE_AGENTS[0]);
@@ -1116,18 +1155,37 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   // VisualViewport direct position & height lock (100% Persis Gemini, zero jitter/bounce)
   useEffect(() => {
     const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    if (!vv) return;
+
+    const preventWindowScroll = () => {
+      if (typeof window !== "undefined" && (window.scrollY !== 0 || window.scrollX !== 0)) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    window.addEventListener("scroll", preventWindowScroll, { passive: true });
+
+    if (!vv) {
+      return () => {
+        window.removeEventListener("scroll", preventWindowScroll);
+      };
+    }
 
     const syncViewport = () => {
+      // Force layout viewport back to (0, 0) if Safari attempted to pan
+      if (typeof window !== "undefined" && (window.scrollY !== 0 || window.scrollX !== 0)) {
+        window.scrollTo(0, 0);
+      }
+
       const appEl = document.getElementById("axioma-viewport-lock");
       if (appEl) {
-        appEl.style.top = `${vv.offsetTop}px`;
+        // Pin strictly to 0px from top so Header is never pushed off screen
+        appEl.style.top = "0px";
         appEl.style.height = `${vv.height}px`;
       }
 
       const isMobile = window.innerWidth < 768;
       const screenH = window.screen?.height || window.innerHeight;
-      const isKeyboard = isMobile && vv.height < screenH - 120;
+      const isKeyboard = isMobile && vv.height < screenH - 100;
       setIsKeyboardOpen(isKeyboard);
     };
 
@@ -1136,6 +1194,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     syncViewport();
 
     return () => {
+      window.removeEventListener("scroll", preventWindowScroll);
       vv.removeEventListener("resize", syncViewport);
       vv.removeEventListener("scroll", syncViewport);
     };
@@ -1184,8 +1243,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     // Load saved display name (ignore legacy hardcoded "Alex Vance" placeholder if present)
     const savedName = safeGetLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
     if (savedName && savedName.trim() && savedName.trim() !== "Alex Vance") {
-      setDisplayName(savedName.trim());
-      setSettingsNameInput(savedName.trim());
+      const formatted = toTitleCase(savedName.trim());
+      setDisplayName(formatted);
+      setSettingsNameInput(formatted);
     } else if (savedName?.trim() === "Alex Vance") {
       try {
         window.localStorage.removeItem(STORAGE_KEYS.DISPLAY_NAME);
@@ -1319,9 +1379,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           session.user.user_metadata?.name ||
           session.user.email?.split("@")[0];
         if (name) {
-          setDisplayName(name);
-          setSettingsNameInput(name);
-          safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, name);
+          const formatted = toTitleCase(name);
+          setDisplayName(formatted);
+          setSettingsNameInput(formatted);
+          safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, formatted);
         }
       }
     });
@@ -1337,9 +1398,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           session.user.user_metadata?.name ||
           session.user.email?.split("@")[0];
         if (name) {
-          setDisplayName(name);
-          setSettingsNameInput(name);
-          safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, name);
+          const formatted = toTitleCase(name);
+          setDisplayName(formatted);
+          setSettingsNameInput(formatted);
+          safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, formatted);
         }
       } else {
         setAuthUser(null);
@@ -1706,11 +1768,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             user.user_metadata?.name ||
             user.email?.split("@")[0];
           if (name) {
-            setDisplayName(name);
-            setSettingsNameInput(name);
-            safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, name);
+            const formatted = toTitleCase(name);
+            setDisplayName(formatted);
+            setSettingsNameInput(formatted);
+            safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, formatted);
           }
-          showToastNotice(`Selamat datang, ${name || "Pengguna"}!`);
+          showToastNotice(`Selamat datang, ${toTitleCase(name) || "Pengguna"}!`);
           void refreshChatHistory();
         }
       });
@@ -1761,40 +1824,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     document.title = "Axioma — Ruang Kerja Agen Cerdas";
   }, [activeChatId, chatHistory, activeChat?.title]);
 
-  // Friendly, natural greeting based on time of day and optional user displayName (#8)
-  useEffect(() => {
-    const hour = new Date().getHours();
-    let timeWord = "malam";
-    if (hour >= 4 && hour < 11) {
-      timeWord = "pagi";
-    } else if (hour >= 11 && hour < 15) {
-      timeWord = "siang";
-    } else if (hour >= 15 && hour < 18) {
-      timeWord = "sore";
-    }
-    const shortGreetingName = formatGreetingName(displayName);
-    if (shortGreetingName) {
-      setGreeting(`Selamat ${timeWord}, ${shortGreetingName}. Ada yang bisa dibantu?`);
-    } else {
-      setGreeting(`Selamat ${timeWord}. Ada yang bisa dibantu?`);
-    }
-  }, [displayName]);
+  // Dynamic Gemini/Claude-style greeting variations (changes on new chat, mount, or refresh)
+  const [dynamicGreeting, setDynamicGreeting] = useState<string>("");
 
-  // Dynamic Gemini-style greeting variation index (changes on new chat / mount)
-  const [greetingVariantIdx, setGreetingVariantIdx] = useState<number>(0);
   useEffect(() => {
-    setGreetingVariantIdx(Math.floor(Math.random() * 3));
-  }, [activeChatId]);
+    const picked = getRandomGreeting(displayName, Boolean(authUser));
+    setDynamicGreeting(picked);
+    setGreeting(picked);
+  }, [activeChatId, displayName, authUser]);
 
-  // Axioma mobile greeting: "Halo [Nama], apa yang Anda pikirkan?"
-  const mobileGreeting = useMemo(() => {
-    const cleanName = displayName?.trim();
-    const hasName = Boolean(cleanName && cleanName.toLowerCase() !== "pengguna");
-    if (hasName) {
-      return `Halo ${cleanName}, apa yang Anda pikirkan?`;
-    }
-    return "Halo, apa yang Anda pikirkan?";
-  }, [displayName]);
+  // Axioma mobile greeting helper (deterministic during SSR, randomized in useEffect on client)
+  const defaultFallbackGreeting = authUser && displayName
+    ? `Halo ${toTitleCase(displayName)}, apa yang Anda pikirkan?`
+    : "Halo, apa yang Anda pikirkan?";
+
+  const mobileGreeting = dynamicGreeting || defaultFallbackGreeting;
 
   useEffect(() => {
     const nextHasMessages = Boolean(currentMessages.length > 0);
@@ -2705,6 +2749,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       const newSessionId = generateId(true);
       setCurrentSessionChatId(newSessionId);
       setActiveChatId("new-chat");
+      const nextGreeting = getRandomGreeting(displayName, Boolean(authUser));
+      setDynamicGreeting(nextGreeting);
+      setGreeting(nextGreeting);
       setHasMessages(false);
       setShowEmptyDecorations(true);
       setIsEmptyDecorationsExiting(false);
@@ -2713,7 +2760,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         syncBrowserUrl("new-chat", "push");
       }
     },
-    [activeChatId, currentSessionChatId, hasMessages, authUser, syncBrowserUrl, focusDesktopTextarea]
+    [activeChatId, currentSessionChatId, hasMessages, authUser, displayName, syncBrowserUrl, focusDesktopTextarea]
   );
 
   const loadChatFeedback = useCallback(
@@ -4927,7 +4974,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
 
             {/* Title "Setelan" (Below close button, left-aligned, big font) */}
-            <h1 id="settings-modal-title" className="text-[32px] font-semibold text-white tracking-tight mt-1 mb-6">
+            <h1 id="settings-modal-title" className="text-[30px] font-medium tracking-[-0.02em] text-[#e3e3e3] mt-1 mb-6">
               Setelan
             </h1>
 
@@ -4935,16 +4982,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
               Account
             </div>
-            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden divide-y divide-zinc-800/60 mb-6 border border-zinc-800/40">
+            <div className="bg-[#1e1f20] rounded-[24px] py-1 mb-6 divide-y divide-white/[0.06] overflow-hidden">
               {/* Manage account */}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
-                className="w-full flex items-center justify-between px-5 py-4 min-h-[58px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer"
+                className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <User className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-zinc-100 truncate">Manage account</span>
+                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Manage account</span>
                 </div>
                 <ChevronRight
                   className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -4955,7 +5002,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               {/* Expandable Manage account drawer */}
               {expandedSettingsSection === "account" && (
-                <div className="px-5 py-4 bg-[#171819] space-y-3 border-t border-zinc-800/60">
+                <div className="px-5 py-4 bg-[#171819] space-y-3 border-t border-white/[0.06]">
                   <div>
                     <label htmlFor="settings-display-name" className="block text-xs font-medium text-zinc-300 mb-1.5">
                       Nama Tampilan
@@ -5010,11 +5057,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
-                className="w-full flex items-center justify-between px-5 py-4 min-h-[58px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer"
+                className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <Clock className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-zinc-100 truncate">Batas penggunaan</span>
+                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Batas penggunaan</span>
                 </div>
                 <ChevronRight
                   className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -5025,7 +5072,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               {/* Expandable Quota Details */}
               {expandedSettingsSection === "quota" && (
-                <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-zinc-800/60">
+                <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-white/[0.06]">
                   <p className="text-zinc-300 leading-relaxed text-sm">
                     {authUser
                       ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan inferensi model AI Axioma Pro."
@@ -5051,12 +5098,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
               Preferensi
             </div>
-            <div className="bg-[#1e1f20] rounded-[24px] overflow-hidden mb-6 divide-y divide-zinc-800/60 border border-zinc-800/40 pb-0.5">
+            <div className="bg-[#1e1f20] rounded-[24px] py-1 mb-6 divide-y divide-white/[0.06] overflow-hidden">
               {/* Notifikasi */}
               <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
                 <div className="flex items-center min-w-0">
                   <Bell className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-zinc-100 truncate">Notifikasi</span>
+                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Notifikasi</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
               </div>
@@ -5065,11 +5112,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
-                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <Bot className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-zinc-100 truncate">Model Default</span>
+                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Model Default</span>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
                   <span className="text-[14px] text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
@@ -5085,7 +5132,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               {/* Expandable Model Selector (Auto-save) */}
               {expandedSettingsSection === "agent" && (
-                <div className="px-5 py-4 bg-[#171819] space-y-2 border-t border-zinc-800/60">
+                <div className="px-5 py-4 bg-[#171819] space-y-2 border-t border-white/[0.06]">
                   {AVAILABLE_AGENTS.map((agent) => {
                     const isChecked = defaultAgentId === agent.id;
                     return (
@@ -5124,7 +5171,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left">
                 <div className="flex items-center shrink-0">
                   <Database className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-zinc-100 whitespace-nowrap">Penyimpanan Riwayat</span>
+                  <span className="text-[15.5px] font-normal text-[#e3e3e3] whitespace-nowrap">Penyimpanan Riwayat</span>
                 </div>
                 <span className="text-[14px] text-zinc-400 whitespace-nowrap shrink-0 text-right">
                   {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
@@ -5135,11 +5182,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
-                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-850 transition-colors cursor-pointer"
+                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <Keyboard className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-zinc-100 truncate">Pintasan Keyboard</span>
+                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Pintasan Keyboard</span>
                 </div>
                 <ChevronRight
                   className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -5150,7 +5197,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               {/* Expandable Keyboard Shortcuts */}
               {expandedSettingsSection === "shortcuts" && (
-                <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-zinc-800/60">
+                <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-white/[0.06]">
                   <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
                     <span className="text-zinc-400">Cari percakapan</span>
                     <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
@@ -5182,7 +5229,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
                 <div className="flex items-center min-w-0">
                   <Moon className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-zinc-100 truncate">Tema</span>
+                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Tema</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   <select
@@ -5209,7 +5256,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <Trash className="w-5 h-5 text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[16px] font-normal text-red-400 truncate">Hapus semua percakapan</span>
+                  <span className="text-[15.5px] font-normal text-red-400 truncate">Hapus semua percakapan</span>
                 </div>
                 <ChevronRight className="w-5 h-5 text-red-400/50 group-hover:text-red-400 transition-colors shrink-0" />
               </button>
@@ -5265,7 +5312,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {authUser ? (
                         <UserAvatar url={avatarUrl} name={userName} className="w-full h-full object-cover" />
                       ) : (
-                        <span className="text-2xl font-bold uppercase">{userName?.charAt(0) || "T"}</span>
+                        <span className="text-2xl font-bold uppercase">{toTitleCase(userName)?.charAt(0) || "T"}</span>
                       )}
                     </div>
                     <button
@@ -5288,7 +5335,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   <div className="min-w-0 flex-1 ml-4">
                     <div className="text-[18px] font-semibold text-white truncate">
-                      {displayName || (authUser ? "Pengguna" : "Mode Tamu")}
+                      {displayName ? toTitleCase(displayName) : (authUser ? "Pengguna" : "Mode Tamu")}
                     </div>
                     <div className="text-[14px] text-zinc-400 truncate mt-0.5">
                       {authUser?.email || "Mode Tamu (Lokal)"}
@@ -5470,21 +5517,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             {/* New Chat Button */}
             <button
               type="button"
-              onClick={() => handleCreateNewChat()}
-              className="w-full min-h-11 lg:min-h-0 flex items-center justify-between px-3 py-2 rounded-lg bg-bg-surface hover:bg-bg-subtle active:scale-[0.99] text-text-primary text-xs font-medium tracking-tight transition-all duration-200 border border-border-subtle shadow-xs hover:border-border-strong cursor-pointer"
+              onClick={() => {
+                handleCreateNewChat();
+                if (isTouchOrMobile) setIsMobileSidebarOpen(false);
+              }}
+              className="w-full flex items-center justify-between rounded-full bg-[#1e1f20] hover:bg-[#282a2c] border-none px-4 py-3 text-[14.5px] font-medium text-[#e3e3e3] transition-colors cursor-pointer shadow-xs active:scale-[0.98]"
             >
-              <span className="flex items-center gap-2">
-                <Plus className="w-3.5 h-3.5 text-icon-muted" />
+              <span className="flex items-center gap-2.5">
+                <Plus className="w-4 h-4 text-zinc-300" />
                 <span>Percakapan Baru</span>
               </span>
             </button>
 
             {/* Guest Mode Cloud Sync Prompt Banner */}
-            <div className="p-3 rounded-xl bg-bg-surface border border-border-subtle flex flex-col gap-2.5 shrink-0">
+            <div className="bg-[#161718] border border-white/[0.05] rounded-[22px] p-4 flex flex-col gap-3 shrink-0">
               <div className="flex items-start gap-2.5">
-                <Cloud className="w-4 h-4 text-text-muted shrink-0 mt-0.5" strokeWidth={1.75} />
-                <div className="text-xs text-text-secondary leading-snug">
-                  <span className="font-semibold text-text-primary block text-xs">Cadangkan Percakapan</span>
+                <Cloud className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <div className="text-[13px] leading-relaxed text-zinc-400">
+                  <span className="text-[14.5px] font-medium text-white block mb-0.5">Cadangkan Percakapan</span>
                   Hubungkan akun untuk menyimpan riwayat chat agar bisa diakses dari perangkat lain.
                 </div>
               </div>
@@ -5494,22 +5544,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsMobileSidebarOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full py-2 px-3 rounded-lg bg-text-primary hover:opacity-90 text-bg-primary text-xs font-semibold tracking-tight transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                className="w-full rounded-full py-2.5 text-[14px] font-medium bg-white text-black hover:bg-zinc-200 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <span>Hubungkan Akun</span>
               </button>
             </div>
           </div>
         ) : (
-          <div className="px-3 pb-2 space-y-2 shrink-0">
+          <div className="px-3 pb-2 space-y-2.5 shrink-0">
             {/* New Chat Button for Authenticated Users */}
             <button
               type="button"
-              onClick={() => handleCreateNewChat()}
-              className="w-full min-h-11 lg:min-h-0 flex items-center justify-between px-3 py-2 rounded-lg bg-bg-surface hover:bg-bg-subtle active:scale-[0.99] text-text-primary text-xs font-medium tracking-tight transition-all duration-200 border border-border-subtle shadow-xs hover:border-border-strong cursor-pointer"
+              onClick={() => {
+                handleCreateNewChat();
+                if (isTouchOrMobile) setIsMobileSidebarOpen(false);
+              }}
+              className="w-full flex items-center justify-between rounded-full bg-[#1e1f20] hover:bg-[#282a2c] border-none px-4 py-3 text-[14.5px] font-medium text-[#e3e3e3] transition-colors cursor-pointer shadow-xs active:scale-[0.98]"
             >
-              <span className="flex items-center gap-2">
-                <Plus className="w-3.5 h-3.5 text-icon-muted" />
+              <span className="flex items-center gap-2.5">
+                <Plus className="w-4 h-4 text-zinc-300" />
                 <span>Percakapan Baru</span>
               </span>
             </button>
@@ -5524,8 +5577,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isTouchOrMobile ? "Cari percakapan..." : "Cari percakapan... (Ctrl+K)"}
                 aria-label="Cari percakapan"
-                disabled={!isMobileSidebarOpen && isTouchOrMobile}
-                tabIndex={isMobileSidebarOpen || !isTouchOrMobile ? 0 : -1}
+                disabled={!isMobileSidebarOpen && (isTouchOrMobile || (typeof window !== "undefined" && window.innerWidth < 1024))}
+                tabIndex={isMobileSidebarOpen || (!isTouchOrMobile && (typeof window === "undefined" || window.innerWidth >= 1024)) ? 0 : -1}
                 className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
               />
               {searchQuery && (
@@ -5895,14 +5948,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <header className="sticky top-0 z-30 shrink-0 w-full min-h-[56px] h-auto flex items-center justify-between px-3 sm:px-4 bg-black/90 backdrop-blur-md border-b-0 md:border-b md:border-border-subtle pt-[max(0.625rem,calc(env(safe-area-inset-top,0px)+0.5rem))] pb-2.5 md:py-0 md:h-14">
           {/* Mobile Header (< md) - Modern AI Pattern */}
           <div className="flex md:hidden items-center justify-between w-full">
-            {/* Left: 44px circular hamburger menu */}
+            {/* Left: 36px (w-9 h-9) circular hamburger menu */}
             <button
               type="button"
               onClick={() => setIsMobileSidebarOpen(true)}
-              className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-bg-elevated border border-border-subtle text-text-secondary hover:text-text-primary active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+              className="w-9 h-9 rounded-full bg-[#1e1f20] border-none text-zinc-300 hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
               aria-label="Buka bilah sisi"
             >
-              <Menu className="w-5 h-5" />
+              <Menu className="w-[18px] h-[18px]" />
             </button>
 
             {/* Center: Axioma + model name without border box (Persis Gemini) */}
@@ -5912,25 +5965,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               aria-haspopup="menu"
               aria-expanded={isHeaderAgentMenuOpen}
               onClick={toggleHeaderAgentMenu}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full active:opacity-75 transition-opacity cursor-pointer focus:outline-none"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full active:opacity-75 transition-opacity cursor-pointer focus:outline-none"
               aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
             >
-              <span className="text-[18px] font-medium text-zinc-100 flex items-center gap-1.5 tracking-tight">
+              <span className="text-[17px] font-medium tracking-[-0.01em] text-[#e3e3e3] flex items-center">
                 <span>Axioma {selectedAgent.shortName}</span>
-                <ChevronDown className="w-4 h-4 text-zinc-400" />
+                <ChevronDown className="w-4 h-4 text-zinc-400 ml-1" />
               </span>
             </button>
 
-            {/* Right: Circular New Chat (44px) + Circular Avatar Initial (44px) */}
+            {/* Right: Circular New Chat (w-9 h-9) + Circular Avatar Initial (w-9 h-9) */}
             <div className="flex items-center gap-2">
               <button
                 type="button"
                 onClick={() => handleCreateNewChat()}
                 aria-label="Percakapan Baru"
                 title="Percakapan Baru"
-                className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-bg-elevated border border-border-subtle text-text-secondary hover:text-text-primary active:scale-95 transition-all flex items-center justify-center cursor-pointer shadow-xs"
+                className="w-9 h-9 rounded-full bg-[#1e1f20] border-none text-zinc-300 hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
               >
-                <SquarePen className="w-5 h-5" />
+                <SquarePen className="w-[18px] h-[18px]" />
               </button>
 
               <div className="relative">
@@ -5939,16 +5992,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                   aria-label="Buka menu profil dan akun"
                   title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
-                    authUser
-                      ? "bg-purple-600 text-white font-semibold text-xs"
-                      : "bg-bg-surface border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
-                  }`}
+                  className="w-9 h-9 rounded-full bg-[#1e1f20] border-none flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-[#e3e3e3] text-sm font-semibold"
                 >
                   {authUser ? (
-                    <UserAvatar url={avatarUrl} name={userName} />
+                    <UserAvatar url={avatarUrl} name={userName} className="w-full h-full object-cover" />
                   ) : (
-                    <User className="w-4 h-4 text-text-secondary" />
+                    <User className="w-4 h-4 text-zinc-300" />
                   )}
                 </button>
               </div>
@@ -6166,7 +6215,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
 
                   {/* Sapaan besar (Persis ukuran dan ketebalan font Gemini) */}
-                  <h1 className="text-[26px] sm:text-[28px] leading-[1.28] font-medium text-white text-center max-w-[300px] mx-auto text-balance whitespace-pre-line tracking-tight">
+                  <h1 className="text-[28px] leading-[1.28] font-normal sm:font-medium tracking-[-0.015em] text-[#e3e3e3] text-center max-w-[315px] mx-auto text-balance whitespace-pre-line animate-fade-in">
                     {mobileGreeting}
                   </h1>
                 </div>
@@ -6713,12 +6762,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 thinkingText =
                   waitingSeconds >= 5
                     ? "✨ Merender gambar berkualitas HD..."
-                    : "🎨 Mengoptimalkan prompt visual dengan Gemini AI...";
+                    : "🎨 Mengoptimalkan prompt visual...";
               } else if (isVideoPending) {
                 thinkingText =
                   waitingSeconds >= 5
-                    ? "🎬 Menghubungi Google Veo 2..."
-                    : "🎬 Merancang koreografi video sinematik...";
+                    ? "🎬 Menghasilkan klip video sinematik..."
+                    : "🎬 Merancang koreografi adegan video...";
               } else {
                 thinkingText =
                   waitingSeconds >= 25
@@ -6836,7 +6885,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <div
             className={`shrink-0 w-full px-4 pt-1 ${
               isKeyboardOpen
-                ? "pb-1.5"
+                ? "pb-1"
                 : "pb-[calc(env(safe-area-inset-bottom,0px)+12px)]"
             } bg-gradient-to-t from-black via-black to-transparent relative z-20`}
           >
@@ -6869,7 +6918,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       }`}
                     >
                       <div className="w-full max-w-2xl mx-auto text-center">
-                        {isChatAreaLoading || greeting === "" ? (
+                        {isChatAreaLoading || (!dynamicGreeting && greeting === "") ? (
                           <div
                             role="status"
                             aria-label="Memuat ruang kerja"
@@ -6878,8 +6927,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             <div className="h-7 sm:h-8 w-64 sm:w-96 rounded-xl bg-border-subtle animate-pulse" />
                           </div>
                         ) : (
-                          <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-center text-balance text-text-primary tracking-tight leading-relaxed">
-                            {greeting}
+                          <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-center text-balance text-text-primary tracking-tight leading-relaxed animate-fade-in">
+                            {dynamicGreeting || greeting}
                           </h1>
                         )}
                       </div>
@@ -6905,7 +6954,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         type="button"
                         onClick={() => textareaRef.current?.focus()}
                         aria-label="Mode Percakapan Teks"
-                        className="px-4 py-2 rounded-full bg-black/90 text-white border border-white/10 font-medium text-[14px] shadow-sm cursor-pointer active:scale-95 transition-all"
+                        className="bg-[#0b0b0c]/90 text-[#e3e3e3] text-[13.5px] font-medium px-4 py-1.5 rounded-full border border-white/[0.05] shadow-sm cursor-pointer active:scale-95 transition-all"
                       >
                         Percakapan
                       </button>
@@ -6913,7 +6962,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         type="button"
                         onClick={handleOpenVoiceMode}
                         aria-label="Buka Mode Suara"
-                        className="px-4 py-2 rounded-full text-zinc-400 hover:text-white font-medium text-[14px] cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
+                        className="px-4 py-1.5 rounded-full text-zinc-400 hover:text-white font-medium text-[13.5px] cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
                       >
                         <AudioLines className="w-4 h-4 text-blue-400 shrink-0" />
                         <span>Mode Suara</span>
@@ -7009,8 +7058,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[28px] px-4 py-2.5 bg-[#1e1f22]) */}
-                <div className="bg-[#1e1f22] border border-white/[0.04] rounded-[28px] px-4 py-2.5 min-h-[56px] shadow-2xl flex items-center w-full gap-2.5 transition-colors focus-within:border-white/[0.08]">
+                {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[30px] px-4 bg-[#1e1f22]) */}
+                <div className="bg-[#1e1f22] border border-white/[0.03] rounded-[30px] min-h-[56px] px-4 flex items-center shadow-lg w-full gap-2.5 transition-colors focus-within:border-white/[0.06]">
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
                     const isAttachmentsFull = pendingAttachments.length >= 4;
@@ -7071,7 +7120,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   closeAttachmentMenu(true)
                                 )
                               }
-                              className="absolute left-0 bottom-full mb-2.5 z-40 w-64 sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-bg-elevated border border-border-strong p-1.5 shadow-2xl space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-150 focus:outline-none"
+                              className="absolute left-0 bottom-full mb-2.5 z-40 w-64 sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#1e1f20] border border-white/[0.06] p-1.5 shadow-2xl space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-150 focus:outline-none"
                             >
                             {/* 1. Foto & Gambar */}
                             <button
@@ -7084,10 +7133,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 closeAttachmentMenu(true);
                                 imageInputRef.current?.click();
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-text-primary hover:bg-bg-surface active:bg-bg-subtle transition-colors cursor-pointer text-left focus:outline-none focus:bg-bg-surface"
+                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-bg-surface border border-border-subtle flex items-center justify-center shrink-0">
-                                <ImageIcon className="w-4 h-4 text-icon-muted" />
+                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                                <ImageIcon className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
                               <span className="flex-1">Foto &amp; Gambar</span>
                             </button>
@@ -7103,15 +7152,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 closeAttachmentMenu(true);
                                 pdfInputRef.current?.click();
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-text-primary hover:bg-bg-surface active:bg-bg-subtle transition-colors cursor-pointer text-left focus:outline-none focus:bg-bg-surface"
+                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-bg-surface border border-border-subtle flex items-center justify-center shrink-0">
-                                <FileText className="w-4 h-4 text-icon-muted" />
+                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                                <FileText className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
                               <span className="flex-1">Dokumen PDF</span>
                             </button>
 
-                            {/* 3. Buat Gambar AI */}
+                            {/* 3. Buat Gambar */}
                             <button
                               ref={(el) => {
                                 attachmentItemRefs.current[2] = el;
@@ -7131,21 +7180,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   }
                                 });
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-text-primary hover:bg-bg-surface active:bg-bg-subtle transition-colors cursor-pointer text-left focus:outline-none focus:bg-bg-surface group/item"
+                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-center shrink-0">
-                                <Sparkles className="w-4 h-4 text-amber-400" />
+                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                                <Palette className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <span>Buat Gambar AI</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono">HD</span>
-                                </div>
-                                <p className="text-[10px] text-text-muted truncate">Imagen 3 &amp; Flux Photorealistic</p>
-                              </div>
+                              <span className="flex-1">Buat Gambar</span>
                             </button>
 
-                            {/* 4. Buat Video AI */}
+                            {/* 4. Buat Video */}
                             <button
                               ref={(el) => {
                                 attachmentItemRefs.current[3] = el;
@@ -7165,18 +7208,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   }
                                 });
                               }}
-                              className="w-full flex items-center gap-2.5 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-text-primary hover:bg-bg-surface active:bg-bg-subtle transition-colors cursor-pointer text-left focus:outline-none focus:bg-bg-surface group/item"
+                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-purple-500/10 border border-purple-500/20 flex items-center justify-center shrink-0">
-                                <Film className="w-4 h-4 text-purple-400" />
+                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                                <Video className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center justify-between">
-                                  <span>Buat Video AI</span>
-                                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 font-mono">Veo 2</span>
-                                </div>
-                                <p className="text-[10px] text-text-muted truncate">Google Veo Cinematic Motion</p>
-                              </div>
+                              <span className="flex-1">Buat Video</span>
                             </button>
 
                             {/* 5. Ambil Foto (Touchscreen only) */}
@@ -7190,17 +7227,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 closeAttachmentMenu(true);
                                 cameraInputRef.current?.click();
                               }}
-                              className="hidden [@media(pointer:coarse)]:flex w-full items-center gap-2.5 px-3 py-2.5 min-h-[44px] rounded-xl text-xs font-medium text-text-primary hover:bg-bg-surface active:bg-bg-subtle transition-colors cursor-pointer text-left focus:outline-none focus:bg-bg-surface"
+                              className="hidden [@media(pointer:coarse)]:flex w-full items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
                             >
-                              <div className="w-7 h-7 rounded-lg bg-bg-surface border border-border-subtle flex items-center justify-center shrink-0">
-                                <Camera className="w-4 h-4 text-icon-muted" />
+                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                                <Camera className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
                               <span className="flex-1">Ambil Foto</span>
                             </button>
 
                             {/* Footer limitation note */}
-                            <div className="border-t border-border-subtle pt-2 pb-1 px-2.5 mt-1">
-                              <p className="text-[10px] text-text-muted leading-relaxed">
+                            <div className="border-t border-white/[0.06] pt-2 pb-1 px-3.5 mt-1">
+                              <p className="text-[11px] text-zinc-400 leading-relaxed">
                                 Maks. 4 file · 10 MB per file · PDF maks. 30 halaman
                               </p>
                             </div>
@@ -7295,10 +7332,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onFocus={() => {
                           setIsInputFocused(true);
                           if (typeof window !== "undefined") {
-                            if (window.scrollY !== 0) window.scrollTo(0, 0);
+                            window.scrollTo(0, 0);
                             requestAnimationFrame(() => {
                               if (window.scrollY !== 0) window.scrollTo(0, 0);
                             });
+                            setTimeout(() => {
+                              if (window.scrollY !== 0) window.scrollTo(0, 0);
+                            }, 100);
+                            setTimeout(() => {
+                              if (window.scrollY !== 0) window.scrollTo(0, 0);
+                            }, 300);
                           }
                         }}
                         onBlur={() => {
@@ -7306,7 +7349,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         }}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder="Minta Axioma..."
-                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-zinc-400 text-[17px] sm:text-[18px] font-normal focus:outline-none px-2 py-1 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out touch-manipulation"
+                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 max-h-36 md:max-h-48 leading-6 tracking-normal transition-[height,color] duration-150 ease-out touch-manipulation"
                       />
                     </div>
                   )}
@@ -7831,11 +7874,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             user.user_metadata?.name ||
             user.email?.split("@")[0];
           if (fullName) {
-            setDisplayName(fullName);
-            safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, fullName);
+            const formatted = toTitleCase(fullName);
+            setDisplayName(formatted);
+            safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, formatted);
           }
           setIsAuthModalOpen(false);
-          showToastNotice(`Selamat datang, ${fullName || "Pengguna"}!`);
+          showToastNotice(`Selamat datang, ${toTitleCase(fullName) || "Pengguna"}!`);
           void refreshChatHistory();
         }}
       />

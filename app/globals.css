@@ -46,6 +46,7 @@ html.dark body {
 }
 
 @theme inline {
+  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   --color-bg-primary: var(--bg-primary);
   --color-bg-elevated: var(--bg-elevated);
   --color-bg-surface: var(--bg-surface);
@@ -74,6 +75,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
 }
 
 html,
@@ -86,6 +88,7 @@ body {
   overscroll-behavior: none;
   background-color: #000;
   color: var(--text-primary);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
   touch-action: pan-x pan-y;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
