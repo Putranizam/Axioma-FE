@@ -5499,9 +5499,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <div className="bg-[#131314] rounded-3xl p-4 flex items-center justify-between gap-4 mb-3.5 border border-zinc-800/40 shadow-sm">
                 <div className="flex items-center min-w-0 flex-1">
                   <div className="relative w-14 h-14 rounded-full shrink-0">
-                    <div className="w-14 h-14 rounded-full bg-blue-600 text-white font-bold text-2xl flex items-center justify-center overflow-hidden shadow-inner">
+                    <div className="w-14 h-14 rounded-full bg-purple-600 text-white font-bold text-2xl flex items-center justify-center overflow-hidden shadow-inner">
                       {authUser ? (
-                        <UserAvatar url={avatarUrl} name={userName} className="w-full h-full object-cover" />
+                        <span className="text-2xl font-bold uppercase">
+                          {(userName || "N").trim().charAt(0).toUpperCase()}
+                        </span>
                       ) : (
                         <span className="text-2xl font-bold uppercase">{toTitleCase(userName)?.charAt(0) || "T"}</span>
                       )}
@@ -5986,7 +5988,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs">
               {authUser ? (
                 <div className="w-full h-full rounded-full bg-purple-600 text-white flex items-center justify-center">
-                  <UserAvatar url={avatarUrl} name={userName} />
+                  <span className="uppercase font-semibold select-none text-white text-xs">
+                    {(userName || "N").trim().charAt(0).toUpperCase()}
+                  </span>
                 </div>
               ) : (
                 <div className="w-full h-full rounded-full bg-bg-surface border border-border-subtle text-text-secondary flex items-center justify-center">
@@ -6185,10 +6189,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                   aria-label="Buka menu profil dan akun"
                   title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                  className="w-9 h-9 rounded-full bg-[#1e1f20] border-none flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-[#e3e3e3] text-sm font-semibold uppercase"
+                  className="w-9 h-9 rounded-full bg-purple-600 border-none flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-white text-sm font-semibold uppercase"
                 >
                   {authUser ? (
-                    <UserAvatar url={avatarUrl} name={userName} className="w-full h-full object-cover" />
+                    <span className="uppercase font-semibold select-none text-white text-[15px]">
+                      {(userName || "N").trim().charAt(0).toUpperCase()}
+                    </span>
                   ) : (
                     <User className="w-4 h-4 text-zinc-300" />
                   )}
@@ -6293,7 +6299,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 }`}
               >
                 {authUser ? (
-                  <UserAvatar url={avatarUrl} name={userName} />
+                  <span className="uppercase font-semibold select-none text-white text-sm">
+                    {(userName || "N").trim().charAt(0).toUpperCase()}
+                  </span>
                 ) : (
                   <User className="w-4 h-4 text-text-secondary" />
                 )}
@@ -6380,12 +6388,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         {/* Dynamic Chat Workspace */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
-          {/* Ambient bottom radial glow (Rich deep cosmic blue aesthetic matching Gemini, hidden in light mode for 100% pure white) */}
-          <div
-            className="pointer-events-none absolute inset-x-0 bottom-0 h-[60vh] hidden dark:block dark:bg-[radial-gradient(ellipse_85%_65%_at_65%_95%,rgba(37,99,235,0.25)_0%,rgba(30,58,138,0.12)_45%,transparent_75%)] z-0"
-            aria-hidden="true"
-          />
-
           {/* Mobile Empty State Center View (< md) */}
           {!hasMessages &&
             !(
@@ -7090,12 +7092,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className="shrink-0 w-full px-4 pt-1 pb-1.5 bg-black z-20 relative"
+            className="shrink-0 w-full px-4 pt-1 pb-1.5 bg-transparent z-20 relative"
           >
-            {/* Ambient Glow Biru-Ungu Lembut di Belakang Area Input (Ala Gemini) */}
+            {/* Seamless Radial Blue Glow (Menyatu halus tanpa garis patah) */}
             <div
-              className="pointer-events-none absolute bottom-0 inset-x-0 h-52 bg-[radial-gradient(ellipse_at_bottom,rgba(29,78,216,0.28)_0%,rgba(15,23,42,0)_70%)] blur-2xl -z-10"
               aria-hidden="true"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-[280px] -z-10"
+              style={{
+                background:
+                  "radial-gradient(80% 60% at 50% 85%, rgba(29, 78, 216, 0.22) 0%, rgba(30, 58, 138, 0.08) 45%, rgba(0, 0, 0, 0) 100%)",
+              }}
             />
             <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
               <div
