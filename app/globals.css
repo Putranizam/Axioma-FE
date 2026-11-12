@@ -78,15 +78,22 @@ html {
   font-family: var(--font-sans), "Plus Jakarta Sans", Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Google Sans", sans-serif;
 }
 
+:root {
+  --app-height: 100dvh;
+}
+
 html,
 body {
-  margin: 0;
-  padding: 0;
+  position: fixed;
+  inset: 0;
   width: 100%;
-  height: 100dvh;
+  height: var(--app-height);
+  max-height: var(--app-height);
   overflow: hidden;
   overscroll-behavior: none;
   background-color: #000000;
+  margin: 0;
+  padding: 0;
   color: var(--text-primary);
   font-family: var(--font-sans), "Plus Jakarta Sans", Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Google Sans", sans-serif;
   touch-action: pan-x pan-y;
@@ -113,13 +120,16 @@ body {
 @media screen and (max-width: 768px) {
   html,
   body {
-    margin: 0;
-    padding: 0;
+    position: fixed;
+    inset: 0;
     width: 100%;
-    height: 100dvh;
+    height: var(--app-height);
+    max-height: var(--app-height);
     overflow: hidden;
     overscroll-behavior: none;
     background-color: #000000;
+    margin: 0;
+    padding: 0;
   }
 
   input,

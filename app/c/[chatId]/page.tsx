@@ -12,7 +12,7 @@ async function ChatRouteResolver({ params }: ChatPageProps) {
 
 export default function ChatPage({ params }: ChatPageProps) {
   return (
-    <main className="fixed inset-0 h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-black flex flex-col">
+    <main className="fixed inset-0 h-[var(--app-height)] max-h-[var(--app-height)] w-full overflow-hidden bg-black flex flex-col">
       <Suspense fallback={<div className="h-full w-full bg-black" />}>
         <ChatRouteResolver params={params} />
       </Suspense>

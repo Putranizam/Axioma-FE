@@ -1223,6 +1223,30 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   ]);
 
 
+  // Sinkronisasi --app-height untuk iOS & Android (Tanpa jitter / tanpa loop)
+  useEffect(() => {
+    const vv = typeof window !== "undefined" ? window.visualViewport : null;
+    if (!vv) return;
+
+    const setAppHeight = () => {
+      // Kunci tinggi aplikasi tepat sebesar ruang layar yang terlihat di atas keyboard (bekerja di iOS & Android)
+      document.documentElement.style.setProperty("--app-height", `${Math.round(vv.height)}px`);
+      // Cegah iOS Safari menggeser body ke atas
+      if (window.scrollY !== 0 || vv.offsetTop !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
+    vv.addEventListener("resize", setAppHeight);
+    vv.addEventListener("scroll", setAppHeight);
+    setAppHeight();
+
+    return () => {
+      vv.removeEventListener("resize", setAppHeight);
+      vv.removeEventListener("scroll", setAppHeight);
+    };
+  }, []);
+
   const focusDesktopTextarea = useCallback(() => {
     if (typeof window !== "undefined" && window.innerWidth >= 1024) {
       requestAnimationFrame(() => {
@@ -1907,10 +1931,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       return;
     }
     textarea.style.height = "auto";
-    const nextHeight = Math.max(24, Math.min(textarea.scrollHeight, TEXTAREA_MAX_HEIGHT_PX));
+    const nextHeight = Math.max(24, Math.min(textarea.scrollHeight, 120));
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY =
-      textarea.scrollHeight > TEXTAREA_MAX_HEIGHT_PX ? "auto" : "hidden";
+      textarea.scrollHeight > 120 ? "auto" : "hidden";
   }, []);
 
   // Dictation Cancel & Stop functions (Inline Dictation & Gemini style)
@@ -4793,7 +4817,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
       }}
       id="axioma-viewport-lock"
-      className="fixed inset-0 w-full h-[100dvh] flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] max-h-[var(--app-height)] flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5998,7 +6022,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
         {/* Header */}
-        <header className="sticky top-0 z-20 shrink-0 w-full min-h-[56px] h-auto flex items-center justify-between px-4 py-3 bg-black/80 backdrop-blur-md border-b-0 md:border-b md:border-border-subtle md:py-0 md:h-14">
+        <header className="shrink-0 w-full flex items-center justify-between px-4 py-2.5 z-20 bg-black border-b-0 md:border-b md:border-border-subtle md:h-14">
           {/* Mobile Header (< md) - Modern AI Pattern */}
           <div className="flex md:hidden items-center justify-between w-full">
             {/* Left: 36px (w-9 h-9) circular hamburger menu */}
@@ -6253,15 +6277,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
             ) && (
               <div
-                className={`md:hidden flex-1 min-h-0 overflow-y-auto touch-auto z-10 flex flex-col items-center justify-center px-6 text-center pointer-events-none ${
+                className={`md:hidden flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center justify-center px-6 text-center pointer-events-none ${
                   isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                 }`}
               >
                 <div className="w-full max-w-[340px] mx-auto flex flex-col items-center">
                   {/* Brand Logo with subtle glow (Ukuran proporsional ala Gemini Star) */}
-                  <div className="relative group mb-3 sm:mb-4">
+                  <div className="relative group mb-2.5 sm:mb-4">
                     <div className="absolute -inset-3 bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-500/25 rounded-full blur-xl opacity-80 pointer-events-none" />
-                    <div className="relative rounded-2xl bg-zinc-900/90 dark:bg-[#141416]/95 border border-zinc-700/60 dark:border-white/10 flex items-center justify-center shadow-2xl p-2 backdrop-blur-md w-12 h-12 sm:w-14 sm:h-14">
+                    <div className="relative rounded-2xl bg-zinc-900/90 dark:bg-[#141416]/95 border border-zinc-700/60 dark:border-white/10 flex items-center justify-center shadow-2xl p-2 backdrop-blur-md w-11 h-11 sm:w-14 sm:h-14">
                       <Image
                         src="/brand/axioma-logo.png"
                         alt="Axioma"
@@ -6273,8 +6297,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
                   </div>
 
-                  {/* Sapaan besar (Persis ukuran dan ketebalan font Gemini, adaptif & humanist) */}
-                  <h1 className="text-[26px] sm:text-[30px] md:text-[32px] leading-[1.28] font-normal sm:font-medium tracking-[-0.015em] text-[#e3e3e3] text-center max-w-[330px] mx-auto text-balance whitespace-pre-line animate-fade-in">
+                  {/* Sapaan besar (Persis ukuran dan ketebalan font Gemini, selalu muat utuh di ruang tersisa) */}
+                  <h1 className="text-[24px] sm:text-[28px] leading-[1.28] font-normal sm:font-medium tracking-[-0.015em] text-[#e3e3e3] text-center max-w-[310px] mx-auto text-balance whitespace-pre-line animate-fade-in">
                     {mobileGreeting}
                   </h1>
                 </div>
@@ -6942,7 +6966,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className="shrink-0 w-full px-4 pt-1 pb-2 bg-black z-20 relative"
+            className="shrink-0 w-full px-4 pt-1 pb-1.5 bg-black z-20 relative"
           >
             {/* Ambient Glow Biru-Ungu Lembut di Belakang Area Input (Ala Gemini) */}
             <div
@@ -7399,7 +7423,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder="Minta Axioma..."
                         style={{ height: "24px" }}
-                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 max-h-36 md:max-h-48 leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
+                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 min-h-[24px] max-h-[120px] leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
                       />
                     </div>
                   )}
