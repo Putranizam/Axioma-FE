@@ -46,7 +46,7 @@ html.dark body {
 }
 
 @theme inline {
-  --font-sans: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  --font-sans: var(--font-sans), "Plus Jakarta Sans", Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Google Sans", sans-serif;
   --color-bg-primary: var(--bg-primary);
   --color-bg-elevated: var(--bg-elevated);
   --color-bg-surface: var(--bg-surface);
@@ -75,7 +75,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  font-family: var(--font-sans), "Plus Jakarta Sans", Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Google Sans", sans-serif;
 }
 
 html,
@@ -88,11 +88,25 @@ body {
   overscroll-behavior: none;
   background-color: #000;
   color: var(--text-primary);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
+  font-family: var(--font-sans), "Plus Jakarta Sans", Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", "Google Sans", sans-serif;
   touch-action: pan-x pan-y;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  letter-spacing: -0.011em;
+}
+
+/* Apple Spring Tap Feedback */
+.tap-spring,
+.btn-spring {
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.15s ease, opacity 0.15s ease;
+}
+
+.tap-spring:active,
+.btn-spring:active {
+  transform: scale(0.96);
 }
 
 /* Prevent iOS Safari scrolling and auto-zoom on input focus */

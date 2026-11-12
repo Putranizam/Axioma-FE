@@ -801,6 +801,30 @@ function UserAvatar({ url, name, className = "" }: UserAvatarProps) {
   return <span className="uppercase font-semibold select-none">{initial}</span>;
 }
 
+function useAnimatedPresence(isOpen: boolean, durationMs = 300) {
+  const [shouldRender, setShouldRender] = useState(isOpen);
+  const [isEntered, setIsEntered] = useState(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (isOpen) {
+      setShouldRender(true);
+      const raf = requestAnimationFrame(() => {
+        setIsEntered(true);
+      });
+      return () => cancelAnimationFrame(raf);
+    } else {
+      setIsEntered(false);
+      timer = setTimeout(() => {
+        setShouldRender(false);
+      }, durationMs);
+    }
+    return () => clearTimeout(timer);
+  }, [isOpen, durationMs]);
+
+  return { shouldRender, isEntered };
+}
+
 export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}) {
   const [chats, setChats] = useState<ChatSession[]>(INITIAL_CHATS);
   const [chatHistory, setChatHistory] = useState<ChatHistoryItem[]>([]);
@@ -909,6 +933,43 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const attachmentMenuRef = useRef<HTMLDivElement>(null);
   const attachmentItemRefs = useRef<(HTMLButtonElement | null)[]>([]);
   const refreshedAttachmentsRef = useRef<Set<string>>(new Set());
+
+  // Two-way Animated Presences (Apple Spring Enter & Exit Transitions)
+  const { shouldRender: shouldRenderSettings, isEntered: isSettingsEntered } =
+    useAnimatedPresence(isSettingsModalOpen, 320);
+  const { shouldRender: shouldRenderProfile, isEntered: isProfileEntered } =
+    useAnimatedPresence(isProfileDropdownOpen, 320);
+  const { shouldRender: shouldRenderAttachmentMenu, isEntered: isAttachmentMenuEntered } =
+    useAnimatedPresence(isAttachmentMenuOpen, 220);
+  const { shouldRender: shouldRenderHeaderAgentMenu, isEntered: isHeaderAgentMenuEntered } =
+    useAnimatedPresence(isHeaderAgentMenuOpen, 220);
+  const { shouldRender: shouldRenderDesktopAgentMenu, isEntered: isDesktopAgentMenuEntered } =
+    useAnimatedPresence(isAgentMenuOpen, 220);
+  const { shouldRender: shouldRenderSidebarBackdrop, isEntered: isSidebarBackdropEntered } =
+    useAnimatedPresence(isMobileSidebarOpen, 300);
+  const { shouldRender: shouldRenderGuestLimit, isEntered: isGuestLimitEntered } =
+    useAnimatedPresence(isGuestLimitModalOpen, 300);
+  const { shouldRender: shouldRenderClearAllConfirm, isEntered: isClearAllConfirmEntered } =
+    useAnimatedPresence(isClearAllConfirmOpen, 280);
+  const { shouldRender: shouldRenderEditConfirm, isEntered: isEditConfirmEntered } =
+    useAnimatedPresence(Boolean(editConfirmTarget), 280);
+  const { shouldRender: shouldRenderLightbox, isEntered: isLightboxEntered } =
+    useAnimatedPresence(Boolean(lightboxImage), 250);
+
+  // Cached display values for exit animations
+  const [displayLightbox, setDisplayLightbox] = useState<{ url: string; name: string } | null>(null);
+  useEffect(() => {
+    if (lightboxImage) setDisplayLightbox(lightboxImage);
+  }, [lightboxImage]);
+
+  const [displayEditConfirm, setDisplayEditConfirm] = useState<{
+    msgId: string;
+    content: string;
+    subsequentCount: number;
+  } | null>(null);
+  useEffect(() => {
+    if (editConfirmTarget) setDisplayEditConfirm(editConfirmTarget);
+  }, [editConfirmTarget]);
 
   // Feedback state: rating ("up" | "down") + optional comment box for "down"
   const [feedback, setFeedback] = useState<Record<string, FeedbackItem>>({});
@@ -1148,9 +1209,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const isModalActiveRef = useRef<boolean>(false);
   useEffect(() => {
     isModalActiveRef.current = Boolean(
-      isSettingsModalOpen || isClearAllConfirmOpen || editConfirmTarget || isGuestLimitModalOpen
+      isSettingsModalOpen ||
+      isProfileDropdownOpen ||
+      isClearAllConfirmOpen ||
+      editConfirmTarget ||
+      isGuestLimitModalOpen
     );
-  }, [isSettingsModalOpen, isClearAllConfirmOpen, editConfirmTarget, isGuestLimitModalOpen]);
+  }, [
+    isSettingsModalOpen,
+    isProfileDropdownOpen,
+    isClearAllConfirmOpen,
+    editConfirmTarget,
+    isGuestLimitModalOpen,
+  ]);
 
   // VisualViewport direct position & height lock (100% Persis Gemini, zero jitter/bounce)
   useEffect(() => {
@@ -1164,19 +1235,31 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       el.style.height = `${vv.height}px`;
       el.style.top = `${vv.offsetTop}px`;
 
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+
       const isMobile = window.innerWidth < 768;
       const screenH = window.screen?.height || window.innerHeight;
       const isKeyboard = isMobile && vv.height < screenH - 100;
       setIsKeyboardOpen(isKeyboard);
     };
 
+    const handleWindowScroll = () => {
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
+    };
+
     vv.addEventListener("resize", updateViewport);
     vv.addEventListener("scroll", updateViewport);
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
     updateViewport();
 
     return () => {
       vv.removeEventListener("resize", updateViewport);
       vv.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("scroll", handleWindowScroll);
     };
   }, []);
 
@@ -4760,50 +4843,54 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Lightbox Modal for Images */}
-      {lightboxImage && (
+      {/* Lightbox Modal for Images (Smooth Enter & Exit Animations) */}
+      {shouldRenderLightbox && displayLightbox && (
         <div
           role="dialog"
           aria-modal="true"
-          aria-label={`Pratinjau ${lightboxImage.name}`}
-          className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-fade-in"
+          aria-label={`Pratinjau ${displayLightbox.name}`}
+          className={`fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 transition-opacity duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isLightboxEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
           onClick={() => setLightboxImage(null)}
         >
           <div
-            className="relative max-w-[95vw] max-h-[92vh] flex flex-col items-center"
+            className={`relative max-w-[95vw] max-h-[92vh] flex flex-col items-center transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+              isLightboxEntered ? "scale-100 opacity-100" : "scale-95 opacity-0"
+            }`}
             onClick={(e) => e.stopPropagation()}
           >
             <div className="absolute -top-12 left-0 right-0 flex items-center justify-between text-white text-xs px-2">
-              <span className="truncate max-w-[70vw] font-medium">{lightboxImage.name}</span>
+              <span className="truncate max-w-[70vw] font-medium">{displayLightbox.name}</span>
               <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={async () => {
                     try {
-                      if (lightboxImage.url.startsWith("data:")) {
+                      if (displayLightbox.url.startsWith("data:")) {
                         const link = document.createElement("a");
-                        link.href = lightboxImage.url;
-                        link.download = `${lightboxImage.name || "axioma-ai-image"}.jpg`;
+                        link.href = displayLightbox.url;
+                        link.download = `${displayLightbox.name || "axioma-ai-image"}.jpg`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                       } else {
-                        const response = await fetch(lightboxImage.url, { mode: "cors" });
+                        const response = await fetch(displayLightbox.url, { mode: "cors" });
                         const blob = await response.blob();
                         const blobUrl = URL.createObjectURL(blob);
                         const link = document.createElement("a");
                         link.href = blobUrl;
-                        link.download = `${lightboxImage.name || "axioma-ai-image"}.jpg`;
+                        link.download = `${displayLightbox.name || "axioma-ai-image"}.jpg`;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
                         setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
                       }
                     } catch {
-                      window.open(lightboxImage.url, "_blank");
+                      window.open(displayLightbox.url, "_blank");
                     }
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white text-zinc-900 text-xs font-medium hover:bg-white/90 active:scale-95 transition-all shadow cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white text-zinc-900 text-xs font-medium hover:bg-white/90 active:scale-[0.96] transition-all duration-200 ease-out shadow cursor-pointer"
                   title="Unduh resolusi tinggi"
                   aria-label="Unduh gambar HD"
                 >
@@ -4813,7 +4900,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <button
                   type="button"
                   onClick={() => setLightboxImage(null)}
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 transition-colors text-white cursor-pointer"
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-[0.96] transition-all duration-200 ease-out text-white cursor-pointer"
                   title="Tutup (Esc)"
                   aria-label="Tutup pratinjau"
                 >
@@ -4822,8 +4909,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </div>
             </div>
             <img
-              src={lightboxImage.url}
-              alt={lightboxImage.name}
+              src={displayLightbox.url}
+              alt={displayLightbox.name}
               className="max-h-[85vh] max-w-[90vw] object-contain rounded-xl shadow-2xl border border-white/10"
             />
           </div>
@@ -4865,21 +4952,27 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </aside>
       )}
 
-      {/* Clear All Chats Confirmation Dialog (1d) */}
-      {isClearAllConfirmOpen && (
+      {/* Clear All Chats Confirmation Dialog (Smooth Enter & Exit Animations) */}
+      {shouldRenderClearAllConfirm && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="clear-all-dialog-title"
           aria-describedby="clear-all-dialog-desc"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm animate-backdrop touch-none"
+          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md touch-none transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isClearAllConfirmEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
           onClick={(e) => {
             if (e.target === e.currentTarget && !isClearingAllChats) {
               setIsClearAllConfirmOpen(false);
             }
           }}
         >
-          <div className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain touch-auto animate-sheet-up sm:animate-modal-pop will-change-transform">
+          <div
+            className={`w-full sm:max-w-sm rounded-t-[28px] sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+              isClearAllConfirmEntered ? "translate-y-0 opacity-100 sm:scale-100" : "translate-y-full opacity-0 sm:scale-95"
+            }`}
+          >
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-red-950/50 border border-red-800/50 flex items-center justify-center shrink-0 text-red-400">
                 <TriangleAlert className="w-4 h-4" />
@@ -4923,13 +5016,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Settings Modal (100% Menyerupai Referensi Gambar 1) */}
-      {isSettingsModalOpen && (
+      {/* Settings Modal (Enter & Exit Animated Bottom Sheet / Centered Modal) */}
+      {shouldRenderSettings && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md animate-backdrop p-0 sm:p-4 overflow-hidden transition-all duration-300"
+          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isSettingsEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsSettingsModalOpen(false);
@@ -4937,7 +5032,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className="fixed inset-x-0 bottom-0 top-6 sm:top-12 z-50 sm:max-w-lg sm:mx-auto rounded-t-[28px] sm:rounded-[28px] bg-[#131314] px-5 pt-3 pb-8 overflow-y-auto touch-auto flex flex-col shadow-2xl animate-sheet-up sm:animate-modal-pop will-change-transform border-t sm:border border-zinc-800/60 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]"
+            className={`fixed sm:static inset-x-0 bottom-0 top-6 sm:inset-auto sm:top-auto sm:bottom-auto sm:my-auto z-50 sm:max-w-lg sm:w-full sm:max-h-[88vh] rounded-t-[28px] sm:rounded-[28px] bg-[#131314] px-5 pt-3 pb-8 overflow-y-auto touch-auto flex flex-col shadow-2xl border-t sm:border border-zinc-800/60 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+              isSettingsEntered
+                ? "translate-y-0 opacity-100 sm:scale-100"
+                : "translate-y-full opacity-0 sm:translate-y-6 sm:scale-95"
+            }`}
           >
             {/* Grab handle for mobile */}
             <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-2 shrink-0 sm:hidden" />
@@ -4948,14 +5047,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 type="button"
                 onClick={() => setIsSettingsModalOpen(false)}
                 aria-label="Tutup setelan"
-                className="w-10 h-10 rounded-full bg-[#1e1f20] hover:bg-zinc-700 flex items-center justify-center text-zinc-300 hover:text-white transition-colors cursor-pointer"
+                className="w-10 h-10 rounded-full bg-[#1e1f20] hover:bg-zinc-700 active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Title "Setelan" (Below close button, left-aligned, big font) */}
-            <h1 id="settings-modal-title" className="text-[30px] font-medium tracking-[-0.02em] text-[#e3e3e3] mt-1 mb-6">
+            {/* Title "Setelan" (Below close button, left-aligned, adaptif & font-medium) */}
+            <h1 id="settings-modal-title" className="text-[26px] sm:text-[30px] font-medium tracking-[-0.02em] text-[#e3e3e3] mt-1 mb-6">
               Setelan
             </h1>
 
@@ -5254,12 +5353,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Shared Profile Sheet / Modal (100% Menyerupai Referensi Gambar 2 - Fixed Viewport Placement) */}
-      {isProfileDropdownOpen && (
+      {/* Shared Profile Sheet / Modal (Enter & Exit Animated Bottom Sheet / Centered Modal) */}
+      {shouldRenderProfile && (
         <div
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md animate-backdrop p-0 sm:p-4 overflow-hidden transition-all duration-300"
+          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isProfileEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsProfileDropdownOpen(false);
@@ -5269,7 +5370,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Popup Container (Bottom-sheet on mobile, centered modal on sm+) */}
           <div
             ref={profileDropdownRef}
-            className="fixed sm:relative inset-x-0 bottom-0 z-50 sm:max-w-md w-full rounded-t-[28px] sm:rounded-[28px] bg-[#1e1f20] p-5 min-h-[82vh] sm:min-h-[580px] max-h-[92dvh] flex flex-col justify-between shadow-2xl border-t sm:border border-zinc-800/60 animate-sheet-up sm:animate-modal-pop will-change-transform overflow-y-auto touch-auto"
+            className={`fixed sm:static inset-x-0 bottom-0 sm:inset-auto sm:top-auto sm:bottom-auto sm:my-auto z-50 sm:max-w-md w-full rounded-t-[28px] sm:rounded-[28px] bg-[#1e1f20] p-5 min-h-[80vh] sm:min-h-0 sm:max-h-[88vh] max-h-[92dvh] flex flex-col justify-between shadow-2xl border-t sm:border border-zinc-800/60 overflow-y-auto touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+              isProfileEntered
+                ? "translate-y-0 opacity-100 sm:scale-100"
+                : "translate-y-full opacity-0 sm:translate-y-6 sm:scale-95"
+            }`}
           >
             {/* Top Area: Drag handle & "Selesai" Action */}
             <div className="shrink-0">
@@ -5279,7 +5384,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <button
                   type="button"
                   onClick={() => setIsProfileDropdownOpen(false)}
-                  className="text-[16px] font-medium text-blue-300 hover:text-blue-200 transition-colors cursor-pointer"
+                  className="text-[16px] font-medium text-blue-300 hover:text-blue-200 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer"
                 >
                   Selesai
                 </button>
@@ -5358,7 +5463,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       setIsSettingsModalOpen(true);
                     }
                   }}
-                  className="w-full bg-[#131314] hover:bg-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                  className="w-full bg-[#131314] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -5383,7 +5488,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     setSettingsDefaultAgentInput(defaultAgentId);
                     setIsSettingsModalOpen(true);
                   }}
-                  className="w-full bg-[#131314] hover:bg-zinc-800 rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                  className="w-full bg-[#131314] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
                 >
                   <div className="flex items-center gap-3.5">
                     <Settings className="w-5 h-5 text-zinc-300 shrink-0" strokeWidth={1.75} />
@@ -5407,7 +5512,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       showToastNotice("Berhasil keluar dari akun.");
                       void refreshChatHistory();
                     }}
-                    className="w-full bg-[#131314] hover:bg-red-950/30 rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[16px] font-medium text-red-400 hover:text-red-300 transition-colors cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                    className="w-full bg-[#131314] hover:bg-red-950/30 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[16px] font-medium text-red-400 hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
                   >
                     <LogOut className="w-5 h-5 text-red-400 shrink-0" strokeWidth={1.75} />
                     <span>Keluar dari Akun</span>
@@ -5442,8 +5547,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Mobile Off-canvas Backdrop */}
-      {isMobileSidebarOpen && (
+      {/* Mobile Off-canvas Backdrop (Smooth Enter & Exit Blur Transition) */}
+      {shouldRenderSidebarBackdrop && (
         <div
           role="button"
           tabIndex={0}
@@ -5453,7 +5558,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               setIsMobileSidebarOpen(false);
             }
           }}
-          className="fixed inset-0 z-40 bg-black/65 backdrop-blur-xs animate-backdrop lg:hidden transition-opacity duration-300"
+          className={`fixed inset-0 z-40 bg-black/65 backdrop-blur-xs lg:hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isSidebarBackdropEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
           aria-label="Tutup latar bilah sisi"
         />
       )}
@@ -5461,7 +5568,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed inset-y-0 left-0 z-40 w-[272px] max-w-[85vw] bg-bg-primary border-r border-border-subtle flex flex-col transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] will-change-transform lg:static ${
+        className={`fixed inset-y-0 left-0 z-40 w-[272px] max-w-[85vw] bg-bg-primary border-r border-border-subtle flex flex-col transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
           isDesktopSidebarCollapsed
             ? "lg:w-0 lg:opacity-0 lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
             : "lg:w-[268px] lg:opacity-100 lg:translate-x-0"
@@ -6089,12 +6196,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
           </div>
 
-          {/* Shared Header Agent Menu Dropdown (Fixed across viewports) */}
-          {isHeaderAgentMenuOpen && (
+          {/* Shared Header Agent Menu Dropdown (Smooth Enter & Exit Two-Way Animation) */}
+          {shouldRenderHeaderAgentMenu && (
             <>
               {/* Backdrop */}
               <div
-                className="fixed inset-0 z-40 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150"
+                className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  isHeaderAgentMenuEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                }`}
                 onClick={() => closeHeaderAgentMenu(true)}
                 aria-hidden="true"
               />
@@ -6110,7 +6219,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   )
                 }
                 style={headerMenuTop ? { top: `${headerMenuTop}px` } : undefined}
-                className="fixed left-4 right-4 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 max-w-[calc(100vw-2rem)] sm:max-w-md mx-auto max-h-[70dvh] overflow-y-auto rounded-2xl bg-bg-elevated border border-border-strong p-2 shadow-2xl space-y-1.5 focus:outline-none animate-in fade-in slide-in-from-top-2 duration-150 motion-safe:transition-all"
+                className={`fixed left-4 right-4 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 max-w-[calc(100vw-2rem)] sm:max-w-md mx-auto max-h-[70dvh] overflow-y-auto rounded-2xl bg-bg-elevated border border-border-strong p-2 shadow-2xl space-y-1.5 focus:outline-none origin-top transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+                  isHeaderAgentMenuEntered
+                    ? "scale-100 opacity-100 translate-y-0"
+                    : "scale-95 opacity-0 -translate-y-2 pointer-events-none"
+                }`}
               >
                 {AVAILABLE_AGENTS.map((agent, idx) => {
                   const isSelected = agent.id === selectedAgent.id;
@@ -6127,7 +6240,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         handleSelectAgent(agent);
                         closeHeaderAgentMenu(true);
                       }}
-                      className={`w-full text-left p-3 rounded-lg text-xs tracking-tight transition-colors flex flex-col gap-1.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer border ${
+                      className={`w-full text-left p-3 rounded-lg text-xs tracking-tight active:scale-[0.98] transition-all duration-150 flex flex-col gap-1.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer border ${
                         isSelected
                           ? "bg-bg-surface border-border-subtle text-text-primary font-medium"
                           : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-surface/50"
@@ -6195,8 +6308,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
                   </div>
 
-                  {/* Sapaan besar (Persis ukuran dan ketebalan font Gemini) */}
-                  <h1 className="text-[28px] leading-[1.28] font-normal sm:font-medium tracking-[-0.015em] text-[#e3e3e3] text-center max-w-[315px] mx-auto text-balance whitespace-pre-line animate-fade-in">
+                  {/* Sapaan besar (Persis ukuran dan ketebalan font Gemini, adaptif & humanist) */}
+                  <h1 className="text-[26px] sm:text-[30px] md:text-[32px] leading-[1.28] font-normal sm:font-medium tracking-[-0.015em] text-[#e3e3e3] text-center max-w-[330px] mx-auto text-balance whitespace-pre-line animate-fade-in">
                     {mobileGreeting}
                   </h1>
                 </div>
@@ -7080,12 +7193,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           </span>
                         )}
 
-                        {/* Attachment Popover Menu (All Devices) */}
-                        {isAttachmentMenuOpen && (
+                        {/* Attachment Popover Menu (Smooth Enter & Exit Two-Way Animation) */}
+                        {shouldRenderAttachmentMenu && (
                           <>
                             {/* Mobile backdrop */}
                             <div
-                              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150 sm:hidden"
+                              className={`fixed inset-0 z-30 bg-black/40 backdrop-blur-xs sm:hidden transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                                isAttachmentMenuEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                              }`}
                               onClick={() => closeAttachmentMenu(true)}
                               aria-hidden="true"
                             />
@@ -7097,7 +7212,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   closeAttachmentMenu(true)
                                 )
                               }
-                              className="absolute left-0 bottom-full mb-2.5 z-40 w-64 sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#1e1f20] border border-white/[0.06] p-1.5 shadow-2xl space-y-1 animate-in fade-in slide-in-from-bottom-2 duration-150 focus:outline-none"
+                              className={`absolute left-0 bottom-full mb-2.5 z-40 w-64 sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#1e1f20] border border-white/[0.06] p-1.5 shadow-2xl space-y-1 origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
+                                isAttachmentMenuEntered
+                                  ? "scale-100 opacity-100 translate-y-0"
+                                  : "scale-95 opacity-0 translate-y-1 pointer-events-none"
+                              }`}
                             >
                             {/* 1. Foto & Gambar */}
                             <button
@@ -7382,7 +7501,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           <ChevronDown className="w-3.5 h-3.5 text-icon-muted" />
                         </button>
 
-                        {isAgentMenuOpen && (
+                        {shouldRenderDesktopAgentMenu && (
                           <div
                             ref={desktopAgentMenuRef}
                             role="menu"
@@ -7392,7 +7511,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 closeDesktopAgentMenu(true)
                               )
                             }
-                            className="absolute bottom-full mb-2 right-0 z-50 w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-bg-elevated border border-border-subtle p-2 shadow-2xl space-y-1.5 focus:outline-none animate-in fade-in slide-in-from-bottom-2 duration-150 motion-safe:transition-all"
+                            className={`absolute bottom-full mb-2 right-0 z-50 w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-bg-elevated border border-border-subtle p-2 shadow-2xl space-y-1.5 focus:outline-none origin-bottom-right transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+                              isDesktopAgentMenuEntered
+                                ? "scale-100 opacity-100 translate-y-0"
+                                : "scale-95 opacity-0 translate-y-2 pointer-events-none"
+                            }`}
                           >
                             {AVAILABLE_AGENTS.map((agent, idx) => {
                               const isSelected = agent.id === selectedAgent.id;
@@ -7409,7 +7532,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                     handleSelectAgent(agent);
                                     closeDesktopAgentMenu(true);
                                   }}
-                                  className={`w-full text-left p-3 rounded-lg text-xs tracking-tight transition-colors flex flex-col gap-1.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer border ${
+                                  className={`w-full text-left p-3 rounded-lg text-xs tracking-tight active:scale-[0.98] transition-all duration-150 flex flex-col gap-1.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer border ${
                                     isSelected
                                       ? "bg-bg-surface border-border-subtle text-text-primary font-medium"
                                       : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-surface/50"
@@ -7688,20 +7811,28 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       </div>
 
-      {/* Edit Message & Truncate Subsequent Messages Confirmation Modal (Item 2) */}
-      {editConfirmTarget && (
+      {/* Edit Message & Truncate Subsequent Messages Confirmation Modal (Smooth Enter & Exit Two-Way Animation) */}
+      {shouldRenderEditConfirm && displayEditConfirm && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-confirm-title"
-          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm touch-none"
+          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm touch-none transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isEditConfirmEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
           onClick={(e) => {
             if (e.target === e.currentTarget && !isSubmittingEdit) {
               setEditConfirmTarget(null);
             }
           }}
         >
-          <div className="w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain touch-auto animate-user-bubble">
+          <div
+            className={`w-full sm:max-w-sm rounded-t-[28px] sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+              isEditConfirmEntered
+                ? "translate-y-0 opacity-100 sm:scale-100"
+                : "translate-y-full opacity-0 sm:scale-95"
+            }`}
+          >
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-950/60 border border-amber-800/60 flex items-center justify-center shrink-0">
                 <TriangleAlert className="w-4 h-4 text-amber-400" />
@@ -7713,7 +7844,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <p className="text-xs text-text-secondary leading-relaxed">
                   Mengedit pesan ini akan menghapus{" "}
                   <strong className="text-text-primary">
-                    {editConfirmTarget.subsequentCount} pesan setelahnya
+                    {displayEditConfirm.subsequentCount} pesan setelahnya
                   </strong>{" "}
                   dalam percakapan ini, lalu meminta jawaban baru dari AI.
                 </p>
@@ -7724,7 +7855,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 type="button"
                 disabled={isSubmittingEdit}
                 onClick={() => setEditConfirmTarget(null)}
-                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary border border-border-subtle transition-colors cursor-pointer disabled:opacity-50"
+                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary active:scale-[0.96] border border-border-subtle transition-all cursor-pointer disabled:opacity-50"
               >
                 Batal
               </button>
@@ -7732,9 +7863,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 type="button"
                 disabled={isSubmittingEdit}
                 onClick={() =>
-                  handleSubmitEditUserMessage(editConfirmTarget.msgId, editConfirmTarget.content)
+                  handleSubmitEditUserMessage(displayEditConfirm.msgId, displayEditConfirm.content)
                 }
-                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 transition-opacity cursor-pointer disabled:opacity-50 shadow-xs"
+                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 active:scale-[0.96] transition-all cursor-pointer disabled:opacity-50 shadow-xs"
               >
                 {isSubmittingEdit ? "Menghapus & Mengirim…" : "Lanjutkan & Kirim"}
               </button>
@@ -7773,20 +7904,28 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         />
       )}
 
-      {/* Guest Message Limit Modal */}
-      {isGuestLimitModalOpen && (
+      {/* Guest Message Limit Modal (Smooth Enter & Exit Two-Way Animation) */}
+      {shouldRenderGuestLimit && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="guest-limit-title"
-          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-backdrop"
+          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            isGuestLimitEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          }`}
           onClick={(e) => {
             if (e.target === e.currentTarget) {
               setIsGuestLimitModalOpen(false);
             }
           }}
         >
-          <div className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-subtle p-6 shadow-2xl space-y-5 animate-modal-pop will-change-transform relative">
+          <div
+            className={`w-full sm:max-w-md rounded-t-[28px] sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-6 shadow-2xl space-y-5 relative transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+              isGuestLimitEntered
+                ? "translate-y-0 opacity-100 sm:scale-100"
+                : "translate-y-full opacity-0 sm:scale-95"
+            }`}
+          >
             <button
               type="button"
               onClick={() => setIsGuestLimitModalOpen(false)}
