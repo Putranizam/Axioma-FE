@@ -19,11 +19,18 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
   const triggerFallback = useCallback(() => {
     if (retryAttemptRef.current === 0) {
       retryAttemptRef.current = 1;
-      const cleanQuery = encodeURIComponent((alt || "visual scenery").replace(/[^a-zA-Z0-9\s]/g, " ").trim().slice(0, 80));
+      const cleanWords = (alt || "scenic landscape")
+        .replace(/[^a-zA-Z0-9\s]/g, " ")
+        .trim()
+        .split(/\s+/)
+        .slice(0, 12)
+        .join(" ");
+      const cleanQuery = encodeURIComponent(cleanWords || "scenic landscape");
       const fallbackUrl = `https://image.pollinations.ai/prompt/${cleanQuery}?width=800&height=800&model=turbo&nologo=true&seed=${Date.now()}`;
       setCurrentSrc(fallbackUrl);
     } else {
       setHasError(true);
+      setIsLoaded(true);
     }
   }, [alt]);
 
@@ -34,7 +41,7 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
     retryAttemptRef.current = 0;
   }, [src]);
 
-  // Anti-stuck watchdog: If image hasn't loaded within 12s, automatically trigger fast fallback
+  // Anti-stuck watchdog: If image hasn't loaded within 8s, automatically trigger fast fallback
   useEffect(() => {
     if (isLoaded || hasError) return;
 
@@ -42,7 +49,7 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
       if (!isLoaded && !hasError) {
         triggerFallback();
       }
-    }, 12000);
+    }, 8000);
 
     return () => clearTimeout(timer);
   }, [currentSrc, isLoaded, hasError, triggerFallback]);
@@ -51,8 +58,14 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
     setHasError(false);
     setIsLoaded(false);
     retryAttemptRef.current = 0;
-    const cleanQuery = encodeURIComponent((alt || "visual").replace(/[^a-zA-Z0-9\s]/g, " ").trim().slice(0, 80));
-    setCurrentSrc(`https://image.pollinations.ai/prompt/${cleanQuery}?width=800&height=800&nologo=true&seed=${Date.now()}`);
+    const cleanWords = (alt || "visual")
+      .replace(/[^a-zA-Z0-9\s]/g, " ")
+      .trim()
+      .split(/\s+/)
+      .slice(0, 12)
+      .join(" ");
+    const cleanQuery = encodeURIComponent(cleanWords || "visual");
+    setCurrentSrc(`https://image.pollinations.ai/prompt/${cleanQuery}?width=800&height=800&model=turbo&nologo=true&seed=${Date.now()}`);
   };
 
   const handleDownload = async (e: React.MouseEvent) => {
@@ -111,16 +124,17 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
       {!isLoaded && !hasError && (
         <div className="w-full aspect-square sm:aspect-[4/3] bg-bg-elevated/70 animate-pulse flex flex-col items-center justify-center gap-2.5 text-text-muted select-none">
           <Loader2 className="w-6 h-6 animate-spin text-icon-muted" />
-          <span className="text-xs font-medium tracking-tight">Memuat gambar resolusi tinggi...</span>
+          <span className="text-xs font-medium tracking-tight">Menyiapkan visual...</span>
         </div>
       )}
 
-      {/* Render Image (Eager loading, no lazy deferral on mobile viewport) */}
+      {/* Render Image (Eager loading, no-referrer for privacy & bypass anti-hotlinking) */}
       <img
         src={currentSrc}
         alt={alt}
         loading="eager"
         decoding="async"
+        referrerPolicy="no-referrer"
         onLoad={() => setIsLoaded(true)}
         onError={() => triggerFallback()}
         onClick={() => onOpenLightbox?.(currentSrc, alt)}

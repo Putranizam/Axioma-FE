@@ -819,6 +819,41 @@ function detectMediaIntent(text: string): { type: "image" | "video" | null; visu
   return { type: null, visualPrompt: raw };
 }
 
+function sanitizeAxiomaMessageContent(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  let text = raw;
+
+  // 1. Remove "🎨 Mengoptimalkan prompt visual..." loading status line
+  text = text.replace(/^[^\w\n]*Mengoptimalkan prompt visual[^\n]*\n*/gim, "");
+  text = text.replace(/^[^\w\n]*Sedang merender[^\n]*\n*/gim, "");
+  text = text.replace(/.*Gemini AI\.\.\..*\n*/gi, "");
+
+  // 2. Standardize introduction text to clean format
+  text = text.replace(
+    /Berikut adalah hasil gambar berkualitas tinggi yang dihasilkan berdasarkan permintaan Anda:/gi,
+    "Berikut visualisasi untuk permintaan Anda:"
+  );
+  text = text.replace(
+    /Berikut visual yang telah disiapkan:/gi,
+    "Berikut visualisasi untuk permintaan Anda:"
+  );
+  text = text.replace(
+    /Berikut hasil visualnya:/gi,
+    "Berikut visualisasi untuk permintaan Anda:"
+  );
+
+  // 3. Remove prompt enhancement blocks and machine labels
+  text = text.replace(/>\s*\*?\*?✨?\s*Prompt yang Disempurnakan[^\n]*\n*(?:>\s*[^\n]*\n*)*/gi, "");
+  text = text.replace(/>\s*\*?Mesin:[^\n]*\n*/gi, "");
+  text = text.replace(/>\s*\*?Status Layanan Google Veo[^\n]*\n*(?:[^\n]*\n*)*/gi, "");
+  text = text.replace(/💡\s*\*?Tips:[^\n]*\n*/gi, "");
+
+  // 4. Clean consecutive blank lines
+  text = text.replace(/\n{3,}/g, "\n\n").trim();
+
+  return text;
+}
+
 interface UserAvatarProps {
   url?: string | null;
   name?: string | null;
@@ -6783,14 +6818,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             return (
                               <AiImageCard
                                 src={String(src)}
-                                alt={String(alt || "Gambar Hasil AI")}
+                                alt={String(alt || "Visual Axioma")}
                                 onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
                               />
                             );
                           },
                         }}
                       >
-                        {message.content}
+                        {sanitizeAxiomaMessageContent(message.content)}
                       </ReactMarkdown>
                     </div>
 
@@ -6808,7 +6843,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <div className="relative flex items-center">
                           <button
                             type="button"
-                            onClick={() => handleCopy(message.content, message.id)}
+                            onClick={() => handleCopy(sanitizeAxiomaMessageContent(message.content), message.id)}
                             title={copiedId === message.id ? "Tersalin" : "Salin jawaban"}
                             className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center"
                             aria-label="Salin teks"
