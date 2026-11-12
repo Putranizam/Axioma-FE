@@ -1,7 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
-import { Download, Eye, Palette, Loader2, CircleAlert } from "lucide-react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
+import { Download, Eye, Palette, Loader2, CircleAlert, RotateCw } from "lucide-react";
 
 interface AiImageCardProps {
   src: string;
@@ -10,9 +10,50 @@ interface AiImageCardProps {
 }
 
 export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
+  const [currentSrc, setCurrentSrc] = useState<string>(src);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
+  const retryAttemptRef = useRef<number>(0);
+
+  const triggerFallback = useCallback(() => {
+    if (retryAttemptRef.current === 0) {
+      retryAttemptRef.current = 1;
+      const cleanQuery = encodeURIComponent((alt || "visual scenery").replace(/[^a-zA-Z0-9\s]/g, " ").trim().slice(0, 80));
+      const fallbackUrl = `https://image.pollinations.ai/prompt/${cleanQuery}?width=800&height=800&model=turbo&nologo=true&seed=${Date.now()}`;
+      setCurrentSrc(fallbackUrl);
+    } else {
+      setHasError(true);
+    }
+  }, [alt]);
+
+  useEffect(() => {
+    setCurrentSrc(src);
+    setIsLoaded(false);
+    setHasError(false);
+    retryAttemptRef.current = 0;
+  }, [src]);
+
+  // Anti-stuck watchdog: If image hasn't loaded within 12s, automatically trigger fast fallback
+  useEffect(() => {
+    if (isLoaded || hasError) return;
+
+    const timer = setTimeout(() => {
+      if (!isLoaded && !hasError) {
+        triggerFallback();
+      }
+    }, 12000);
+
+    return () => clearTimeout(timer);
+  }, [currentSrc, isLoaded, hasError, triggerFallback]);
+
+  const handleManualRetry = () => {
+    setHasError(false);
+    setIsLoaded(false);
+    retryAttemptRef.current = 0;
+    const cleanQuery = encodeURIComponent((alt || "visual").replace(/[^a-zA-Z0-9\s]/g, " ").trim().slice(0, 80));
+    setCurrentSrc(`https://image.pollinations.ai/prompt/${cleanQuery}?width=800&height=800&nologo=true&seed=${Date.now()}`);
+  };
 
   const handleDownload = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -20,11 +61,11 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
     setIsDownloading(true);
 
     try {
-      if (src.startsWith("data:")) {
+      if (currentSrc.startsWith("data:")) {
         // Data URL direct download
         const link = document.createElement("a");
-        link.href = src;
-        const cleanName = (alt || "axioma-ai-image")
+        link.href = currentSrc;
+        const cleanName = (alt || "axioma-visual")
           .toLowerCase()
           .replace(/[^a-z0-9_-]/g, "-")
           .slice(0, 32);
@@ -34,12 +75,12 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
         document.body.removeChild(link);
       } else {
         // Remote URL fetch blob download
-        const response = await fetch(src, { mode: "cors" });
+        const response = await fetch(currentSrc, { mode: "cors" });
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = blobUrl;
-        const cleanName = (alt || "axioma-ai-image")
+        const cleanName = (alt || "axioma-visual")
           .toLowerCase()
           .replace(/[^a-z0-9_-]/g, "-")
           .slice(0, 32);
@@ -52,10 +93,10 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
     } catch {
       // Fallback direct link open
       const link = document.createElement("a");
-      link.href = src;
+      link.href = currentSrc;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-      link.download = `${alt || "axioma-ai-image"}.jpg`;
+      link.download = `${alt || "axioma-visual"}.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -74,14 +115,15 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
         </div>
       )}
 
-      {/* Render Image */}
+      {/* Render Image (Eager loading, no lazy deferral on mobile viewport) */}
       <img
-        src={src}
+        src={currentSrc}
         alt={alt}
-        loading="lazy"
+        loading="eager"
+        decoding="async"
         onLoad={() => setIsLoaded(true)}
-        onError={() => setHasError(true)}
-        onClick={() => onOpenLightbox?.(src, alt)}
+        onError={() => triggerFallback()}
+        onClick={() => onOpenLightbox?.(currentSrc, alt)}
         className={`w-full max-h-[520px] object-cover rounded-2xl cursor-pointer transition-transform duration-300 group-hover/ai-img:scale-[1.01] ${
           isLoaded ? "block" : "hidden"
         }`}
@@ -104,7 +146,7 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={() => onOpenLightbox?.(src, alt)}
+              onClick={() => onOpenLightbox?.(currentSrc, alt)}
               title="Perbesar gambar"
               aria-label="Perbesar gambar"
               className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white backdrop-blur-md transition-colors cursor-pointer"
@@ -130,21 +172,31 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
         </div>
       )}
 
-      {/* Error Fallback */}
+      {/* Error Fallback with Retry Option */}
       {hasError && (
-        <div className="p-4 rounded-2xl bg-bg-elevated border border-border-subtle flex items-center gap-3 text-text-muted">
-          <CircleAlert className="w-5 h-5 text-amber-500 shrink-0" />
-          <div className="text-xs leading-relaxed">
-            Gambar tidak dapat ditampilkan secara langsung di peramban.{" "}
-            <a
-              href={src}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-text-primary underline font-medium hover:text-text-primary"
-            >
-              Buka gambar di tab baru
-            </a>
+        <div className="p-4 rounded-2xl bg-bg-elevated border border-border-subtle flex flex-col gap-2.5 text-text-muted">
+          <div className="flex items-center gap-3">
+            <CircleAlert className="w-5 h-5 text-amber-500 shrink-0" />
+            <div className="text-xs leading-relaxed">
+              Gambar tidak dapat ditampilkan secara langsung di peramban.{" "}
+              <a
+                href={currentSrc}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-text-primary underline font-medium hover:text-text-primary"
+              >
+                Buka gambar di tab baru
+              </a>
+            </div>
           </div>
+          <button
+            type="button"
+            onClick={handleManualRetry}
+            className="self-start mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-surface hover:bg-bg-subtle text-text-primary text-xs font-medium border border-border-strong cursor-pointer transition-colors"
+          >
+            <RotateCw className="w-3.5 h-3.5" />
+            <span>Muat Ulang Gambar</span>
+          </button>
         </div>
       )}
     </div>

@@ -768,42 +768,51 @@ function detectMediaIntent(text: string): { type: "image" | "video" | null; visu
   const raw = text.trim();
   const lower = raw.toLowerCase();
 
+  // Negative checks: educational/explanatory questions about images/art should NOT trigger generation
+  if (
+    /^(apa|kenapa|mengapa|bagaimana|jelaskan|apakah|siapa|kapan|di mana|dimana)\b/i.test(lower) &&
+    /\b(cara\s+menggambar|cara\s+melukis|cara\s+membuat\s+video|definisi|pengertian|sejarah|arti|fungsi|maksud)\b/i.test(lower)
+  ) {
+    return { type: null, visualPrompt: raw };
+  }
+
   // Video triggers
   const videoKeywords = [
-    /\b(buatkan|buat|bikin|generate|render|ciptakan|animasikan|videokan)\s+(video|animasi|klip|clip|motion|sinematik)\b/i,
-    /\b(animasikan|videokan|buat\s*video|buatkan\s*video|bikin\s*video|generate\s*video|buat\s*klip|buatkan\s*klip)\b/i,
-    /\b(video|animasi|klip)\s+(tentang|dari|seorang|seekor|sebuah|suatu|suasana|pemandangan|karakter)\b/i,
-    /\[mode:\s*(video|animasi)\]/i,
-    /^buatkan\s+video\s*:/i,
-    /^buat\s+video\s*:/i,
+    /\b(buatkan|buat|bikin|generate|render|ciptakan|hadirkan|desainkan)\s+(video|animasi|klip|clip|motion|sinematik)\b/i,
+    /\b(animasikan|videokan)\b/i,
+    /\b(minta|mau|ingin|butuh|perlu|tolong|coba|bisa\s+(tolong\s+)?(buatkan|bikin|buat)?)\s+(video|animasi|klip|sinematik)\b/i,
+    /^(video|animasi|klip|sinematik)\s+(tentang|dari|bertema|sebuah|seekor|seorang|suatu|suasana|pemandangan|karakter|[a-zA-Z0-9\s]+)$/i,
+    /\b(dalam bentuk|sebagai|berupa|menjadi)\s+(video|animasi|klip)\b/i,
+    /\[mode:\s*(video|animasi|klip)\]/i,
+    /^(video|animasi|klip)\s*:\s*.+/i,
   ];
 
   const isVideo = videoKeywords.some((rgx) => rgx.test(lower));
   if (isVideo) {
     let cleaned = raw;
-    cleaned = cleaned.replace(/^\[mode:\s*(video|animasi)\]\s*:?/i, "");
-    cleaned = cleaned.replace(/^(tolong|coba|bisa\s+(kamu\s+)?)?\s*(buatkan|buat|bikin|generate|animasikan|videokan|render|ciptakan)\s*(video|animasi|klip|clip|motion|sinematik)?\s*(tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i, "");
-    cleaned = cleaned.replace(/^(video|animasi|klip)\s*(tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i, "");
+    cleaned = cleaned.replace(/^\[mode:\s*(video|animasi|klip)\]\s*:?/i, "");
+    cleaned = cleaned.replace(/^(tolong|coba|bisa\s+(kamu\s+)?)?\s*(buatkan|buat|bikin|generate|animasikan|videokan|render|ciptakan|hadirkan)\s*(video|animasi|klip|clip|motion|sinematik)?\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i, "");
+    cleaned = cleaned.replace(/^(video|animasi|klip|sinematik)\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i, "");
     return { type: "video", visualPrompt: cleaned.trim() || raw };
   }
 
   // Image triggers
   const imageKeywords = [
-    /\b(buatkan|buat|bikin|generate|lukiskan|lukis|gambarkan|gambari|gambarin|render|ciptakan)\s+(gambar|foto|lukisan|ilustrasi|visual|image|artwork|wallpaper|poster)\b/i,
-    /\b(lukiskan|gambarkan|gambarin|buat\s*gambar|buatkan\s*gambar|bikin\s*gambar|generate\s*image|buat\s*foto|buatkan\s*foto)\b/i,
-    /\b(ilustrasi|lukisan|gambar|foto|image)\s+(tentang|dari|seorang|seekor|sebuah|suatu|suasana|pemandangan|karakter)\b/i,
-    /\b(buatkan|buat|bikin|generate)\s+.*\s+(dalam bentuk|sebagai|berupa|menjadi)\s+(gambar|foto|ilustrasi|visual)\b/i,
-    /\[mode:\s*(gambar|image)\]/i,
-    /^buatkan\s+gambar\s*:/i,
-    /^buat\s+gambar\s*:/i,
+    /\b(buatkan|buat|bikin|generate|lukiskan|lukis|gambarkan|gambari|gambarin|fotokan|render|ciptakan|hadirkan|desainkan)\s+(gambar|foto|lukisan|ilustrasi|visual|image|artwork|wallpaper|poster)\b/i,
+    /\b(lukiskan|gambarkan|gambari|gambarin|fotokan)\b/i,
+    /\b(minta|mau|ingin|butuh|perlu|tolong|coba|bisa\s+(tolong\s+)?(buatkan|bikin|buat)?)\s+(gambar|foto|lukisan|ilustrasi|visual)\b/i,
+    /^(gambar|foto|lukisan|ilustrasi|visual)\s+(tentang|dari|bertema|sebuah|seekor|seorang|suatu|suasana|pemandangan|karakter|[a-zA-Z0-9\s]+)$/i,
+    /\b(dalam bentuk|sebagai|berupa|menjadi)\s+(gambar|foto|lukisan|ilustrasi|visual)\b/i,
+    /\[mode:\s*(gambar|image|foto|visual)\]/i,
+    /^(gambar|foto|lukisan|ilustrasi|visual)\s*:\s*.+/i,
   ];
 
   const isImage = imageKeywords.some((rgx) => rgx.test(lower));
   if (isImage) {
     let cleaned = raw;
-    cleaned = cleaned.replace(/^\[mode:\s*(gambar|image)\]\s*:?/i, "");
-    cleaned = cleaned.replace(/^(tolong|coba|bisa\s+(kamu\s+)?)?\s*(buatkan|buat|bikin|generate|lukiskan|lukis|gambarkan|gambarin|render|ciptakan)\s*(gambar|foto|lukisan|ilustrasi|visual|image|artwork|wallpaper|poster)?\s*(tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i, "");
-    cleaned = cleaned.replace(/^(gambar|foto|lukisan|ilustrasi|image)\s*(tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i, "");
+    cleaned = cleaned.replace(/^\[mode:\s*(gambar|image|foto|visual)\]\s*:?/i, "");
+    cleaned = cleaned.replace(/^(tolong|coba|bisa\s+(kamu\s+)?)?\s*(buatkan|buat|bikin|generate|lukiskan|lukis|gambarkan|gambari|gambarin|fotokan|render|ciptakan|hadirkan)\s*(gambar|foto|lukisan|ilustrasi|visual|image|artwork|wallpaper|poster)?\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i, "");
+    cleaned = cleaned.replace(/^(gambar|foto|lukisan|ilustrasi|visual)\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i, "");
     return { type: "image", visualPrompt: cleaned.trim() || raw };
   }
 
@@ -4737,26 +4746,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 1. Ignore IME composition events (Gboard, Samsung keyboard, etc.) (#3)
+    // 1. Ignore IME composition events (Gboard, Samsung keyboard, etc.)
     if (e.nativeEvent.isComposing || e.keyCode === 229) {
       return;
     }
 
-    // 2. On touch devices (pointer: coarse), Enter inserts newline, NOT send (#3)
-    const isTouchDevice =
-      typeof window !== "undefined" &&
-      window.matchMedia &&
-      window.matchMedia("(pointer: coarse)").matches;
-    if (isTouchDevice) {
-      return;
-    }
-
-    // 3. Desktop (pointer: fine): Enter sends, Shift+Enter inserts newline
+    // 2. Enter sends (Shift+Enter inserts newline), works on desktop and mobile virtual keyboard
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       if (!isOnline) return;
       if (isLoading || isGenerating || isSubmittingRef.current) return;
       void handleSendMessage();
+      textareaRef.current?.blur();
     }
   };
 
@@ -6965,9 +6966,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               let thinkingText = "Axioma sedang berpikir…";
               if (isImagePending) {
-                thinkingText = "Sedang merender visual...";
+                thinkingText = "Merender gambar...";
               } else if (isVideoPending) {
-                thinkingText = "Sedang merender adegan video...";
+                thinkingText = "Merender video...";
               } else {
                 thinkingText =
                   waitingSeconds >= 25
@@ -7280,6 +7281,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </span>
                     <button
                       type="button"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                      }}
                       onClick={() => {
                         setActiveMediaMode(null);
                         activeMediaModeRef.current = null;
@@ -7307,6 +7311,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           type="button"
                           aria-haspopup="menu"
                           aria-expanded={isAttachmentMenuOpen}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                          }}
                           onClick={() => {
                             if (isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice) return;
                             textareaRef.current?.blur();
@@ -7714,7 +7721,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         {isSpeechSupported ? (
                           <button
                             type="button"
-                            onClick={handleToggleVoiceRecording}
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                            }}
+                            onClick={() => {
+                              textareaRef.current?.blur();
+                              handleToggleVoiceRecording();
+                            }}
                             title="Dikte suara (Bahasa Indonesia)"
                             aria-label="Mulai dikte"
                             className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer border border-transparent active:scale-95"
@@ -7748,6 +7761,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         {isGenerating ? (
                           <button
                             type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                            }}
                             onClick={handleStopGeneration}
                             title="Hentikan respons"
                             aria-label="Hentikan respons"
@@ -7773,11 +7789,28 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             return (
                               <button
                                 type="button"
-                                onClick={() => void handleSendMessage()}
+                                onMouseDown={(e) => {
+                                  // Cegah textarea kehilangan fokus sebelum klik tereksekusi di iOS
+                                  e.preventDefault();
+                                }}
+                                onTouchEnd={(e) => {
+                                  e.preventDefault();
+                                  if (!isSendDisabled) {
+                                    void handleSendMessage();
+                                    // Tutup keyboard secara halus setelah pesan terkirim
+                                    textareaRef.current?.blur();
+                                  }
+                                }}
+                                onClick={() => {
+                                  if (!isSendDisabled) {
+                                    void handleSendMessage();
+                                    textareaRef.current?.blur();
+                                  }
+                                }}
                                 disabled={isSendDisabled}
                                 title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
                                 aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                                className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all duration-200 ease-out ${
+                                className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all duration-200 ease-out select-none touch-manipulation ${
                                   !isSendDisabled
                                     ? "bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25 active:scale-[0.92] cursor-pointer"
                                     : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
@@ -7796,7 +7829,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           return (
                             <button
                               type="button"
-                              onClick={handleOpenVoiceMode}
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                              }}
+                              onClick={() => {
+                                textareaRef.current?.blur();
+                                handleOpenVoiceMode();
+                              }}
                               title="Mode Suara (Percakapan langsung)"
                               aria-label="Mode Suara (Percakapan langsung)"
                               className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center bg-blue-950/70 hover:bg-blue-900/80 text-blue-400 border border-blue-500/30 dark:bg-[#1a273e] dark:hover:bg-[#233452] dark:text-[#60a5fa] dark:border-blue-400/25 shadow-md active:scale-[0.92] transition-all duration-200 cursor-pointer"
@@ -7813,6 +7852,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <div className="relative group shrink-0">
                           <button
                             type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                            }}
                             onClick={handleOpenVoiceMode}
                             title="Mode Suara (Percakapan langsung)"
                             aria-label="Mode Suara (Percakapan langsung)"
@@ -7832,6 +7874,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         {isGenerating ? (
                           <button
                             type="button"
+                            onMouseDown={(e) => {
+                              e.preventDefault();
+                            }}
                             onClick={handleStopGeneration}
                             title="Hentikan respons"
                             aria-label="Hentikan respons"
@@ -7855,22 +7900,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           return (
                             <button
                               type="button"
-                              onClick={() => void handleSendMessage()}
-                              onPointerDown={() => {
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                              }}
+                              onClick={() => {
                                 if (!isSendDisabled) {
-                                  setIsSendPressed(true);
+                                  void handleSendMessage();
+                                  textareaRef.current?.blur();
                                 }
                               }}
-                              onPointerUp={() => setIsSendPressed(false)}
-                              onPointerLeave={() => setIsSendPressed(false)}
                               disabled={isSendDisabled}
                               title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
                               aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
                               className={`w-8 h-8 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity] duration-200 ease-out ${
                                 !isSendDisabled
-                                  ? `bg-text-primary text-bg-primary hover:opacity-90 shadow-md cursor-pointer ${
-                                      isSendPressed ? "scale-[0.94]" : "scale-100"
-                                    }`
+                                  ? "bg-text-primary text-bg-primary hover:opacity-90 shadow-md cursor-pointer active:scale-[0.94]"
                                   : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
                               }`}
                             >
