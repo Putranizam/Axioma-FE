@@ -1325,11 +1325,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const syncViewport = () => {
       const el = document.getElementById("axioma-viewport-lock");
       if (!el) return;
-      // Kunci tinggi dan posisi top dengan layout coordinates visualViewport
-      const offsetTop = Math.max(0, Math.round(vv.offsetTop));
-      const height = Math.round(vv.height);
-      el.style.height = `${height}px`;
-      el.style.top = `${offsetTop}px`;
+      const fullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+      const keyboardDelta = fullHeight - vv.height;
+      const isKeyboardOpen = keyboardDelta > 120 || vv.offsetTop > 2;
+
+      if (isKeyboardOpen) {
+        // Kunci tinggi dan posisi top sesuai visualViewport saat keyboard virtual terbuka
+        el.style.height = `${Math.round(vv.height)}px`;
+        el.style.top = `${Math.max(0, Math.round(vv.offsetTop))}px`;
+        el.style.bottom = "auto";
+      } else {
+        // Bebaskan CSS fixed inset-0 h-[100dvh] agar menempel penuh di mode iOS Standalone (zero bottom gap)
+        el.style.height = "";
+        el.style.top = "";
+        el.style.bottom = "";
+      }
       el.style.transform = "none";
       if (window.scrollY !== 0 || window.scrollX !== 0) {
         window.scrollTo(0, 0);
@@ -2048,16 +2058,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const textarea = textareaRef.current;
     if (!textarea) return;
     const val = textarea.value || "";
-    if (!val || (!val.includes("\n") && val.length < 45)) {
-      textarea.style.height = "24px";
+    if (!val || (!val.includes("\n") && val.length < 40)) {
+      textarea.style.height = "40px";
       textarea.style.overflowY = "hidden";
       return;
     }
     textarea.style.height = "auto";
-    const nextHeight = Math.max(24, Math.min(textarea.scrollHeight, 120));
+    const nextHeight = Math.max(40, Math.min(textarea.scrollHeight, 140));
     textarea.style.height = `${nextHeight}px`;
     textarea.style.overflowY =
-      textarea.scrollHeight > 120 ? "auto" : "hidden";
+      textarea.scrollHeight > 140 ? "auto" : "hidden";
   }, []);
 
   // Dictation Cancel & Stop functions (Inline Dictation & Gemini style)
@@ -4773,7 +4783,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     setInputText("");
     if (textareaRef.current) {
       textareaRef.current.value = "";
-      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height = "40px";
       textareaRef.current.style.overflowY = "hidden";
     }
 
@@ -5110,8 +5120,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
       }}
       id="axioma-viewport-lock"
-      style={{ height: "100dvh", transition: "none" }}
-      className="fixed top-0 left-0 right-0 w-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#000000] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
+      style={{ transition: "none" }}
+      className="fixed inset-0 w-full h-[100dvh] flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -7573,8 +7583,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className={`w-full px-3 sm:px-6 pt-1 ${
-              isInputFocused ? "pb-1.5" : "pb-[max(0.65rem,env(safe-area-inset-bottom))]"
+            className={`w-full px-3 sm:px-6 pt-2 ${
+              isInputFocused ? "pb-2" : "pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+6px))]"
             } bg-transparent z-20 relative ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
@@ -7741,7 +7751,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Polished Input Box */}
                 <div
-                  className="max-w-[660px] lg:max-w-[720px] w-full mb-1.5 sm:mb-0 bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/[0.07] focus-within:border-zinc-300 dark:focus-within:border-white/[0.15] rounded-[26px] dark:rounded-[28px] min-h-[54px] sm:min-h-[56px] px-2.5 sm:px-4 py-2 sm:py-2.5 md:py-3 flex items-center shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-2xl gap-1 sm:gap-2.5 transition-colors"
+                  className="max-w-[660px] lg:max-w-[720px] w-full bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/[0.07] focus-within:border-zinc-300 dark:focus-within:border-white/[0.15] rounded-[26px] dark:rounded-[28px] min-h-[52px] sm:min-h-[56px] px-3 py-1.5 sm:px-4 sm:py-2 flex items-center shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-2xl gap-1.5 sm:gap-2.5 transition-colors"
                 >
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
@@ -7986,8 +7996,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             ? "Deskripsikan video sinematik yang ingin dibuat..."
                             : "Minta Axioma..."
                         }
-                        style={{ height: "24px" }}
-                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary dark:text-white placeholder:text-text-muted dark:placeholder:text-[#8e918f] text-[16px] md:text-[15px] lg:text-[16px] font-normal focus:outline-none px-1.5 sm:px-2 py-1 min-h-[24px] max-h-[120px] leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
+                        style={{ height: "40px" }}
+                        className="flex-1 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-text-primary dark:text-white placeholder:text-zinc-500 text-[16px] md:text-[15px] lg:text-[16px] leading-[24px] py-[8px] px-1 sm:px-1.5 my-auto min-h-[40px] max-h-[140px] overflow-y-auto font-normal tracking-normal transition-colors duration-150 ease-out touch-manipulation"
                       />
                     </div>
                   )}
@@ -8358,11 +8368,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <div
-              className={`shrink-0 text-center text-[11px] sm:text-xs text-text-muted pt-1.5 sm:pt-2.5 pb-1 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 ${
-                isInputFocused ? "hidden" : "flex"
+              className={`shrink-0 mt-1.5 w-full text-center text-[11px] sm:text-xs leading-tight text-zinc-500 dark:text-zinc-400 tracking-normal ${
+                isInputFocused
+                  ? "hidden"
+                  : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
               }`}
             >
-              <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
+              <span className="md:hidden block w-full text-center text-[11px] leading-tight text-zinc-500">
+                Axioma dapat membuat kesalahan.
+              </span>
               <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
               <span className="hidden md:inline text-border-strong">•</span>
               <span className="hidden md:inline-flex items-center gap-2">
