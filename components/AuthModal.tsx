@@ -193,26 +193,25 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     >
       <div
         ref={modalRef}
-        className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-strong shadow-2xl overflow-hidden flex flex-col focus:outline-none animate-modal-pop will-change-transform relative text-text-primary"
+        className="w-full max-w-md rounded-[28px] bg-bg-elevated dark:bg-[#121214] border border-border-subtle dark:border-white/[0.07] p-6 shadow-2xl overflow-hidden flex flex-col focus:outline-none animate-modal-pop will-change-transform relative text-text-primary"
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-2">
-          <div className="flex items-center gap-2.5">
-            <div className="relative">
-              <div className="absolute -inset-1 bg-gradient-to-r from-blue-500/20 to-sky-500/20 rounded-xl blur-sm" />
+        <div className="flex items-start justify-between pb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-bg-surface dark:bg-[#1a1b1e] border border-border-subtle dark:border-white/[0.07] flex items-center justify-center p-1.5 shrink-0">
               <Image
                 src="/brand/axioma-logo.png"
                 alt="Axioma"
                 width={32}
                 height={32}
-                className="relative w-8 h-8 rounded-lg object-contain dark:ring-1 dark:ring-white/10"
+                className="w-full h-full object-contain"
               />
             </div>
             <div>
-              <h2 id="auth-modal-title" className="text-lg font-semibold text-text-primary tracking-tight">
+              <h2 id="auth-modal-title" className="text-[18px] font-semibold text-text-primary tracking-tight leading-snug">
                 {tab === "signin" ? "Masuk ke Axioma" : tab === "signup" ? "Buat Akun Axioma" : "Masuk Tanpa Sandi"}
               </h2>
-              <p className="text-xs text-text-muted">
+              <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
                 Simpan riwayat percakapan di cloud dengan aman
               </p>
             </div>
@@ -222,14 +221,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
             onClick={onClose}
             disabled={isLoading}
             aria-label="Tutup modal masuk"
-            className="w-8 h-8 rounded-lg flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer disabled:opacity-50"
+            className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-surface dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-50 shrink-0 -mt-0.5 -mr-0.5"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
         {/* Content Body */}
-        <div className="p-6 space-y-4">
+        <div className="space-y-4">
           {!configured && (
             <div
               role="alert"
@@ -271,7 +270,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
             type="button"
             onClick={handleGoogleLogin}
             disabled={isLoading || !configured}
-            className="w-full min-h-[46px] rounded-xl bg-bg-surface hover:bg-bg-subtle text-text-primary border border-border-strong font-medium text-sm flex items-center justify-center gap-3 transition-all cursor-pointer shadow-xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full h-12 rounded-2xl bg-bg-surface hover:bg-bg-subtle dark:bg-[#1e1f22] dark:hover:bg-[#27282b] text-text-primary dark:text-white border border-border-subtle dark:border-white/[0.06] text-[14.5px] font-medium flex items-center justify-center gap-3 transition-all cursor-pointer shadow-xs active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24" aria-hidden="true">
               <path
@@ -295,14 +294,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           </button>
 
           {/* Divider */}
-          <div className="flex items-center gap-3 my-2" aria-hidden="true">
-            <div className="flex-1 h-px bg-border-subtle" />
+          <div className="flex items-center gap-3 my-1" aria-hidden="true">
+            <div className="flex-1 h-px bg-border-subtle dark:bg-white/[0.06]" />
             <span className="text-[11px] text-text-muted uppercase tracking-wider">atau dengan email</span>
-            <div className="flex-1 h-px bg-border-subtle" />
+            <div className="flex-1 h-px bg-border-subtle dark:bg-white/[0.06]" />
           </div>
 
           {/* Navigation Tabs */}
-          <div className="flex rounded-xl bg-bg-surface p-1 border border-border-subtle text-xs font-medium">
+          <div className="flex rounded-xl bg-bg-surface dark:bg-[#18181b] p-1 border border-border-subtle dark:border-white/[0.04] text-xs font-medium">
             <button
               type="button"
               onClick={() => {
@@ -311,8 +310,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               }}
               className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
                 tab === "signin"
-                  ? "bg-bg-elevated text-text-primary shadow-xs font-semibold"
-                  : "text-text-muted hover:text-text-primary"
+                  ? "bg-bg-elevated text-text-primary dark:bg-[#27272a] dark:text-white shadow-sm font-medium"
+                  : "text-text-muted dark:text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200"
               }`}
             >
               Masuk
@@ -325,8 +324,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               }}
               className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
                 tab === "signup"
-                  ? "bg-bg-elevated text-text-primary shadow-xs font-semibold"
-                  : "text-text-muted hover:text-text-primary"
+                  ? "bg-bg-elevated text-text-primary dark:bg-[#27272a] dark:text-white shadow-sm font-medium"
+                  : "text-text-muted dark:text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200"
               }`}
             >
               Daftar
@@ -339,8 +338,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               }}
               className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
                 tab === "magiclink"
-                  ? "bg-bg-elevated text-text-primary shadow-xs font-semibold"
-                  : "text-text-muted hover:text-text-primary"
+                  ? "bg-bg-elevated text-text-primary dark:bg-[#27272a] dark:text-white shadow-sm font-medium"
+                  : "text-text-muted dark:text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200"
               }`}
             >
               Magic Link
@@ -360,7 +359,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Nama Anda"
                     disabled={isLoading}
-                    className="w-full min-h-[42px] pl-9 pr-3 rounded-xl bg-bg-surface border border-border-subtle text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-border-strong focus:ring-1 focus:ring-border-strong transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>
@@ -379,7 +378,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                   placeholder="nama@email.com"
                   disabled={isLoading}
                   autoComplete="email"
-                  className="w-full min-h-[42px] pl-9 pr-3 rounded-xl bg-bg-surface border border-border-subtle text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-border-strong focus:ring-1 focus:ring-border-strong transition-all"
+                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                 />
               </div>
             </div>
@@ -409,7 +408,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     disabled={isLoading}
                     minLength={6}
                     autoComplete={tab === "signup" ? "new-password" : "current-password"}
-                    className="w-full min-h-[42px] pl-9 pr-3 rounded-xl bg-bg-surface border border-border-subtle text-text-primary text-sm placeholder:text-text-muted focus:outline-none focus:border-border-strong focus:ring-1 focus:ring-border-strong transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>
@@ -418,7 +417,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
             <button
               type="submit"
               disabled={isLoading || !configured}
-              className="w-full min-h-[44px] rounded-xl bg-text-primary text-bg-primary hover:opacity-90 font-medium text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
+              className="w-full h-11 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 font-medium text-[14.5px] flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {isLoading ? (
                 <>
@@ -446,13 +445,13 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         </div>
 
         {/* Footer info */}
-        <div className="px-6 py-3.5 bg-bg-surface border-t border-border-subtle text-center">
-          <p className="text-[11px] text-text-muted">
+        <div className="pt-4 mt-5 border-t border-border-subtle dark:border-white/[0.06] text-center">
+          <p className="text-[12px] text-text-muted">
             Tetap ingin menggunakan tanpa akun?{" "}
             <button
               type="button"
               onClick={onClose}
-              className="text-text-primary underline hover:text-blue-400 transition-colors cursor-pointer font-medium"
+              className="text-text-primary underline underline-offset-2 hover:text-blue-400 transition-colors cursor-pointer font-medium"
             >
               Lanjutkan sebagai Tamu
             </button>

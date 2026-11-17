@@ -5185,15 +5185,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
 
             {/* Title "Setelan" (Below close button, left-aligned, adaptif & font-medium) */}
-            <h1 id="settings-modal-title" className="text-[26px] sm:text-[30px] font-medium tracking-[-0.02em] text-[#e3e3e3] mt-1 mb-6">
+            <h1 id="settings-modal-title" className="shrink-0 text-[26px] sm:text-[30px] font-medium tracking-[-0.02em] text-[#e3e3e3] mt-1 mb-6">
               Setelan
             </h1>
 
             {/* Category 1: Account */}
-            <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
+            <div className="shrink-0 text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
               Account
             </div>
-            <div className="bg-[#1e1f20] rounded-[24px] py-1 mb-6 divide-y divide-white/[0.06] overflow-hidden">
+            <div className="shrink-0 h-auto bg-[#1e1f20] rounded-[24px] pt-1 pb-2 mb-6 divide-y divide-white/[0.06] overflow-hidden">
               {/* Manage account */}
               <button
                 type="button"
@@ -5240,12 +5240,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           handleUpdateDisplayName(settingsNameInput);
                         }}
                         placeholder="Masukkan nama tampilan..."
-                        className="flex-1 min-h-[40px] px-3.5 py-2 rounded-xl bg-[#1e1f20] border border-zinc-700 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:border-zinc-500"
+                        className="flex-1 min-w-0 bg-[#141416] border border-white/[0.08] focus:border-white/20 rounded-xl px-3.5 py-2.5 text-[14.5px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none transition-colors"
                       />
                       <button
                         type="button"
                         onClick={() => handleUpdateDisplayName(settingsNameInput)}
-                        className="px-4 py-2 rounded-xl bg-zinc-200 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
+                        className="shrink-0 rounded-xl px-4 py-2.5 text-[14px] font-medium bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer active:scale-95"
                       >
                         Simpan
                       </button>
@@ -5286,7 +5286,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-white/[0.06]">
                   <p className="text-zinc-300 leading-relaxed text-sm">
                     {authUser
-                      ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan inferensi model AI Axioma Pro."
+                      ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan seluruh fitur Axioma Pro."
                       : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
                   </p>
                   {!authUser && (
@@ -5306,10 +5306,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
 
             {/* Category 2: Preferensi */}
-            <div className="text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
+            <div className="shrink-0 text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
               Preferensi
             </div>
-            <div className="bg-[#1e1f20] rounded-[24px] py-1 mb-6 divide-y divide-white/[0.06] overflow-hidden">
+            <div className="shrink-0 h-auto bg-[#1e1f20] rounded-[24px] pt-1 pb-2 mb-6 divide-y divide-white/[0.06] overflow-hidden">
               {/* Notifikasi */}
               <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
                 <div className="flex items-center min-w-0">
@@ -5474,7 +5474,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
 
             {/* Clean Version Footer */}
-            <div className="pt-2 pb-6 text-center text-xs text-zinc-500 space-y-1">
+            <div className="shrink-0 pt-2 pb-6 text-center text-xs text-zinc-500 space-y-1">
               <div>Axioma v2.5</div>
               <div className="text-[11px] leading-relaxed">
                 Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
@@ -5501,7 +5501,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Popup Container (Bottom-sheet on mobile, centered modal on sm+) */}
           <div
             ref={profileDropdownRef}
-            className={`fixed sm:static inset-x-0 bottom-0 sm:inset-auto sm:top-auto sm:bottom-auto sm:my-auto z-50 sm:max-w-md w-full rounded-t-[28px] sm:rounded-[28px] bg-[#1e1f20] p-5 min-h-[80vh] sm:min-h-0 sm:max-h-[88vh] max-h-[92dvh] flex flex-col justify-between shadow-2xl border-t sm:border border-zinc-800/60 overflow-y-auto touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed sm:static inset-x-0 bottom-0 sm:inset-auto sm:top-auto sm:bottom-auto sm:my-auto z-50 sm:max-w-md w-full h-auto rounded-t-[28px] sm:rounded-[28px] bg-[#1e1f20] px-5 pt-3 pb-6 sm:p-5 sm:max-h-[88vh] max-h-[92dvh] flex flex-col shadow-2xl border-t sm:border border-zinc-800/60 overflow-y-auto touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isProfileEntered
                 ? "translate-y-0 opacity-100 sm:scale-100"
                 : "translate-y-full opacity-0 sm:translate-y-6 sm:scale-95"
@@ -5509,7 +5509,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           >
             {/* Top Area: Drag handle & "Selesai" Action */}
             <div className="shrink-0">
-              <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto -mt-1 mb-2 sm:hidden" />
+              <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto mb-2 sm:hidden" />
 
               <div className="flex justify-end pb-3">
                 <button
@@ -5525,13 +5525,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <div className="bg-[#131314] rounded-3xl p-4 flex items-center justify-between gap-4 mb-3.5 border border-zinc-800/40 shadow-sm">
                 <div className="flex items-center min-w-0 flex-1">
                   <div className="relative w-14 h-14 rounded-full shrink-0">
-                    <div className="w-14 h-14 rounded-full bg-purple-600 text-white font-bold text-2xl flex items-center justify-center overflow-hidden shadow-inner">
+                    <div
+                      className={`w-14 h-14 rounded-full font-bold text-2xl flex items-center justify-center overflow-hidden shadow-inner ${
+                        authUser
+                          ? "bg-indigo-500/90 text-white border border-white/[0.1]"
+                          : "bg-[#1e1f22] text-zinc-200 border border-white/[0.08]"
+                      }`}
+                    >
                       {authUser ? (
                         <span className="text-2xl font-bold uppercase">
                           {(userName || "N").trim().charAt(0).toUpperCase()}
                         </span>
                       ) : (
-                        <span className="text-2xl font-bold uppercase">{toTitleCase(userName)?.charAt(0) || "T"}</span>
+                        <span className="text-2xl font-semibold uppercase">{toTitleCase(userName)?.charAt(0) || "T"}</span>
                       )}
                     </div>
                     <button
@@ -5654,27 +5660,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </div>
             </div>
 
-            {/* Bottom Footer Links (Exact to Reference Image 2) */}
-            <div className="text-center text-xs text-zinc-400 space-y-2 mt-auto pt-6 pb-2">
-              <div>
-                <Link
-                  href="/privasi"
-                  onClick={() => setIsProfileDropdownOpen(false)}
-                  className="hover:text-zinc-200 transition-colors"
-                >
-                  Kebijakan Privasi
-                </Link>
-              </div>
-              <div className="text-zinc-600 font-bold">•</div>
-              <div>
-                <Link
-                  href="/ketentuan"
-                  onClick={() => setIsProfileDropdownOpen(false)}
-                  className="hover:text-zinc-200 transition-colors"
-                >
-                  Persyaratan Layanan
-                </Link>
-              </div>
+            {/* Bottom Footer Links (1-line horizontal layout) */}
+            <div className="mt-6 flex items-center justify-center gap-2 text-[12px] text-zinc-500 shrink-0">
+              <Link
+                href="/privasi"
+                onClick={() => setIsProfileDropdownOpen(false)}
+                className="hover:text-zinc-300 transition-colors"
+              >
+                Kebijakan Privasi
+              </Link>
+              <span aria-hidden="true">•</span>
+              <Link
+                href="/ketentuan"
+                onClick={() => setIsProfileDropdownOpen(false)}
+                className="hover:text-zinc-300 transition-colors"
+              >
+                Persyaratan Layanan
+              </Link>
             </div>
           </div>
         </div>
@@ -5754,9 +5756,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="bg-[#161718] border border-white/[0.05] rounded-[22px] p-4 flex flex-col gap-3 shrink-0">
               <div className="flex items-start gap-2.5">
                 <Cloud className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" strokeWidth={1.75} />
-                <div className="text-[13px] leading-relaxed text-zinc-400">
-                  <span className="text-[14.5px] font-medium text-white block mb-0.5">Cadangkan Percakapan</span>
-                  Hubungkan akun untuk menyimpan riwayat chat agar bisa diakses dari perangkat lain.
+                <div className="min-w-0">
+                  <span className="text-[14.5px] font-medium text-white block mb-1 tracking-normal">
+                    Cadangkan Percakapan
+                  </span>
+                  <p className="tracking-normal leading-[1.5] text-[13px] text-zinc-400">
+                    Hubungkan akun untuk menyimpan riwayat chat agar bisa diakses dari perangkat lain.
+                  </p>
                 </div>
               </div>
               <button
@@ -6013,13 +6019,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           >
             <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs">
               {authUser ? (
-                <div className="w-full h-full rounded-full bg-purple-600 text-white flex items-center justify-center">
+                <div className="w-full h-full rounded-full bg-indigo-500/90 border border-white/[0.1] text-white flex items-center justify-center">
                   <span className="uppercase font-semibold select-none text-white text-xs">
                     {(userName || "N").trim().charAt(0).toUpperCase()}
                   </span>
                 </div>
               ) : (
-                <div className="w-full h-full rounded-full bg-bg-surface border border-border-subtle text-text-secondary flex items-center justify-center">
+                <div className="w-full h-full rounded-full bg-[#1e1f22] border border-white/[0.08] text-zinc-200 flex items-center justify-center">
                   <User className="w-4 h-4" />
                 </div>
               )}
@@ -6215,14 +6221,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                   aria-label="Buka menu profil dan akun"
                   title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                  className="w-9 h-9 rounded-full bg-purple-600 border-none flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-white text-sm font-semibold uppercase"
+                  className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
+                    authUser
+                      ? "bg-indigo-500/90 text-white border border-white/[0.1]"
+                      : "bg-[#1e1f22] text-zinc-200 border border-white/[0.08]"
+                  }`}
                 >
                   {authUser ? (
                     <span className="uppercase font-semibold select-none text-white text-[15px]">
                       {(userName || "N").trim().charAt(0).toUpperCase()}
                     </span>
                   ) : (
-                    <User className="w-4 h-4 text-zinc-300" />
+                    <User className="w-4 h-4 text-zinc-200" />
                   )}
                 </button>
               </div>
@@ -6320,8 +6330,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
                 className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
                   authUser
-                    ? "bg-purple-600 text-white font-semibold text-xs uppercase"
-                    : "bg-bg-surface border border-border-subtle text-text-secondary hover:text-text-primary hover:bg-bg-elevated"
+                    ? "bg-indigo-500/90 border border-white/[0.1] text-white font-semibold text-xs uppercase"
+                    : "bg-[#1e1f22] border border-white/[0.08] text-zinc-200 hover:text-white hover:bg-[#27272a]"
                 }`}
               >
                 {authUser ? (
@@ -6565,7 +6575,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     key={message.id}
                     className="w-full flex justify-end animate-user-bubble group relative my-0 sm:my-1"
                   >
-                    <div className="flex flex-col items-end max-w-[85%] lg:max-w-[70%]">
+                    <div className="flex flex-col items-end max-w-[82%] lg:max-w-[70%]">
                       {/* Attachments rendering */}
                       {message.attachments && message.attachments.length > 0 && (
                         <div className="flex flex-col gap-2 mb-1.5 w-full items-end">
@@ -6626,15 +6636,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Text bubble */}
                       {message.content && message.content !== "(Lampiran)" && (
-                        <div className="relative px-4 py-2.5 rounded-2xl bg-bg-surface text-text-primary text-[15px] leading-relaxed tracking-normal shadow-xs border border-border-subtle whitespace-pre-wrap break-words">
+                        <div className="relative px-4 py-2.5 rounded-[22px] rounded-br-[6px] bg-bg-surface dark:bg-[#242628] text-text-primary dark:text-[#ececec] text-[15.5px] leading-relaxed tracking-normal shadow-xs border border-border-subtle dark:border-white/[0.04] whitespace-pre-wrap break-words">
                           {message.content}
                         </div>
                       )}
 
-                      {/* Action bar on hover (Item 2) & Timestamp (Item 12) */}
-                      <div className="flex items-center gap-1 mt-0.5 sm:mt-1 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                      {/* Compact timestamp + copy/edit actions underneath user bubble */}
+                      <div className="flex items-center gap-2.5 mt-1 text-zinc-500 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
                         {userTime && (
-                          <span className="text-[11px] text-text-muted mr-1.5 select-none font-mono">
+                          <span className="text-[11.5px] font-normal text-zinc-500 select-none">
                             {userTime}
                           </span>
                         )}
@@ -6644,7 +6654,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={() => handleCopy(message.content, `user-${message.id}`)}
                             title="Salin pesan"
                             aria-label="Salin pesan pengguna"
-                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
+                            className="p-1.5 rounded-lg text-zinc-500 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06] transition-colors flex items-center justify-center cursor-pointer"
                           >
                             {copiedId === `user-${message.id}` ? (
                               <Check className="w-3.5 h-3.5 text-emerald-400" />
@@ -6664,7 +6674,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onClick={() => handleStartEditUserMessage(message)}
                           title="Edit pesan"
                           aria-label="Edit pesan pengguna"
-                          className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06] transition-colors flex items-center justify-center cursor-pointer"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -6713,14 +6723,29 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               const msgFeedback = feedback[message.id]?.rating;
               const isLastAi = message.id === lastAiMessageId;
               const isStreamingThisMessage = streamingMessageId === message.id;
-              const agentBadgeText = message.agentName || selectedAgent.name;
 
               return (
                 <div
                   key={message.id}
                   className="w-full flex justify-start animate-ai-bubble group relative transition-all duration-300 ease-out animate-in fade-in-0 slide-in-from-bottom-2"
                 >
-                  <div className="w-full space-y-2 sm:space-y-3 min-w-0">
+                  <div className="w-full space-y-2 sm:space-y-2.5 min-w-0">
+                    {/* Axioma Identity Header */}
+                    <div className="flex items-center gap-2 mb-2 select-none">
+                      <div className="w-5 h-5 rounded-md bg-bg-surface dark:bg-white/[0.06] border border-border-subtle dark:border-white/[0.06] flex items-center justify-center p-0.5 shrink-0">
+                        <Image
+                          src="/brand/axioma-logo.png"
+                          alt="Axioma"
+                          width={16}
+                          height={16}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <span className="text-[13px] font-medium text-text-primary dark:text-zinc-300">
+                        Axioma
+                      </span>
+                    </div>
+
                     <div
                       className={`axioma-markdown max-w-[70ch] text-text-secondary text-[15px] leading-[1.7] tracking-normal break-words transition-opacity duration-200 ${
                         isStreamingThisMessage ? "streaming-prose" : ""
@@ -6817,7 +6842,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </ReactMarkdown>
                     </div>
 
-                    {/* Message Action Icons + Agent Label: fade-in after streaming finishes */}
+                    {/* Message Action Icons: fade-in after streaming finishes */}
                     <div
                       aria-hidden={isStreamingThisMessage}
                       className={`w-full flex items-center gap-2 pt-0.5 transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
@@ -6826,20 +6851,20 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           : "opacity-100 translate-y-0"
                       }`}
                     >
-                      <div className="flex items-center gap-1 text-icon-muted">
+                      <div className="flex items-center gap-1.5 -ml-1.5 text-zinc-400">
                         {/* Copy button */}
                         <div className="relative flex items-center">
                           <button
                             type="button"
                             onClick={() => handleCopy(sanitizeAxiomaMessageContent(message.content), message.id)}
                             title={copiedId === message.id ? "Tersalin" : "Salin jawaban"}
-                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center"
+                            className="min-w-[36px] min-h-[36px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06] active:scale-90 transition-all cursor-pointer flex items-center justify-center"
                             aria-label="Salin teks"
                           >
                             {copiedId === message.id ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <Check className="w-4 h-4 text-emerald-400" />
                             ) : (
-                              <Copy className="w-3.5 h-3.5" />
+                              <Copy className="w-4 h-4" />
                             )}
                           </button>
                           {copiedId === message.id && (
@@ -6856,14 +6881,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onClick={() => void handleFeedback(message.id, "up")}
                           title={msgFeedback === "up" ? "Batalkan suka" : "Jawaban membantu"}
                           aria-pressed={msgFeedback === "up"}
-                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
+                          className={`min-w-[36px] min-h-[36px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
                             msgFeedback === "up"
                               ? "text-emerald-400 bg-emerald-950/60 border-emerald-700/60"
-                              : "border-transparent hover:text-text-primary hover:bg-bg-surface"
+                              : "border-transparent text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06]"
                           }`}
                           aria-label="Suka"
                         >
-                          <ThumbsUp className="w-3.5 h-3.5" />
+                          <ThumbsUp className="w-4 h-4" />
                         </button>
 
                         {/* Thumbs Down 👎 */}
@@ -6874,14 +6899,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             msgFeedback === "down" ? "Batalkan tidak suka" : "Jawaban kurang tepat"
                           }
                           aria-pressed={msgFeedback === "down"}
-                          className={`w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
+                          className={`min-w-[36px] min-h-[36px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
                             msgFeedback === "down"
                               ? "text-amber-400 bg-amber-950/60 border-amber-700/60"
-                              : "border-transparent hover:text-text-primary hover:bg-bg-surface"
+                              : "border-transparent text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06]"
                           }`}
                           aria-label="Tidak suka"
                         >
-                          <ThumbsDown className="w-3.5 h-3.5" />
+                          <ThumbsDown className="w-4 h-4" />
                         </button>
 
                         {/* Regenerate Last AI Reply 🔄 */}
@@ -6892,9 +6917,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={() => handleRegenerateLastReply(message.id)}
                             title="Buat ulang jawaban"
                             aria-label="Buat ulang jawaban"
-                            className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1.5 rounded-lg hover:text-text-primary hover:bg-bg-surface active:scale-90 transition-all cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed"
+                            className="min-w-[36px] min-h-[36px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06] active:scale-90 transition-all cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed"
                           >
-                            <RotateCw className="w-3.5 h-3.5" />
+                            <RotateCw className="w-4 h-4" />
                           </button>
                         )}
 
@@ -6903,21 +6928,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             Masukan tersimpan ✓
                           </span>
                         )}
-                      </div>
-
-                      {/* Small agent label underneath AI response & Timestamp (Item 12) */}
-                      <div className="ml-auto flex items-center shrink-0">
-                        {formatMessageTime(message.created_at) && (
-                          <span className="hidden lg:group-hover:inline text-[11px] text-text-muted font-mono select-none mr-1.5">
-                            {formatMessageTime(message.created_at)} ·
-                          </span>
-                        )}
-                        <span
-                          className="text-[11px] text-text-muted font-medium select-none text-right"
-                          title="Mode Axioma"
-                        >
-                          {agentBadgeText}
-                        </span>
                       </div>
                     </div>
 
