@@ -5239,10 +5239,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`w-full sm:max-w-sm rounded-t-[28px] sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[92vw] sm:max-w-[440px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-4 max-h-[88dvh] sm:max-h-[85dvh] overflow-y-auto overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isClearAllConfirmEntered ? "translate-y-0 opacity-100 sm:scale-100" : "translate-y-full opacity-0 sm:scale-95"
             }`}
           >
+            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-red-950/50 border border-red-800/50 flex items-center justify-center shrink-0 text-red-400">
                 <TriangleAlert className="w-4 h-4" />
@@ -5302,7 +5303,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-x-0 bottom-0 max-h-[88dvh] sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:w-[92vw] sm:max-w-[500px] sm:max-h-[85dvh] rounded-t-[28px] sm:rounded-[28px] bg-[#131314] px-5 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto overscroll-contain touch-auto flex flex-col shadow-2xl border-t sm:border border-white/[0.08] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 max-h-[88dvh] sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:w-[92vw] sm:max-w-[480px] sm:max-h-[85dvh] rounded-t-[28px] sm:rounded-[28px] bg-[#111114] px-5 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto overscroll-contain touch-auto flex flex-col shadow-2xl border-t sm:border border-white/[0.08] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5343,7 +5344,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </h1>
 
                 {/* 4 Grouped Inset Cards */}
-                <div className="space-y-5">
+                <div className="space-y-4">
                   {/* Grup 1: Akun */}
                   <div>
                     <div className="text-[14px] font-medium text-zinc-400 mb-2 px-1">
@@ -5396,7 +5397,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   handleUpdateDisplayName(settingsNameInput);
                                 }}
                                 placeholder="Masukkan nama tampilan..."
-                                className="flex-1 min-w-0 bg-[#141416] border border-white/[0.08] focus:border-white/20 rounded-xl px-3.5 py-2.5 text-[16px] md:text-[14.5px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none transition-colors"
+                                className="flex-1 min-w-0 bg-[#141416] border border-white/[0.08] focus:border-white/20 rounded-xl px-3.5 py-2.5 text-[16px] sm:text-[15px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none transition-colors"
                               />
                               <button
                                 type="button"
@@ -5707,7 +5708,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Popup Container (Bottom-sheet on mobile, centered modal on sm+) */}
           <div
             ref={profileDropdownRef}
-            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:max-w-[460px] w-full h-auto rounded-t-[28px] sm:rounded-[28px] bg-[#1e1f20] px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 sm:max-h-[85dvh] max-h-[92dvh] flex flex-col shadow-2xl border-t sm:border border-zinc-800/60 overflow-y-auto touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[92vw] sm:max-w-[480px] h-auto rounded-t-[28px] sm:rounded-[28px] bg-[#111114] px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 sm:max-h-[85dvh] max-h-[88dvh] flex flex-col shadow-2xl border-t sm:border border-white/[0.08] overflow-y-auto overscroll-contain touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isProfileEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5728,7 +5729,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </div>
 
               {/* Card 1: Main User Account Card */}
-              <div className="bg-[#131314] rounded-3xl p-4 flex items-center justify-between gap-4 mb-3.5 border border-zinc-800/40 shadow-sm">
+              <div className="bg-[#16161a] rounded-3xl p-4 flex items-center justify-between gap-4 mb-3.5 border border-white/[0.06] shadow-sm">
                 <div className="flex items-center min-w-0 flex-1">
                   <div className="relative w-14 h-14 rounded-full shrink-0">
                     <div
@@ -5796,7 +5797,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       openSettingsModal("main", "account");
                     }
                   }}
-                  className="w-full bg-[#131314] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                  className="w-full bg-[#16161a] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-white/[0.06] shadow-sm"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -5818,7 +5819,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     setIsProfileDropdownOpen(false);
                     openSettingsModal("main");
                   }}
-                  className="w-full bg-[#131314] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                  className="w-full bg-[#16161a] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-white/[0.06] shadow-sm"
                 >
                   <div className="flex items-center gap-3.5">
                     <Settings className="w-5 h-5 text-zinc-300 shrink-0" strokeWidth={1.75} />
@@ -5842,7 +5843,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       showToastNotice("Berhasil keluar dari akun.");
                       void refreshChatHistory();
                     }}
-                    className="w-full bg-[#131314] hover:bg-red-950/30 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[16px] font-medium text-red-400 hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
+                    className="w-full bg-[#16161a] hover:bg-red-950/30 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[16px] font-medium text-red-400 hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-white/[0.06] shadow-sm"
                   >
                     <LogOut className="w-5 h-5 text-red-400 shrink-0" strokeWidth={1.75} />
                     <span>Keluar dari Akun</span>
@@ -5894,10 +5895,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed inset-y-0 left-0 z-40 w-[280px] max-w-[82vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:pt-0 lg:pb-0 bg-bg-surface dark:bg-[#0a0a0c] border-r border-border-subtle dark:border-white/[0.06] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
+        className={`fixed inset-y-0 left-0 z-40 w-[280px] max-w-[82vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:pt-0 lg:pb-0 bg-bg-surface dark:bg-[#09090b] border-r border-border-subtle dark:border-white/[0.06] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
           isDesktopSidebarCollapsed
             ? "lg:w-0 lg:opacity-0 lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
-            : "lg:w-[272px] lg:opacity-100 lg:translate-x-0"
+            : "lg:w-[268px] lg:opacity-100 lg:translate-x-0"
         } ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
       >
         {/* Brand Header */}
@@ -5997,7 +5998,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 aria-label="Cari percakapan"
                 disabled={!isMobileSidebarOpen && (isTouchOrMobile || (typeof window !== "undefined" && window.innerWidth < 1024))}
                 tabIndex={isMobileSidebarOpen || (!isTouchOrMobile && (typeof window === "undefined" || window.innerWidth >= 1024)) ? 0 : -1}
-                className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
+                className="w-full pl-8 pr-7 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-[16px] sm:text-[15px] lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong transition-colors"
               />
               {searchQuery && (
                 <button
@@ -6079,7 +6080,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }}
                             onBlur={() => void submitRenameChat(chat.id)}
                             aria-label="Ubah judul percakapan"
-                            className="flex-1 min-w-0 bg-bg-elevated border border-border-strong rounded px-2 py-0.5 text-base lg:text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                            className="flex-1 min-w-0 bg-bg-elevated border border-border-strong rounded px-2 py-0.5 text-[16px] sm:text-[15px] lg:text-xs text-text-primary focus:outline-none focus:border-border-strong"
                           />
                         </div>
                       ) : (
@@ -6359,7 +6360,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative bg-bg-primary dark:bg-[#000000]">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between px-4 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 md:py-0 md:px-6 z-20 bg-bg-primary dark:bg-[#000000] border-b-0 md:h-14">
+        <header className="shrink-0 w-full flex items-center justify-between px-4 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 md:pt-[env(safe-area-inset-top)] md:pb-0 md:px-6 z-20 bg-bg-primary dark:bg-[#000000] border-b-0 md:h-14">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -6941,7 +6942,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </div>
 
                       {/* Sapaan besar adaptif dengan tipografi fluida */}
-                      <h1 className="text-[clamp(24px,4.5vw,32px)] font-normal leading-[1.28] tracking-[-0.02em] text-text-primary dark:text-[#ececec] text-center max-w-[320px] sm:max-w-[480px] md:max-w-[560px] mx-auto text-balance whitespace-pre-line animate-fade-in">
+                      <h1 className="text-[24px] sm:text-[28px] font-normal leading-[1.3] tracking-[-0.02em] text-text-primary dark:text-[#ececec] px-6 text-center max-w-[340px] sm:max-w-[480px] mx-auto text-balance whitespace-pre-line animate-fade-in">
                         {mobileGreeting}
                       </h1>
                     </div>
@@ -6955,7 +6956,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             onScroll={handleChatScroll}
             className={`flex-1 min-h-0 overflow-y-auto touch-auto transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages || isLoadingExistingChat
-                ? "opacity-100 py-6 px-4 md:px-6 flex"
+                ? "opacity-100 py-6 px-4 sm:px-5 flex"
                 : "hidden"
             } max-w-[680px] md:max-w-[720px] mx-auto w-full flex-col gap-5 sm:gap-6 md:gap-8`}
           >
@@ -7009,7 +7010,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }
                           }}
                           rows={Math.max(2, editingUserMsgText.split("\n").length)}
-                          className="w-full bg-transparent text-text-primary text-base lg:text-[15px] leading-relaxed resize-none focus:outline-none"
+                          className="w-full bg-transparent text-text-primary text-[16px] sm:text-[15px] leading-relaxed resize-none focus:outline-none"
                           autoFocus
                           aria-label="Edit pesan pengguna"
                         />
@@ -7427,7 +7428,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               }
                             }}
                             placeholder="Misal: kurang akurat, terlalu panjang..."
-                            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-base lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong"
+                            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-[16px] sm:text-[15px] lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong"
                           />
                           <button
                             type="button"
@@ -7591,8 +7592,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className={`w-full px-4 md:px-6 pt-1 ${
-              isInputFocused ? "pb-1.5" : "pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-3"
+            className={`w-full px-4 sm:px-5 pt-1 ${
+              isInputFocused ? "pb-1.5" : "pb-[max(0.6rem,env(safe-area-inset-bottom))] md:pb-3"
             } bg-transparent z-20 relative ${
               isDesktopEmptyState
                 ? "shrink-0 md:shrink md:flex-1 md:min-h-0 md:overflow-y-auto md:flex md:flex-col"
@@ -8044,7 +8045,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             : "Minta Axioma..."
                         }
                         style={{ height: "24px" }}
-                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary dark:text-white placeholder:text-text-muted dark:placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 min-h-[24px] max-h-[120px] leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
+                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary dark:text-white placeholder:text-text-muted dark:placeholder:text-[#8e918f] text-[16px] sm:text-[15px] lg:text-[16px] font-normal focus:outline-none px-2 py-1 min-h-[24px] max-h-[120px] leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
                       />
                     </div>
                   )}
@@ -8261,14 +8262,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
                                 className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all duration-200 ease-out select-none touch-manipulation ${
                                   !isSendDisabled
-                                    ? "bg-blue-600 hover:bg-blue-500 text-white shadow-md shadow-blue-500/25 active:scale-[0.92] cursor-pointer"
+                                    ? "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 shadow-md active:scale-[0.92] cursor-pointer"
                                     : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
                                 }`}
                               >
                                 {isUploadingAttachment ? (
-                                  <Loader2 className="w-4 h-4 animate-spin text-white" />
+                                  <Loader2 className="w-4 h-4 animate-spin text-current" />
                                 ) : (
-                                  <ArrowUp className="w-5 h-5 text-white stroke-[2.5]" />
+                                  <ArrowUp className="w-5 h-5 text-current stroke-[2.5]" />
                                 )}
                               </button>
                             );
@@ -8460,12 +8461,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`w-full sm:max-w-sm rounded-t-[28px] sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:pb-5 shadow-2xl space-y-4 max-h-[calc(100dvh-2rem)] overflow-y-auto overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[92vw] sm:max-w-[440px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-4 max-h-[88dvh] sm:max-h-[85dvh] overflow-y-auto overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isEditConfirmEntered
                 ? "translate-y-0 opacity-100 sm:scale-100"
                 : "translate-y-full opacity-0 sm:scale-95"
             }`}
           >
+            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
             <div className="flex items-start gap-3">
               <div className="w-9 h-9 rounded-xl bg-amber-950/60 border border-amber-800/60 flex items-center justify-center shrink-0">
                 <TriangleAlert className="w-4 h-4 text-amber-400" />
@@ -8523,12 +8525,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`w-full sm:max-w-md rounded-t-[28px] sm:rounded-2xl bg-bg-elevated border-t sm:border border-border-subtle p-6 shadow-2xl space-y-5 relative transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[92vw] sm:max-w-[480px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-5 max-h-[88dvh] sm:max-h-[85dvh] overflow-y-auto overscroll-contain transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isGuestLimitEntered
                 ? "translate-y-0 opacity-100 sm:scale-100"
                 : "translate-y-full opacity-0 sm:scale-95"
             }`}
           >
+            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
             <button
               type="button"
               onClick={() => setIsGuestLimitModalOpen(false)}
@@ -8538,7 +8541,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <X className="w-4 h-4" />
             </button>
 
-            <div className="flex items-center gap-3.5">
+            <div className="flex items-center gap-3.5 pr-8">
               <div className="w-11 h-11 rounded-2xl bg-bg-surface border border-border-subtle flex items-center justify-center shrink-0">
                 <Cloud className="w-5 h-5 text-text-primary" strokeWidth={1.75} />
               </div>

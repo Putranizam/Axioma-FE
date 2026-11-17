@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import nodemailer from "nodemailer";
 
-// Note: Next.js 16 with cacheComponents=true executes App Router API routes in Node.js by default
-// without segment config `runtime`, with `nodemailer` configured in `serverExternalPackages`.
+// Catatan Next.js 16: karena next.config.ts mengaktifkan `cacheComponents: true`,
+// Route Handler POST otomatis berjalan dinamis di runtime Node.js (`ƒ /api/feedback`)
+// dan compiler SWC melarang ekspor manual `export const runtime` / `export const dynamic`.
 
 interface FeedbackRequestBody {
   category?: unknown;
@@ -21,20 +22,9 @@ function escapeHtml(raw: string): string {
     .replace(/'/g, "&#39;");
 }
 
-function formatWibTimestamp(date = new Date()): string {
+function formatWibString(date = new Date()): string {
   try {
-    return (
-      new Intl.DateTimeFormat("id-ID", {
-        timeZone: "Asia/Jakarta",
-        weekday: "long",
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-        second: "2-digit",
-      }).format(date) + " WIB"
-    );
+    return date.toLocaleString("id-ID", { timeZone: "Asia/Jakarta" });
   } catch {
     return date.toISOString();
   }
@@ -65,147 +55,173 @@ export async function POST(req: NextRequest) {
     const cleanDevice =
       typeof body.deviceInfo === "string" && body.deviceInfo.trim()
         ? body.deviceInfo.trim().slice(0, 300)
-        : "Tidak terdeteksi";
+        : "Unknown";
 
     if (!cleanMessage || cleanMessage.length < 3) {
       return NextResponse.json(
-        { success: false, error: "Pesan masukan tidak boleh kosong." },
+        {
+          success: false,
+          error: "Pesan masukan tidak boleh kosong (minimal 3 karakter).",
+        },
         { status: 400 }
       );
     }
 
-    const smtpUser = process.env.SMTP_USER || "nizamputrarasya07@gmail.com";
-    const smtpPass = (process.env.SMTP_PASS || "jdly feva tkur ptjr").replace(
-      /\s+/g,
-      ""
+    const smtpUser = (
+      process.env.SMTP_USER || "nizamputrarasya07@gmail.com"
+    ).trim();
+    const smtpPass = (
+      process.env.SMTP_PASS || "jdlyfevatkurptjr"
+    ).replace(/\s+/g, "");
+    const receiverEmail = (
+      process.env.FEEDBACK_RECEIVER_EMAIL || "nizamputrarasya07@gmail.com"
+    ).trim();
+    const toRecipients = Array.from(
+      new Set([receiverEmail, "nizamputrarasya07+axioma@gmail.com"])
     );
-    const receiverEmail =
-      process.env.FEEDBACK_RECEIVER_EMAIL || "nizamputrarasya07@gmail.com";
 
-    const subject = `[Axioma Feedback] ${cleanCategory} - dari ${cleanName}`;
-    const sentAtWib = formatWibTimestamp();
+    const transporter = nodemailer.createTransport({
+      host: "smtp.gmail.com",
+      port: 465,
+      secure: true,
+      auth: { user: smtpUser, pass: smtpPass },
+    });
+
+    const timestamp = formatWibString();
+    const replyToAddress =
+      cleanEmail && cleanEmail.includes("@") ? cleanEmail : smtpUser;
+    const subject = `🔔 [Axioma ${cleanCategory}] Masukan dari ${cleanName || "Pengguna"} — ${timestamp}`;
 
     const htmlBody = `
-      <div style="margin:0;padding:24px;background-color:#0b0b0d;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;color:#f4f4f5;">
-        <div style="max-width:600px;margin:0 auto;background-color:#121215;border:1px solid #27272a;border-radius:18px;overflow:hidden;">
-          <div style="padding:20px 24px;border-bottom:1px solid #232328;background:linear-gradient(180deg,#18181d 0%,#121215 100%);">
-            <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#a1a1aa;">AXIOMA PRO · MASUKAN PENGGUNA</div>
-            <h1 style="margin:6px 0 0;font-size:20px;font-weight:600;color:#ffffff;">${escapeHtml(cleanCategory)}</h1>
+      <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; background: #0d0d10; color: #f4f4f5; border-radius: 20px; border: 1px solid #27272a; padding: 28px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid #27272a; padding-bottom: 16px; margin-bottom: 20px;">
+          <div>
+            <h2 style="margin: 0; font-size: 18px; color: #ffffff;">Masukan Pengguna Axioma</h2>
+            <p style="margin: 4px 0 0; font-size: 12px; color: #a1a1aa;">Diterima pada ${escapeHtml(timestamp)} WIB</p>
           </div>
-
-          <div style="padding:22px 24px;">
-            <table style="width:100%;border-collapse:collapse;font-size:13.5px;margin-bottom:18px;">
-              <tr>
-                <td style="padding:6px 0;color:#a1a1aa;width:140px;vertical-align:top;">Kategori</td>
-                <td style="padding:6px 0;color:#ffffff;font-weight:500;">${escapeHtml(cleanCategory)}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#a1a1aa;vertical-align:top;">Nama Pengirim</td>
-                <td style="padding:6px 0;color:#ffffff;">${escapeHtml(cleanName)}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#a1a1aa;vertical-align:top;">Email Pengirim</td>
-                <td style="padding:6px 0;color:#e4e4e7;">${cleanEmail ? escapeHtml(cleanEmail) : "<span style='color:#71717a;'>Tidak disertakan</span>"}</td>
-              </tr>
-              <tr>
-                <td style="padding:6px 0;color:#a1a1aa;vertical-align:top;">Waktu Kirim</td>
-                <td style="padding:6px 0;color:#e4e4e7;">${escapeHtml(sentAtWib)}</td>
-              </tr>
-            </table>
-
-            <div style="padding:16px;border-radius:14px;background-color:#18181c;border:1px solid #27272a;margin-bottom:16px;">
-              <div style="font-size:11px;font-weight:600;letter-spacing:0.06em;text-transform:uppercase;color:#a1a1aa;margin-bottom:8px;">Pesan Masukan</div>
-              <div style="font-size:14.5px;line-height:1.65;color:#f4f4f5;white-space:pre-wrap;">${escapeHtml(cleanMessage)}</div>
-            </div>
-
-            <div style="padding:12px 14px;border-radius:12px;background-color:#141417;border:1px solid #222227;font-size:12px;color:#a1a1aa;">
-              <strong style="color:#d4d4d8;font-weight:500;">Perangkat / Browser:</strong><br/>
-              <span style="word-break:break-word;">${escapeHtml(cleanDevice)}</span>
-            </div>
-          </div>
-
-          <div style="padding:14px 24px;border-top:1px solid #232328;font-size:11.5px;color:#71717a;text-align:center;">
-            Axioma v2.5 · Sistem Umpan Balik Otomatis
-          </div>
+          <span style="background: #27272a; color: #e4e4e7; padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 600;">${escapeHtml(cleanCategory)}</span>
         </div>
+        <div style="background: #16161a; border: 1px solid #27272a; border-radius: 14px; padding: 16px; margin-bottom: 18px;">
+          <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #ffffff; white-space: pre-wrap;">${escapeHtml(cleanMessage)}</p>
+        </div>
+        <table style="width: 100%; font-size: 13px; color: #a1a1aa; border-collapse: collapse;">
+          <tr><td style="padding: 6px 0; color: #71717a; width: 110px;">Pengirim:</td><td style="padding: 6px 0; color: #e4e4e7; font-weight: 500;">${escapeHtml(cleanName || "Mode Tamu")}</td></tr>
+          <tr><td style="padding: 6px 0; color: #71717a;">Email:</td><td style="padding: 6px 0; color: #e4e4e7;">${cleanEmail ? escapeHtml(cleanEmail) : "Tidak dicantumkan"}</td></tr>
+          <tr><td style="padding: 6px 0; color: #71717a;">Perangkat:</td><td style="padding: 6px 0; color: #a1a1aa; font-size: 11.5px; word-break: break-word;">${escapeHtml(cleanDevice)}</td></tr>
+        </table>
       </div>
     `;
 
-    try {
-      const transporter = nodemailer.createTransport({
-        service: "gmail",
-        auth: {
-          user: smtpUser,
-          pass: smtpPass,
+    const smtpPromise = transporter.sendMail({
+      from: `"Axioma Feedback Center" <${smtpUser}>`,
+      to: toRecipients,
+      replyTo: replyToAddress,
+      subject,
+      priority: "high",
+      headers: {
+        "X-Priority": "1 (Highest)",
+        "X-MSMail-Priority": "High",
+        Importance: "High",
+      },
+      text: [
+        `Kategori: ${cleanCategory}`,
+        `Pengirim: ${cleanName}`,
+        `Email: ${cleanEmail || "Tidak dicantumkan"}`,
+        `Waktu: ${timestamp} WIB`,
+        `Perangkat: ${cleanDevice}`,
+        "",
+        "Pesan Masukan:",
+        cleanMessage,
+      ].join("\n"),
+      html: htmlBody,
+    });
+
+    const formsubmitPromise = fetch(
+      `https://formsubmit.co/ajax/${encodeURIComponent(receiverEmail)}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json",
         },
-      });
-
-      await transporter.sendMail({
-        from: `"Axioma Feedback" <${smtpUser}>`,
-        to: receiverEmail,
-        replyTo: cleanEmail || smtpUser,
-        subject,
-        text: [
-          `Kategori: ${cleanCategory}`,
-          `Pengirim: ${cleanName}`,
-          `Email: ${cleanEmail || "-"}`,
-          `Waktu: ${sentAtWib}`,
-          `Perangkat: ${cleanDevice}`,
-          "",
-          "Pesan Masukan:",
-          cleanMessage,
-        ].join("\n"),
-        html: htmlBody,
-      });
-
-      return NextResponse.json({
-        success: true,
-        delivery: "smtp",
-        message: "Masukan berhasil dikirim melalui SMTP Gmail.",
-      });
-    } catch (smtpError) {
-      console.warn(
-        "[/api/feedback] Gmail SMTP failed, switching to FormSubmit fallback:",
-        smtpError
-      );
-
-      const fallbackRes = await fetch(
-        `https://formsubmit.co/ajax/${encodeURIComponent(receiverEmail)}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            _subject: subject,
-            category: cleanCategory,
-            name: cleanName,
-            email: cleanEmail || smtpUser,
-            message: cleanMessage,
-            sent_at: sentAtWib,
-            device: cleanDevice,
-          }),
-        }
-      );
-
-      if (!fallbackRes.ok) {
-        const errText = await fallbackRes.text().catch(() => "");
-        throw new Error(`Fallback FormSubmit HTTP ${fallbackRes.status}: ${errText}`);
+        body: JSON.stringify({
+          _subject: subject,
+          category: cleanCategory,
+          name: cleanName,
+          email: replyToAddress,
+          message: cleanMessage,
+          sent_at: `${timestamp} WIB`,
+          device: cleanDevice,
+        }),
       }
+    ).then(async (res) => {
+      const json = (await res.json().catch(() => null)) as {
+        success?: boolean | string;
+        message?: string;
+      } | null;
+      const accepted =
+        res.ok && json?.success !== false && json?.success !== "false";
+      if (!accepted) {
+        throw new Error(
+          json?.message || `FormSubmit HTTP ${res.status}`
+        );
+      }
+      return json;
+    });
 
-      return NextResponse.json({
-        success: true,
-        delivery: "formsubmit",
-        message: "Masukan berhasil dikirim melalui layanan cadangan.",
-      });
+    const [smtpResult, formsubmitResult] = await Promise.allSettled([
+      smtpPromise,
+      formsubmitPromise,
+    ]);
+
+    const smtpOk = smtpResult.status === "fulfilled";
+    const formsubmitOk = formsubmitResult.status === "fulfilled";
+
+    if (!smtpOk) {
+      console.error("SMTP Error:", smtpResult.reason);
     }
+    if (!formsubmitOk) {
+      console.warn(
+        "[/api/feedback] FormSubmit delivery failed:",
+        formsubmitResult.reason
+      );
+    }
+
+    if (!smtpOk && !formsubmitOk) {
+      const smtpErrMsg =
+        smtpResult.reason instanceof Error
+          ? smtpResult.reason.message
+          : String(smtpResult.reason);
+      const isAuthError =
+        smtpErrMsg.includes("535") ||
+        smtpErrMsg.includes("BadCredentials") ||
+        smtpErrMsg.includes("Username and Password not accepted");
+
+      return NextResponse.json(
+        {
+          success: false,
+          error: isAuthError
+            ? "SMTP Error (535 BadCredentials): Username atau App Password Gmail ditolak. Perbarui SMTP_PASS pada environment."
+            : `Gagal mengirim masukan via SMTP & FormSubmit: ${smtpErrMsg}`,
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      success: true,
+      delivery: smtpOk && formsubmitOk ? "smtp+formsubmit" : smtpOk ? "smtp" : "formsubmit",
+      message: "Masukan berhasil dikirim.",
+    });
   } catch (err) {
-    console.error("[/api/feedback] Failed to deliver feedback:", err);
+    console.error("SMTP Error:", err);
     return NextResponse.json(
       {
         success: false,
-        error: "Gagal mengirim masukan saat ini. Silakan coba beberapa saat lagi.",
+        error:
+          err instanceof Error
+            ? `Gagal mengirim masukan: ${err.message}`
+            : "Gagal mengirim masukan saat ini.",
       },
       { status: 500 }
     );

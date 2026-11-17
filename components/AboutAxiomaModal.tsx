@@ -79,7 +79,7 @@ interface SettingsHeaderProps {
 
 function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
   return (
-    <div className="sticky top-0 z-10 shrink-0 bg-[#131314]/95 backdrop-blur-md -mx-5 sm:-mx-6 px-5 sm:px-6 pt-1 pb-3.5 mb-4 border-b border-white/[0.06] flex items-center justify-between gap-2">
+    <div className="sticky top-0 z-10 shrink-0 bg-[#111114]/95 backdrop-blur-md -mx-5 sm:-mx-6 px-5 sm:px-6 pt-1 pb-3.5 mb-4 border-b border-white/[0.06] flex items-center justify-between gap-2">
       <button
         type="button"
         onClick={onBack}
@@ -257,8 +257,8 @@ export function FeedbackSettingsView({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const trimmedMessage = message.trim();
-    if (!trimmedMessage) {
-      setSubmitError("Mohon tuliskan pesan masukan Anda terlebih dahulu.");
+    if (trimmedMessage.length < 3) {
+      setSubmitError("Mohon tuliskan pesan masukan minimal 3 karakter.");
       return;
     }
 
@@ -286,26 +286,30 @@ export function FeedbackSettingsView({
           )
         : Promise.resolve({ error: new Error("Supabase belum dikonfigurasi") });
 
-      const emailPromise = fetch("/api/feedback", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          category,
-          message: trimmedMessage,
-          userEmail: finalUserEmail,
-          userName: finalUserName,
-          deviceInfo,
-        }),
-      }).then(async (res) => {
+      const emailPromise = (async () => {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            category,
+            message: trimmedMessage,
+            userEmail: finalUserEmail,
+            userName: finalUserName,
+            deviceInfo,
+          }),
+        });
         const data = (await res.json().catch(() => null)) as {
           success?: boolean;
           error?: string;
         } | null;
+
         if (!res.ok || !data?.success) {
-          throw new Error(data?.error || "Gagal mengirim email masukan.");
+          throw new Error(
+            data?.error || `Gagal mengirim email masukan (HTTP ${res.status}).`
+          );
         }
         return data;
-      });
+      })();
 
       const [supabaseRes, emailRes] = await Promise.allSettled([
         supabasePromise,
@@ -314,23 +318,25 @@ export function FeedbackSettingsView({
 
       const supabaseOk =
         supabaseRes.status === "fulfilled" && !supabaseRes.value?.error;
-      const emailOk = emailRes.status === "fulfilled";
 
       if (!supabaseOk) {
         console.warn(
-          "[Feedback] Supabase insert fallback notice:",
+          "[Feedback] Supabase insert notice:",
           supabaseRes.status === "rejected"
             ? supabaseRes.reason
             : supabaseRes.value?.error
         );
       }
-      if (!emailOk) {
-        console.warn("[Feedback] Email delivery notice:", emailRes.reason);
-      }
 
-      if (!supabaseOk && !emailOk) {
+      if (emailRes.status === "rejected") {
+        const emailErrMsg =
+          emailRes.reason instanceof Error
+            ? emailRes.reason.message
+            : "Gagal mengirim email masukan.";
         throw new Error(
-          "Gagal mengirim masukan saat ini. Silakan periksa koneksi Anda dan coba lagi."
+          supabaseOk
+            ? `Data tersimpan di database, namun email gagal dikirim: ${emailErrMsg}`
+            : emailErrMsg
         );
       }
 
@@ -420,7 +426,7 @@ export function FeedbackSettingsView({
             value={userEmail}
             onChange={(e) => setUserEmail(e.target.value)}
             placeholder="Email Anda (opsional, untuk balasan)"
-            className="w-full rounded-xl bg-[#16161a] border border-white/[0.08] focus:border-white/25 px-3.5 py-2.5 text-[16px] md:text-[14.5px] text-white placeholder:text-zinc-500 outline-none transition-colors"
+            className="w-full rounded-xl bg-[#16161a] border border-white/[0.08] focus:border-white/25 px-3.5 py-2.5 text-[16px] sm:text-[15px] text-white placeholder:text-zinc-500 outline-none transition-colors"
           />
         </div>
 
@@ -443,7 +449,7 @@ export function FeedbackSettingsView({
               if (submitSuccess) setSubmitSuccess(false);
             }}
             placeholder="Tuliskan saran fitur, masukan desain, atau kendala yang Anda alami..."
-            className="w-full rounded-2xl bg-[#16161a] border border-white/[0.08] focus:border-white/25 p-3.5 text-[16px] md:text-[15px] text-white placeholder:text-zinc-500 outline-none resize-none transition-colors"
+            className="w-full rounded-2xl bg-[#16161a] border border-white/[0.08] focus:border-white/25 p-3.5 text-[16px] sm:text-[15px] text-white placeholder:text-zinc-500 outline-none resize-none transition-colors"
           />
         </div>
 
