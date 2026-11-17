@@ -17,17 +17,8 @@ const geistMono = Geist_Mono({
   preload: true,
 });
 
-const appBaseUrl = (() => {
-  const raw = (process.env.NEXT_PUBLIC_APP_URL || "https://axioma.my.id").trim();
-  try {
-    return new URL(raw);
-  } catch {
-    return new URL("https://axioma.my.id");
-  }
-})();
-
 export const metadata: Metadata = {
-  metadataBase: appBaseUrl,
+  metadataBase: new URL("https://axioma.my.id"),
   robots: {
     index: true,
     follow: true,
@@ -40,38 +31,47 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   title: {
-    default: "Axioma — Asisten AI Cerdas untuk Analisis, Penulisan & Pemrograman",
+    default: "Axioma — Asisten Cerdas & Studio Visual",
     template: "%s | Axioma",
   },
   description:
-    "Axioma adalah ruang kerja asisten AI cerdas berbahasa Indonesia untuk penalaran strategis, penulisan profesional, eksplorasi ide, dan arsitektur perangkat lunak.",
+    "Platform asisten AI terpadu untuk penalaran analitis, pemrograman, sintesis visual, dan interaksi suara real-time.",
   applicationName: "Axioma",
+  appleWebApp: {
+    capable: true,
+    title: "Axioma",
+    statusBarStyle: "black-translucent",
+  },
+  formatDetection: {
+    telephone: false,
+  },
   openGraph: {
-    title: "Axioma — Ruang Kerja Agen AI Cerdas",
-    description:
-      "Selesaikan riset, analisis mendalam, penulisan dokumen, dan perancangan kode lebih cepat bersama asisten AI berbahasa Indonesia.",
-    url: "/",
+    type: "website",
     siteName: "Axioma",
     locale: "id_ID",
-    type: "website",
+    title: "Axioma — Asisten Cerdas & Studio Visual",
+    description:
+      "Platform asisten AI terpadu untuk penalaran analitis, pemrograman, dan sintesis visual.",
+    url: "https://axioma.my.id",
     images: [
       {
-        url: "/opengraph-image",
+        url: "/og-image.png?v=2",
         width: 1200,
         height: 630,
-        alt: "Axioma — Ruang Kerja Agen AI Cerdas",
+        alt: "Axioma AI Platform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Axioma — Ruang Kerja Agen AI Cerdas",
+    title: "Axioma — Asisten Cerdas & Studio Visual",
     description:
-      "Asisten AI berbahasa Indonesia untuk analisis strategis, penulisan profesional, dan arsitektur perangkat lunak.",
-    images: ["/opengraph-image"],
+      "Platform asisten AI terpadu untuk penalaran analitis, pemrograman, dan sintesis visual.",
+    images: ["/og-image.png?v=2"],
   },
   icons: {
     icon: [
+      { url: "/favicon.ico?v=2", sizes: "any" },
       {
         url: "/brand/light/favicon.ico?v=3",
         sizes: "any",
@@ -93,18 +93,6 @@ export const metadata: Metadata = {
       {
         url: "/brand/dark/icon-192.png?v=3",
         sizes: "192x192",
-        type: "image/png",
-        media: "(prefers-color-scheme: dark)",
-      },
-      {
-        url: "/brand/light/icon-512.png?v=3",
-        sizes: "512x512",
-        type: "image/png",
-        media: "(prefers-color-scheme: light)",
-      },
-      {
-        url: "/brand/dark/icon-512.png?v=3",
-        sizes: "512x512",
         type: "image/png",
         media: "(prefers-color-scheme: dark)",
       },
