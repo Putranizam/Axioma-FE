@@ -73,35 +73,37 @@ export const metadata: Metadata = {
   icons: {
     icon: [
       {
-        url: "/brand/light/favicon.ico",
+        url: "/brand/light/favicon.ico?v=3",
         sizes: "any",
+        type: "image/x-icon",
         media: "(prefers-color-scheme: light)",
       },
       {
-        url: "/brand/dark/favicon.ico",
+        url: "/brand/dark/favicon.ico?v=3",
         sizes: "any",
+        type: "image/x-icon",
         media: "(prefers-color-scheme: dark)",
       },
       {
-        url: "/brand/light/icon-192.png",
+        url: "/brand/light/icon-192.png?v=3",
         sizes: "192x192",
         type: "image/png",
         media: "(prefers-color-scheme: light)",
       },
       {
-        url: "/brand/dark/icon-192.png",
+        url: "/brand/dark/icon-192.png?v=3",
         sizes: "192x192",
         type: "image/png",
         media: "(prefers-color-scheme: dark)",
       },
       {
-        url: "/brand/light/icon-512.png",
+        url: "/brand/light/icon-512.png?v=3",
         sizes: "512x512",
         type: "image/png",
         media: "(prefers-color-scheme: light)",
       },
       {
-        url: "/brand/dark/icon-512.png",
+        url: "/brand/dark/icon-512.png?v=3",
         sizes: "512x512",
         type: "image/png",
         media: "(prefers-color-scheme: dark)",
@@ -109,13 +111,13 @@ export const metadata: Metadata = {
     ],
     apple: [
       {
-        url: "/brand/light/apple-icon.png",
+        url: "/brand/light/apple-icon.png?v=3",
         sizes: "180x180",
         type: "image/png",
         media: "(prefers-color-scheme: light)",
       },
       {
-        url: "/brand/dark/apple-icon.png",
+        url: "/brand/dark/apple-icon.png?v=3",
         sizes: "180x180",
         type: "image/png",
         media: "(prefers-color-scheme: dark)",

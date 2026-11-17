@@ -5912,7 +5912,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         {/* Brand Header */}
         <div className="h-14 flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center gap-2.5">
-            <AxiomaLogoMark className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
+            <AxiomaLogoMark className="h-6 w-auto object-contain shrink-0" />
             <span className="font-semibold text-xs tracking-tight uppercase text-zinc-900 dark:text-text-primary">
               Axioma
             </span>
@@ -6921,8 +6921,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   >
                     <div className="w-full max-w-[340px] mx-auto flex flex-col items-center">
                       {/* Brand Logo with subtle glow */}
-                      <div className="mb-3 sm:mb-4 flex items-center justify-center">
-                        <AxiomaLogoMark className="w-10 h-10 sm:w-12 sm:h-12" />
+                      <div className="mb-4 flex items-center justify-center">
+                        <AxiomaLogoMark className="w-12 h-12 sm:w-14 sm:h-14" />
                       </div>
 
                       {/* Sapaan besar adaptif dengan tipografi fluida */}
@@ -7593,7 +7593,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {isDesktopEmptyState && (
                   <div className="hidden md:flex flex-col items-center text-center pointer-events-none select-none w-full">
                     <div className="mb-5 flex items-center justify-center">
-                      <AxiomaLogoMark className="w-10 h-10" />
+                      <AxiomaLogoMark className="w-14 h-14" />
                     </div>
                     {isChatAreaLoading ? (
                       <div

@@ -83,7 +83,7 @@ export default function Sidebar({
       {/* Brand Header */}
       <div className="h-14 flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-2.5">
-          <AxiomaLogoMark className="w-6 h-6 sm:w-7 sm:h-7 shrink-0" />
+          <AxiomaLogoMark className="h-6 w-auto object-contain shrink-0" />
           <div className="flex items-center gap-1.5">
             <span className="font-semibold text-xs tracking-tight uppercase text-zinc-100">Axioma</span>
             <span className="px-1.5 py-0.5 rounded text-[10px] bg-zinc-900 text-zinc-400 font-mono tracking-tight border border-zinc-800/60">v2.5</span>
