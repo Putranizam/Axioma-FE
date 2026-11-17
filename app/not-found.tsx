@@ -7,9 +7,7 @@ export default function NotFound() {
     <main className="min-h-[100dvh] w-full bg-bg-primary text-text-primary flex flex-col items-center justify-center p-6 font-sans antialiased selection:bg-border-strong selection:text-text-primary">
       <div className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-subtle p-7 shadow-2xl text-center space-y-6">
         <div className="flex items-center justify-center gap-2.5">
-          <div className="w-8 h-8 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] shrink-0">
-            <AxiomaLogoMark className="w-4 h-4" />
-          </div>
+          <AxiomaLogoMark className="w-6 h-6 shrink-0" />
           <span className="font-semibold text-xs tracking-wider uppercase text-text-primary">
             Axioma
           </span>

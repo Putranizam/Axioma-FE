@@ -23,9 +23,7 @@ export default function PrivasiPage() {
             <span>Kembali ke Axioma</span>
           </Link>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] shrink-0">
-              <AxiomaLogoMark className="w-4 h-4" />
-            </div>
+            <AxiomaLogoMark className="w-6 h-6 shrink-0" />
             <span className="text-xs font-semibold uppercase tracking-tight text-text-primary">
               Axioma
             </span>

@@ -129,8 +129,8 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
             }}
           />
 
-          <div className="relative w-14 h-14 rounded-2xl bg-white dark:bg-[#191a1f] border border-zinc-200/90 dark:border-white/[0.1] text-zinc-900 dark:text-white flex items-center justify-center mx-auto mb-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-lg overflow-hidden">
-            <AxiomaLogoMark className="w-9 h-9" />
+          <div className="relative flex items-center justify-center mx-auto mb-3">
+            <AxiomaLogoMark className="w-12 h-12" />
           </div>
 
           <div className="relative flex flex-col items-center">
