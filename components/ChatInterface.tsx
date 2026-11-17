@@ -5320,12 +5320,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="shrink-0 text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
               Account
             </div>
-            <div className="shrink-0 h-auto bg-[#1e1f20] rounded-[24px] pt-1 pb-2 mb-6 divide-y divide-white/[0.06] overflow-hidden">
+            <div className="shrink-0 h-auto bg-[#1e1f20] rounded-[24px] pt-1 pb-2 mb-6 divide-y divide-white/[0.06]">
               {/* Manage account */}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
-                className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer"
+                className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] rounded-t-[20px] cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <User className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
@@ -5395,7 +5395,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 type="button"
                 onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
-                className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer"
+                className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] rounded-b-[20px] cursor-pointer"
               >
                 <div className="flex items-center min-w-0">
                   <Clock className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
@@ -5583,22 +5583,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
               </div>
 
-              {/* Tentang Axioma */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSettingsModalOpen(false);
-                  setIsAboutModalOpen(true);
-                }}
-                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-white/[0.03] transition-colors cursor-pointer group"
-              >
-                <div className="flex items-center min-w-0">
-                  <Info className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Tentang Axioma</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0" />
-              </button>
-
               {/* Hapus Semua Percakapan */}
               <button
                 type="button"
@@ -5619,9 +5603,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             {/* Clean Version Footer */}
             <div className="shrink-0 pt-2 pb-6 text-center text-xs text-zinc-500 space-y-1">
               <div>Axioma v2.5</div>
-              <div className="text-[11.5px] text-zinc-500 mt-1">
-                Dikembangkan oleh Nizam Rasya &amp; Rendy Ramadhani
-              </div>
               <div className="text-[11px] leading-relaxed">
                 Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
               </div>
@@ -5843,7 +5824,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Modal / Bottom Sheet "Tentang Axioma" (Monochrome Flagship) */}
+      {/* Modal / Bottom Sheet "Tentang Axioma" (Minimalist Monochrome) */}
       {shouldRenderAbout && (
         <div
           role="dialog"
@@ -5859,93 +5840,53 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:max-w-[440px] sm:w-full max-h-[90dvh] overflow-y-auto rounded-t-[28px] sm:rounded-[28px] bg-[#121214] border-t sm:border border-white/[0.08] px-6 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:max-w-[400px] sm:w-full max-h-[90dvh] overflow-y-auto rounded-t-[28px] sm:rounded-[28px] bg-[#121214] border-t sm:border border-white/[0.08] p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isAboutEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
             }`}
           >
             {/* Grab handle for mobile */}
-            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-4 shrink-0 sm:hidden" />
+            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-5 shrink-0 sm:hidden" />
 
-            {/* Bagian Atas (Identitas Produk) */}
-            <div className="flex flex-col items-center text-center">
-              <div className="w-14 h-14 rounded-2xl bg-[#18181b] border border-white/[0.08] flex items-center justify-center mx-auto mb-3 shadow-inner p-2.5">
-                <Image
-                  src="/brand/axioma-logo.png"
-                  alt="Axioma"
-                  width={36}
-                  height={36}
-                  className="w-full h-full object-contain"
-                />
-              </div>
-
-              <div className="flex items-center justify-center gap-2">
-                <h2
-                  id="about-modal-title"
-                  className="text-[20px] font-semibold text-white text-center"
-                >
-                  Axioma
-                </h2>
-                <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-white/[0.06] text-zinc-300 border border-white/[0.06]">
-                  v2.5 Pro
-                </span>
-              </div>
-
-              <p className="text-[13.5px] text-zinc-400 text-center leading-relaxed mt-2">
-                Sistem asisten cerdas dan studio kreatif terpadu yang dirancang untuk kecepatan, presisi analisis, dan kenyamanan visual.
-              </p>
+            {/* Logo "A" Axioma di Tengah Atas */}
+            <div className="w-14 h-14 rounded-2xl bg-[#18181b] border border-white/[0.08] flex items-center justify-center mx-auto mb-3 p-2.5">
+              <Image
+                src="/brand/axioma-logo.png"
+                alt="Axioma"
+                width={36}
+                height={36}
+                className="w-full h-full object-contain"
+              />
             </div>
 
-            {/* Bagian Tengah (Creators Card) */}
-            <div className="mt-6 p-4 rounded-2xl bg-[#18181b] border border-white/[0.06] space-y-3.5">
-              <div className="text-[10.5px] font-medium tracking-[0.08em] text-zinc-500 uppercase">
-                DIRANCANG &amp; DIKEMBANGKAN OLEH
+            {/* Judul & Versi */}
+            <h2
+              id="about-modal-title"
+              className="text-[20px] font-semibold text-white text-center"
+            >
+              Axioma
+            </h2>
+            <div className="text-[12px] text-zinc-400 text-center mt-0.5">
+              v2.5
+            </div>
+
+            {/* Kartu Kredit Pembuat (Inti Utama) */}
+            <div className="mt-5 p-4 rounded-2xl bg-[#18181b] border border-white/[0.06] text-center">
+              <div className="text-[12px] text-zinc-400 mb-1.5">
+                Dibuat oleh
               </div>
-
-              {/* Creator 1 */}
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-full bg-[#242628] border border-white/[0.08] text-white text-[13px] font-semibold flex items-center justify-center shrink-0">
-                  NR
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[14.5px] font-medium text-white leading-snug">
-                    Muhammad Nizam Putra Rasya
-                  </div>
-                  <div className="text-[12px] text-zinc-400">
-                    Co-Founder &amp; Lead Developer
-                  </div>
-                </div>
-              </div>
-
-              <div className="border-t border-white/[0.05]" />
-
-              {/* Creator 2 */}
-              <div className="flex items-center gap-3.5">
-                <div className="w-10 h-10 rounded-full bg-[#242628] border border-white/[0.08] text-white text-[13px] font-semibold flex items-center justify-center shrink-0">
-                  RR
-                </div>
-                <div className="min-w-0">
-                  <div className="text-[14.5px] font-medium text-white leading-snug">
-                    Muhammad Rendy Ramadhani
-                  </div>
-                  <div className="text-[12px] text-zinc-400">
-                    Co-Founder &amp; Developer
-                  </div>
-                </div>
+              <div className="text-[14.5px] font-medium text-white leading-relaxed">
+                <div>Muhammad Nizam Putra Rasya</div>
+                <div>Muhammad Rendy Ramadhani</div>
               </div>
             </div>
 
-            {/* Bagian Bawah (Copyright & Close) */}
-            <div className="mt-4 pt-4 border-t border-white/[0.06] flex items-center justify-between text-[12px] text-zinc-500">
-              <span>© 2026 Axioma</span>
-              <span>All rights reserved</span>
-            </div>
-
+            {/* Tombol Tutup */}
             <button
               type="button"
               onClick={() => setIsAboutModalOpen(false)}
-              className="mt-5 w-full h-11 rounded-xl bg-white text-black font-medium text-[14px] hover:bg-zinc-200 transition active:scale-[0.98] cursor-pointer"
+              className="mt-6 w-full h-11 rounded-xl bg-white text-black font-medium text-[14px] hover:bg-zinc-200 transition active:scale-[0.98] cursor-pointer"
             >
               Tutup
             </button>
@@ -6272,6 +6213,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <div className="flex-1" />
       )}
 
+        {/* Standalone Menu "Tentang Axioma" di Sidebar Kiri (tepat di atas panel profil / Mode Tamu) */}
+        <div className="px-2 pb-1.5 pt-1 shrink-0">
+          <button
+            type="button"
+            onClick={() => {
+              setIsMobileSidebarOpen(false);
+              setIsAboutModalOpen(true);
+            }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium text-text-secondary hover:text-text-primary hover:bg-bg-surface active:scale-[0.98] transition-all cursor-pointer"
+          >
+            <Info className="w-4 h-4 text-icon-muted shrink-0" strokeWidth={1.75} />
+            <span>Tentang Axioma</span>
+          </button>
+        </div>
+
         {/* User Profile & Settings Menu (Item 4 & Item 7) */}
         <div className="p-2 border-t border-border-subtle shrink-0 relative flex items-center justify-between gap-1">
           <button
@@ -6379,22 +6335,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <button
                 ref={(el) => {
                   settingsMenuItemRefs.current[1] = el;
-                }}
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  closeSettingsMenu(false);
-                  setIsAboutModalOpen(true);
-                }}
-                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-surface focus:bg-bg-surface focus:text-text-primary focus:outline-none flex items-center gap-2 transition-colors cursor-pointer"
-              >
-                <Info className="w-3.5 h-3.5 text-icon-muted" />
-                <span>Tentang Axioma</span>
-              </button>
-
-              <button
-                ref={(el) => {
-                  settingsMenuItemRefs.current[2] = el;
                 }}
                 type="button"
                 role="menuitem"
