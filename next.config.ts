@@ -2,7 +2,7 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   /* config options here */
-  serverExternalPackages: ["msedge-tts"],
+  serverExternalPackages: ["msedge-tts", "nodemailer"],
   cacheComponents: true,
   partialPrefetching: true,
   images: {

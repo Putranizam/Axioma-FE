@@ -67,6 +67,7 @@ import {
   Palette,
   Video,
   Info,
+  MessageSquarePlus,
 } from "lucide-react";
 import {
   AttachmentItem,
@@ -95,6 +96,7 @@ const AuthModal = dynamic(() => import("./AuthModal"), {
 });
 
 import VoiceModeOverlay from "./VoiceModeOverlay";
+import { AboutSettingsView, FeedbackSettingsView } from "./AboutAxiomaModal";
 import { AiImageCard } from "./AiImageCard";
 import { AiVideoCard } from "./AiVideoCard";
 
@@ -966,9 +968,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [headerMenuTop, setHeaderMenuTop] = useState<number | null>(null);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState<boolean>(false);
 
-  // Settings Modal, About Modal & Clear All Chats Modal state
+  // Settings Modal & Clear All Chats Modal state
   const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
-  const [isAboutModalOpen, setIsAboutModalOpen] = useState<boolean>(false);
+  const [settingsView, setSettingsView] = useState<"main" | "feedback" | "about">("main");
   const [settingsNameInput, setSettingsNameInput] = useState<string>(DEFAULT_DISPLAY_NAME);
   const [settingsNameError, setSettingsNameError] = useState<string | null>(null);
   const [settingsDefaultAgentInput, setSettingsDefaultAgentInput] =
@@ -977,6 +979,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [expandedSettingsSection, setExpandedSettingsSection] = useState<string | null>(null);
   const [isClearAllConfirmOpen, setIsClearAllConfirmOpen] = useState<boolean>(false);
   const [isClearingAllChats, setIsClearingAllChats] = useState<boolean>(false);
+
+  const openSettingsModal = useCallback(
+    (
+      view: "main" | "feedback" | "about" = "main",
+      expandedSection: string | null = null
+    ) => {
+      setSettingsNameInput(displayName);
+      setSettingsNameError(null);
+      setSettingsDefaultAgentInput(defaultAgentId);
+      setExpandedSettingsSection(expandedSection);
+      setSettingsView(view);
+      setIsSettingsModalOpen(true);
+    },
+    [displayName, defaultAgentId]
+  );
 
   // Desktop sidebar collapse state
   const [isDesktopSidebarCollapsed, setIsDesktopSidebarCollapsed] = useState<boolean>(false);
@@ -1015,8 +1032,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     useAnimatedPresence(isSettingsModalOpen, 320);
   const { shouldRender: shouldRenderProfile, isEntered: isProfileEntered } =
     useAnimatedPresence(isProfileDropdownOpen, 320);
-  const { shouldRender: shouldRenderAbout, isEntered: isAboutEntered } =
-    useAnimatedPresence(isAboutModalOpen, 300);
   const { shouldRender: shouldRenderAttachmentMenu, isEntered: isAttachmentMenuEntered } =
     useAnimatedPresence(isAttachmentMenuOpen, 220);
   const { shouldRender: shouldRenderHeaderAgentMenu, isEntered: isHeaderAgentMenuEntered } =
@@ -1297,7 +1312,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   useEffect(() => {
     isModalActiveRef.current = Boolean(
       isSettingsModalOpen ||
-      isAboutModalOpen ||
       isProfileDropdownOpen ||
       isClearAllConfirmOpen ||
       editConfirmTarget ||
@@ -1305,7 +1319,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     );
   }, [
     isSettingsModalOpen,
-    isAboutModalOpen,
     isProfileDropdownOpen,
     isClearAllConfirmOpen,
     editConfirmTarget,
@@ -2752,14 +2765,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           if (!isClearingAllChats) setIsClearAllConfirmOpen(false);
           return;
         }
-        if (isAboutModalOpen) {
-          e.preventDefault();
-          setIsAboutModalOpen(false);
-          return;
-        }
         if (isSettingsModalOpen) {
           e.preventDefault();
-          setIsSettingsModalOpen(false);
+          if (settingsView !== "main") {
+            setSettingsView("main");
+          } else {
+            setIsSettingsModalOpen(false);
+          }
           return;
         }
         if (undoToastChat) {
@@ -2893,7 +2905,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     isClearAllConfirmOpen,
     isClearingAllChats,
     isSettingsModalOpen,
-    isAboutModalOpen,
+    settingsView,
     undoToastChat,
     openFeedbackCommentId,
     editingChatId,
@@ -5290,7 +5302,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-x-0 bottom-0 top-[max(1.5rem,env(safe-area-inset-top))] sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:max-w-[460px] sm:w-full sm:max-h-[85dvh] rounded-t-[28px] sm:rounded-[28px] bg-[#131314] px-5 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto touch-auto flex flex-col shadow-2xl border-t sm:border border-zinc-800/60 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 max-h-[88dvh] sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:w-[92vw] sm:max-w-[500px] sm:max-h-[85dvh] rounded-t-[28px] sm:rounded-[28px] bg-[#131314] px-5 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto overscroll-contain touch-auto flex flex-col shadow-2xl border-t sm:border border-white/[0.08] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5299,314 +5311,381 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             {/* Grab handle for mobile */}
             <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-2 shrink-0 sm:hidden" />
 
-            {/* Circular Close Button Row (Aligned to right) */}
-            <div className="flex justify-end shrink-0 mb-1">
-              <button
-                type="button"
-                onClick={() => setIsSettingsModalOpen(false)}
-                aria-label="Tutup setelan"
-                className="w-10 h-10 rounded-full bg-[#1e1f20] hover:bg-zinc-700 active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Title "Setelan" (Below close button, left-aligned, adaptif & font-medium) */}
-            <h1 id="settings-modal-title" className="shrink-0 text-[26px] sm:text-[30px] font-medium tracking-[-0.02em] text-[#e3e3e3] mt-1 mb-6">
-              Setelan
-            </h1>
-
-            {/* Category 1: Account */}
-            <div className="shrink-0 text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
-              Account
-            </div>
-            <div className="shrink-0 h-auto bg-[#1e1f20] rounded-[24px] pt-1 pb-2 mb-6 divide-y divide-white/[0.06]">
-              {/* Manage account */}
-              <button
-                type="button"
-                onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
-                className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] rounded-t-[20px] cursor-pointer"
-              >
-                <div className="flex items-center min-w-0">
-                  <User className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Manage account</span>
+            {settingsView === "about" ? (
+              <AboutSettingsView
+                onBack={() => setSettingsView("main")}
+                onClose={() => setIsSettingsModalOpen(false)}
+              />
+            ) : settingsView === "feedback" ? (
+              <FeedbackSettingsView
+                defaultEmail={authUser?.email || ""}
+                userName={userName}
+                onBack={() => setSettingsView("main")}
+                onClose={() => setIsSettingsModalOpen(false)}
+              />
+            ) : (
+              <>
+                {/* Circular Close Button Row (Aligned to right) */}
+                <div className="flex justify-end shrink-0 mb-1">
+                  <button
+                    type="button"
+                    onClick={() => setIsSettingsModalOpen(false)}
+                    aria-label="Tutup setelan"
+                    className="w-10 h-10 rounded-full bg-[#1e1f20] hover:bg-zinc-700 active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <ChevronRight
-                  className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
-                    expandedSettingsSection === "account" ? "rotate-90" : ""
-                  }`}
-                />
-              </button>
 
-              {/* Expandable Manage account drawer */}
-              {expandedSettingsSection === "account" && (
-                <div className="px-5 py-4 bg-[#171819] space-y-3 border-t border-white/[0.06]">
+                {/* Title "Setelan" (Below close button, left-aligned, adaptif & font-medium) */}
+                <h1 id="settings-modal-title" className="shrink-0 text-[26px] sm:text-[30px] font-medium tracking-[-0.02em] text-[#e3e3e3] mt-1 mb-5">
+                  Setelan
+                </h1>
+
+                {/* 4 Grouped Inset Cards */}
+                <div className="space-y-5">
+                  {/* Grup 1: Akun */}
                   <div>
-                    <label htmlFor="settings-display-name" className="block text-xs font-medium text-zinc-300 mb-1.5">
-                      Nama Tampilan
-                    </label>
-                    <div className="flex gap-2">
-                      <input
-                        ref={settingsNameInputRef}
-                        id="settings-display-name"
-                        type="text"
-                        maxLength={60}
-                        value={settingsNameInput}
-                        aria-invalid={Boolean(settingsNameError)}
-                        onChange={(e) => {
-                          setSettingsNameInput(e.target.value);
-                          if (settingsNameError) setSettingsNameError(null);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            handleUpdateDisplayName(settingsNameInput);
-                          }
-                        }}
-                        onBlur={() => {
-                          handleUpdateDisplayName(settingsNameInput);
-                        }}
-                        placeholder="Masukkan nama tampilan..."
-                        className="flex-1 min-w-0 bg-[#141416] border border-white/[0.08] focus:border-white/20 rounded-xl px-3.5 py-2.5 text-[16px] md:text-[14.5px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none transition-colors"
-                      />
+                    <div className="text-[14px] font-medium text-zinc-400 mb-2 px-1">
+                      Akun
+                    </div>
+                    <div className="h-auto bg-[#161618] border border-white/[0.06] rounded-2xl divide-y divide-white/[0.06]">
+                      {/* Manage account */}
                       <button
                         type="button"
-                        onClick={() => handleUpdateDisplayName(settingsNameInput)}
-                        className="shrink-0 rounded-xl px-4 py-2.5 text-[14px] font-medium bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer active:scale-95"
+                        onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
+                        className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] rounded-t-2xl cursor-pointer"
                       >
-                        Simpan
+                        <div className="flex items-center min-w-0">
+                          <User className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Manage account</span>
+                        </div>
+                        <ChevronRight
+                          className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                            expandedSettingsSection === "account" ? "rotate-90" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {/* Expandable Manage account drawer */}
+                      {expandedSettingsSection === "account" && (
+                        <div className="px-5 py-4 bg-[#121215] space-y-3">
+                          <div>
+                            <label htmlFor="settings-display-name" className="block text-xs font-medium text-zinc-300 mb-1.5">
+                              Nama Tampilan
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                ref={settingsNameInputRef}
+                                id="settings-display-name"
+                                type="text"
+                                maxLength={60}
+                                value={settingsNameInput}
+                                aria-invalid={Boolean(settingsNameError)}
+                                onChange={(e) => {
+                                  setSettingsNameInput(e.target.value);
+                                  if (settingsNameError) setSettingsNameError(null);
+                                }}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleUpdateDisplayName(settingsNameInput);
+                                  }
+                                }}
+                                onBlur={() => {
+                                  handleUpdateDisplayName(settingsNameInput);
+                                }}
+                                placeholder="Masukkan nama tampilan..."
+                                className="flex-1 min-w-0 bg-[#141416] border border-white/[0.08] focus:border-white/20 rounded-xl px-3.5 py-2.5 text-[16px] md:text-[14.5px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none transition-colors"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateDisplayName(settingsNameInput)}
+                                className="shrink-0 rounded-xl px-4 py-2.5 text-[14px] font-medium bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer active:scale-95"
+                              >
+                                Simpan
+                              </button>
+                            </div>
+                            {settingsNameError && (
+                              <p role="alert" className="text-[11px] text-red-400 mt-1">
+                                {settingsNameError}
+                              </p>
+                            )}
+                          </div>
+                          {authUser && (
+                            <div className="text-xs text-zinc-400">
+                              Email terhubung: <span className="font-mono text-zinc-200">{authUser.email}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {/* Batas penggunaan */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
+                        className={`w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer ${
+                          expandedSettingsSection === "quota" ? "" : "rounded-b-2xl"
+                        }`}
+                      >
+                        <div className="flex items-center min-w-0">
+                          <Clock className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Batas penggunaan</span>
+                        </div>
+                        <ChevronRight
+                          className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                            expandedSettingsSection === "quota" ? "rotate-90" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {/* Expandable Quota Details */}
+                      {expandedSettingsSection === "quota" && (
+                        <div className="px-5 py-4 bg-[#121215] rounded-b-2xl space-y-2 text-xs">
+                          <p className="text-zinc-300 leading-relaxed text-sm">
+                            {authUser
+                              ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan seluruh fitur Axioma Pro."
+                              : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
+                          </p>
+                          {!authUser && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setIsSettingsModalOpen(false);
+                                setIsAuthModalOpen(true);
+                              }}
+                              className="mt-2 px-4 py-2 rounded-xl bg-zinc-200 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
+                            >
+                              Hubungkan Akun
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Grup 2: Preferensi */}
+                  <div>
+                    <div className="text-[14px] font-medium text-zinc-400 mb-2 px-1">
+                      Preferensi
+                    </div>
+                    <div className="h-auto bg-[#161618] border border-white/[0.06] rounded-2xl divide-y divide-white/[0.06]">
+                      {/* Notifikasi */}
+                      <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
+                        <div className="flex items-center min-w-0">
+                          <Bell className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Notifikasi</span>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
+                      </div>
+
+                      {/* Model Default */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center min-w-0">
+                          <Bot className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Model Default</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[14px] text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
+                            {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
+                          </span>
+                          <ChevronRight
+                            className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                              expandedSettingsSection === "agent" ? "rotate-90" : ""
+                            }`}
+                          />
+                        </div>
+                      </button>
+
+                      {/* Expandable Model Selector */}
+                      {expandedSettingsSection === "agent" && (
+                        <div className="px-5 py-4 bg-[#121215] space-y-2">
+                          {AVAILABLE_AGENTS.map((agent) => {
+                            const isChecked = defaultAgentId === agent.id;
+                            return (
+                              <label
+                                key={agent.id}
+                                className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
+                                  isChecked
+                                    ? "bg-zinc-800/90 border-zinc-600 text-white shadow-xs"
+                                    : "bg-[#1e1f20]/60 border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                                }`}
+                              >
+                                <div className="flex items-center gap-3 min-w-0">
+                                  <input
+                                    type="radio"
+                                    name="defaultAgent"
+                                    value={agent.id}
+                                    checked={isChecked}
+                                    onChange={() => handleSelectDefaultAgent(agent.id)}
+                                    className="w-4 h-4 accent-white cursor-pointer shrink-0"
+                                  />
+                                  <div className="min-w-0">
+                                    <div className="font-semibold text-sm text-zinc-100">{agent.name}</div>
+                                    <div className="text-xs text-zinc-400 line-clamp-1">{agent.description}</div>
+                                  </div>
+                                </div>
+                                <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 font-medium border border-zinc-700 ml-2 shrink-0">
+                                  {agent.tag}
+                                </span>
+                              </label>
+                            );
+                          })}
+                        </div>
+                      )}
+
+                      {/* Penyimpanan Riwayat */}
+                      <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left">
+                        <div className="flex items-center shrink-0">
+                          <Database className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] whitespace-nowrap">Penyimpanan Riwayat</span>
+                        </div>
+                        <span className="text-[14px] text-zinc-400 whitespace-nowrap shrink-0 text-right">
+                          {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
+                        </span>
+                      </div>
+
+                      {/* Pintasan Keyboard */}
+                      <button
+                        type="button"
+                        onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
+                      >
+                        <div className="flex items-center min-w-0">
+                          <Keyboard className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Pintasan Keyboard</span>
+                        </div>
+                        <ChevronRight
+                          className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                            expandedSettingsSection === "shortcuts" ? "rotate-90" : ""
+                          }`}
+                        />
+                      </button>
+
+                      {/* Expandable Keyboard Shortcuts */}
+                      {expandedSettingsSection === "shortcuts" && (
+                        <div className="px-5 py-4 bg-[#121215] space-y-2 text-xs">
+                          <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                            <span className="text-zinc-400">Cari percakapan</span>
+                            <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
+                              Ctrl / ⌘ K
+                            </kbd>
+                          </div>
+                          <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                            <span className="text-zinc-400">Percakapan baru</span>
+                            <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
+                              Ctrl / ⌘ ⇧ O
+                            </kbd>
+                          </div>
+                          <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
+                            <span className="text-zinc-400">Hentikan balasan</span>
+                            <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                              Esc
+                            </kbd>
+                          </div>
+                          <div className="flex items-center justify-between py-1">
+                            <span className="text-zinc-400">Kirim pesan</span>
+                            <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                              Enter
+                            </kbd>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Tema */}
+                      <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left rounded-b-2xl">
+                        <div className="flex items-center min-w-0">
+                          <Moon className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Tema</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <select
+                            value={themeMode}
+                            onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
+                            className="appearance-none bg-transparent text-[14px] font-normal text-zinc-400 border-0 cursor-pointer focus:outline-none pr-1 text-right"
+                          >
+                            <option value="system" className="bg-[#1e1f20] text-white">Default sistem</option>
+                            <option value="dark" className="bg-[#1e1f20] text-white">Gelap</option>
+                            <option value="light" className="bg-[#1e1f20] text-white">Terang</option>
+                          </select>
+                          <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0 pointer-events-none" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Grup 3: Bantuan & Informasi */}
+                  <div>
+                    <div className="text-[14px] font-medium text-zinc-400 mb-2 px-1">
+                      Bantuan &amp; Informasi
+                    </div>
+                    <div className="rounded-2xl bg-[#161618] border border-white/[0.06] divide-y divide-white/[0.06] overflow-hidden">
+                      {/* 1) Kirim Masukan */}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsView("feedback")}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center min-w-0">
+                          <MessageSquarePlus className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Kirim Masukan</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[13px] text-zinc-400 whitespace-nowrap">Saran &amp; Bug</span>
+                          <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0" />
+                        </div>
+                      </button>
+
+                      {/* 2) Tentang Axioma */}
+                      <button
+                        type="button"
+                        onClick={() => setSettingsView("about")}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                      >
+                        <div className="flex items-center min-w-0">
+                          <Info className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Tentang Axioma</span>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          <span className="text-[13px] text-zinc-400 whitespace-nowrap">v2.5 Pro</span>
+                          <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0" />
+                        </div>
                       </button>
                     </div>
-                    {settingsNameError && (
-                      <p role="alert" className="text-[11px] text-red-400 mt-1">
-                        {settingsNameError}
-                      </p>
-                    )}
                   </div>
-                  {authUser && (
-                    <div className="text-xs text-zinc-400">
-                      Email terhubung: <span className="font-mono text-zinc-200">{authUser.email}</span>
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {/* Batas penggunaan */}
-              <button
-                type="button"
-                onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
-                className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] rounded-b-[20px] cursor-pointer"
-              >
-                <div className="flex items-center min-w-0">
-                  <Clock className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Batas penggunaan</span>
-                </div>
-                <ChevronRight
-                  className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
-                    expandedSettingsSection === "quota" ? "rotate-90" : ""
-                  }`}
-                />
-              </button>
-
-              {/* Expandable Quota Details */}
-              {expandedSettingsSection === "quota" && (
-                <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-white/[0.06]">
-                  <p className="text-zinc-300 leading-relaxed text-sm">
-                    {authUser
-                      ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan seluruh fitur Axioma Pro."
-                      : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
-                  </p>
-                  {!authUser && (
+                  {/* Grup 4: Kartu Terpisah Hapus semua percakapan */}
+                  <div className="rounded-2xl bg-[#161618] border border-red-500/15 hover:bg-red-500/[0.06] transition overflow-hidden">
                     <button
                       type="button"
                       onClick={() => {
                         setIsSettingsModalOpen(false);
-                        setIsAuthModalOpen(true);
+                        setIsClearAllConfirmOpen(true);
                       }}
-                      className="mt-2 px-4 py-2 rounded-xl bg-zinc-200 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
+                      className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left cursor-pointer text-red-400 group"
                     >
-                      Hubungkan Akun
+                      <div className="flex items-center min-w-0">
+                        <Trash className="w-5 h-5 text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
+                        <span className="text-[15.5px] font-normal text-red-400 truncate">Hapus semua percakapan</span>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-red-400/50 group-hover:text-red-400 transition-colors shrink-0" />
                     </button>
-                  )}
-                </div>
-              )}
-            </div>
-
-            {/* Category 2: Preferensi */}
-            <div className="shrink-0 text-[14px] font-medium text-zinc-400 mb-2.5 px-1">
-              Preferensi
-            </div>
-            <div className="shrink-0 h-auto bg-[#1e1f20] rounded-[24px] pt-1 pb-2 mb-6 divide-y divide-white/[0.06] overflow-hidden">
-              {/* Notifikasi */}
-              <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
-                <div className="flex items-center min-w-0">
-                  <Bell className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Notifikasi</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
-              </div>
-
-              {/* Model Default */}
-              <button
-                type="button"
-                onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
-                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
-              >
-                <div className="flex items-center min-w-0">
-                  <Bot className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Model Default</span>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <span className="text-[14px] text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
-                    {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
-                  </span>
-                  <ChevronRight
-                    className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
-                      expandedSettingsSection === "agent" ? "rotate-90" : ""
-                    }`}
-                  />
-                </div>
-              </button>
-
-              {/* Expandable Model Selector (Auto-save) */}
-              {expandedSettingsSection === "agent" && (
-                <div className="px-5 py-4 bg-[#171819] space-y-2 border-t border-white/[0.06]">
-                  {AVAILABLE_AGENTS.map((agent) => {
-                    const isChecked = defaultAgentId === agent.id;
-                    return (
-                      <label
-                        key={agent.id}
-                        className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
-                          isChecked
-                            ? "bg-zinc-800/90 border-zinc-600 text-white shadow-xs"
-                            : "bg-[#1e1f20]/60 border-zinc-800 text-zinc-300 hover:border-zinc-700"
-                        }`}
-                      >
-                        <div className="flex items-center gap-3 min-w-0">
-                          <input
-                            type="radio"
-                            name="defaultAgent"
-                            value={agent.id}
-                            checked={isChecked}
-                            onChange={() => handleSelectDefaultAgent(agent.id)}
-                            className="w-4 h-4 accent-white cursor-pointer shrink-0"
-                          />
-                          <div className="min-w-0">
-                            <div className="font-semibold text-sm text-zinc-100">{agent.name}</div>
-                            <div className="text-xs text-zinc-400 line-clamp-1">{agent.description}</div>
-                          </div>
-                        </div>
-                        <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 font-medium border border-zinc-700 ml-2 shrink-0">
-                          {agent.tag}
-                        </span>
-                      </label>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* Penyimpanan Riwayat */}
-              <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left">
-                <div className="flex items-center shrink-0">
-                  <Database className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-[#e3e3e3] whitespace-nowrap">Penyimpanan Riwayat</span>
-                </div>
-                <span className="text-[14px] text-zinc-400 whitespace-nowrap shrink-0 text-right">
-                  {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
-                </span>
-              </div>
-
-              {/* Pintasan Keyboard */}
-              <button
-                type="button"
-                onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
-                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
-              >
-                <div className="flex items-center min-w-0">
-                  <Keyboard className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Pintasan Keyboard</span>
-                </div>
-                <ChevronRight
-                  className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
-                    expandedSettingsSection === "shortcuts" ? "rotate-90" : ""
-                  }`}
-                />
-              </button>
-
-              {/* Expandable Keyboard Shortcuts */}
-              {expandedSettingsSection === "shortcuts" && (
-                <div className="px-5 py-4 bg-[#171819] space-y-2 text-xs border-t border-white/[0.06]">
-                  <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                    <span className="text-zinc-400">Cari percakapan</span>
-                    <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
-                      Ctrl / ⌘ K
-                    </kbd>
-                  </div>
-                  <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                    <span className="text-zinc-400">Percakapan baru</span>
-                    <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
-                      Ctrl / ⌘ ⇧ O
-                    </kbd>
-                  </div>
-                  <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                    <span className="text-zinc-400">Hentikan balasan</span>
-                    <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
-                      Esc
-                    </kbd>
-                  </div>
-                  <div className="flex items-center justify-between py-1">
-                    <span className="text-zinc-400">Kirim pesan</span>
-                    <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
-                      Enter
-                    </kbd>
                   </div>
                 </div>
-              )}
 
-              {/* Tema Row (Menyerupai Referensi Gambar 1) */}
-              <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
-                <div className="flex items-center min-w-0">
-                  <Moon className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Tema</span>
+                {/* Clean Version Footer */}
+                <div className="shrink-0 pt-5 pb-2 text-center text-xs text-zinc-500 space-y-1">
+                  <div>Axioma v2.5</div>
+                  <div className="text-[11px] leading-relaxed">
+                    Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <select
-                    value={themeMode}
-                    onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
-                    className="appearance-none bg-transparent text-[14px] font-normal text-zinc-400 border-0 cursor-pointer focus:outline-none pr-1 text-right"
-                  >
-                    <option value="system" className="bg-[#1e1f20] text-white">Default sistem</option>
-                    <option value="dark" className="bg-[#1e1f20] text-white">Gelap</option>
-                    <option value="light" className="bg-[#1e1f20] text-white">Terang</option>
-                  </select>
-                  <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0 pointer-events-none" />
-                </div>
-              </div>
-
-              {/* Hapus Semua Percakapan */}
-              <button
-                type="button"
-                onClick={() => {
-                  setIsSettingsModalOpen(false);
-                  setIsClearAllConfirmOpen(true);
-                }}
-                className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-red-950/20 transition-colors cursor-pointer text-red-400 group"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <Trash className="w-5 h-5 text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
-                  <span className="text-[15.5px] font-normal text-red-400 truncate">Hapus semua percakapan</span>
-                </div>
-                <ChevronRight className="w-5 h-5 text-red-400/50 group-hover:text-red-400 transition-colors shrink-0" />
-              </button>
-            </div>
-
-            {/* Clean Version Footer */}
-            <div className="shrink-0 pt-2 pb-6 text-center text-xs text-zinc-500 space-y-1">
-              <div>Axioma v2.5</div>
-              <div className="text-[11px] leading-relaxed">
-                Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
-              </div>
-            </div>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -5671,11 +5750,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       type="button"
                       onClick={() => {
                         setIsProfileDropdownOpen(false);
-                        setSettingsNameInput(displayName);
-                        setSettingsNameError(null);
-                        setSettingsDefaultAgentInput(defaultAgentId);
-                        setExpandedSettingsSection("account");
-                        setIsSettingsModalOpen(true);
+                        openSettingsModal("main", "account");
                       }}
                       title="Ubah nama tampilan"
                       aria-label="Ubah nama tampilan"
@@ -5699,11 +5774,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   type="button"
                   onClick={() => {
                     setIsProfileDropdownOpen(false);
-                    setSettingsNameInput(displayName);
-                    setSettingsNameError(null);
-                    setSettingsDefaultAgentInput(defaultAgentId);
-                    setExpandedSettingsSection("account");
-                    setIsSettingsModalOpen(true);
+                    openSettingsModal("main", "account");
                   }}
                   aria-label="Pengaturan akun"
                   className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center shrink-0 text-zinc-400 hover:text-white transition-colors cursor-pointer"
@@ -5722,11 +5793,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     if (!authUser) {
                       setIsAuthModalOpen(true);
                     } else {
-                      setSettingsNameInput(displayName);
-                      setSettingsNameError(null);
-                      setSettingsDefaultAgentInput(defaultAgentId);
-                      setExpandedSettingsSection("account");
-                      setIsSettingsModalOpen(true);
+                      openSettingsModal("main", "account");
                     }
                   }}
                   className="w-full bg-[#131314] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
@@ -5749,31 +5816,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   type="button"
                   onClick={() => {
                     setIsProfileDropdownOpen(false);
-                    setSettingsNameInput(displayName);
-                    setSettingsNameError(null);
-                    setSettingsDefaultAgentInput(defaultAgentId);
-                    setIsSettingsModalOpen(true);
+                    openSettingsModal("main");
                   }}
                   className="w-full bg-[#131314] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
                 >
                   <div className="flex items-center gap-3.5">
                     <Settings className="w-5 h-5 text-zinc-300 shrink-0" strokeWidth={1.75} />
                     <span className="text-[16px] font-medium text-white">Setelan</span>
-                  </div>
-                </button>
-
-                {/* Button 2.5: Tentang Axioma */}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsProfileDropdownOpen(false);
-                    setIsAboutModalOpen(true);
-                  }}
-                  className="w-full bg-[#131314] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-zinc-800/40 shadow-sm"
-                >
-                  <div className="flex items-center gap-3.5">
-                    <Info className="w-5 h-5 text-zinc-300 shrink-0" strokeWidth={1.75} />
-                    <span className="text-[16px] font-medium text-white">Tentang Axioma</span>
                   </div>
                 </button>
 
@@ -5820,76 +5869,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 Persyaratan Layanan
               </Link>
             </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal / Bottom Sheet "Tentang Axioma" (Minimalist Monochrome) */}
-      {shouldRenderAbout && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="about-modal-title"
-          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isAboutEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-          }`}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setIsAboutModalOpen(false);
-            }
-          }}
-        >
-          <div
-            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:max-w-[400px] sm:w-full max-h-[90dvh] overflow-y-auto rounded-t-[28px] sm:rounded-[28px] bg-[#121214] border-t sm:border border-white/[0.08] p-6 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
-              isAboutEntered
-                ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
-                : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
-            }`}
-          >
-            {/* Grab handle for mobile */}
-            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-5 shrink-0 sm:hidden" />
-
-            {/* Logo "A" Axioma di Tengah Atas */}
-            <div className="w-14 h-14 rounded-2xl bg-[#18181b] border border-white/[0.08] flex items-center justify-center mx-auto mb-3 p-2.5">
-              <Image
-                src="/brand/axioma-logo.png"
-                alt="Axioma"
-                width={36}
-                height={36}
-                className="w-full h-full object-contain"
-              />
-            </div>
-
-            {/* Judul & Versi */}
-            <h2
-              id="about-modal-title"
-              className="text-[20px] font-semibold text-white text-center"
-            >
-              Axioma
-            </h2>
-            <div className="text-[12px] text-zinc-400 text-center mt-0.5">
-              v2.5
-            </div>
-
-            {/* Kartu Kredit Pembuat (Inti Utama) */}
-            <div className="mt-5 p-4 rounded-2xl bg-[#18181b] border border-white/[0.06] text-center">
-              <div className="text-[12px] text-zinc-400 mb-1.5">
-                Dibuat oleh
-              </div>
-              <div className="text-[14.5px] font-medium text-white leading-relaxed">
-                <div>Muhammad Nizam Putra Rasya</div>
-                <div>Muhammad Rendy Ramadhani</div>
-              </div>
-            </div>
-
-            {/* Tombol Tutup */}
-            <button
-              type="button"
-              onClick={() => setIsAboutModalOpen(false)}
-              className="mt-6 w-full h-11 rounded-xl bg-white text-black font-medium text-[14px] hover:bg-zinc-200 transition active:scale-[0.98] cursor-pointer"
-            >
-              Tutup
-            </button>
           </div>
         </div>
       )}
@@ -6213,21 +6192,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <div className="flex-1" />
       )}
 
-        {/* Standalone Menu "Tentang Axioma" di Sidebar Kiri (tepat di atas panel profil / Mode Tamu) */}
-        <div className="px-2 pb-1.5 pt-1 shrink-0">
-          <button
-            type="button"
-            onClick={() => {
-              setIsMobileSidebarOpen(false);
-              setIsAboutModalOpen(true);
-            }}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] font-medium text-text-secondary hover:text-text-primary hover:bg-bg-surface active:scale-[0.98] transition-all cursor-pointer"
-          >
-            <Info className="w-4 h-4 text-icon-muted shrink-0" strokeWidth={1.75} />
-            <span>Tentang Axioma</span>
-          </button>
-        </div>
-
         {/* User Profile & Settings Menu (Item 4 & Item 7) */}
         <div className="p-2 border-t border-border-subtle shrink-0 relative flex items-center justify-between gap-1">
           <button
@@ -6274,10 +6238,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              setSettingsNameInput(displayName);
-              setSettingsNameError(null);
-              setSettingsDefaultAgentInput(defaultAgentId);
-              setIsSettingsModalOpen(true);
+              openSettingsModal("main");
             }}
             aria-label="Buka Pengaturan"
             title="Pengaturan"
@@ -6321,10 +6282,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 role="menuitem"
                 onClick={() => {
                   closeSettingsMenu(false);
-                  setSettingsNameInput(displayName);
-                  setSettingsNameError(null);
-                  setSettingsDefaultAgentInput(defaultAgentId);
-                  setIsSettingsModalOpen(true);
+                  openSettingsModal("main");
                 }}
                 className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-surface focus:bg-bg-surface focus:text-text-primary focus:outline-none flex items-center gap-2 transition-colors cursor-pointer"
               >
@@ -6576,10 +6534,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       role="menuitem"
                       onClick={() => {
                         setIsVoiceOptionsMenuOpen(false);
-                        setSettingsNameInput(displayName);
-                        setSettingsNameError(null);
-                        setSettingsDefaultAgentInput(defaultAgentId);
-                        setIsSettingsModalOpen(true);
+                        openSettingsModal("main");
                       }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-zinc-200 hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
                     >
