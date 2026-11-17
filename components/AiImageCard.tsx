@@ -243,8 +243,8 @@ function AiImageCardInner({ src, alt, onOpenLightbox }: AiImageCardProps) {
 
   return (
     <div
-      className={`my-3 max-w-xl w-full group/ai-img relative rounded-2xl overflow-hidden border border-border-subtle bg-bg-surface shadow-md transition-all hover:border-border-strong hover:shadow-lg ${
-        !isLoaded && !hasError ? "aspect-square sm:aspect-[4/3]" : ""
+      className={`my-3 w-full max-w-[340px] sm:max-w-[440px] group/ai-img relative rounded-2xl overflow-hidden border border-border-subtle bg-bg-surface shadow-md transition-all hover:border-border-strong hover:shadow-lg ${
+        !hasError ? "aspect-square" : ""
       }`}
     >
       {/* Loading Skeleton Overlay (mengizinkan <img> tetap mounted tanpa display:none agar onLoad selalu terpanggil) */}
@@ -273,10 +273,10 @@ function AiImageCardInner({ src, alt, onOpenLightbox }: AiImageCardProps) {
           }}
           onError={() => triggerFallback()}
           onClick={() => isLoaded && onOpenLightbox?.(currentSrc, alt)}
-          className={`w-full object-cover rounded-2xl transition-opacity duration-500 ${
+          className={`w-full h-full object-cover rounded-2xl transition-opacity duration-500 ${
             isLoaded
-              ? "max-h-[520px] opacity-100 cursor-pointer transition-transform group-hover/ai-img:scale-[1.01]"
-              : "h-full opacity-0 pointer-events-none"
+              ? "opacity-100 cursor-pointer transition-transform group-hover/ai-img:scale-[1.01]"
+              : "opacity-0 pointer-events-none"
           }`}
         />
       )}
@@ -301,7 +301,7 @@ function AiImageCardInner({ src, alt, onOpenLightbox }: AiImageCardProps) {
               onClick={() => onOpenLightbox?.(currentSrc, alt)}
               title="Perbesar gambar"
               aria-label="Perbesar gambar"
-              className="p-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white backdrop-blur-md transition-colors cursor-pointer"
+              className="min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white backdrop-blur-md transition-colors cursor-pointer flex items-center justify-center"
             >
               <Eye className="w-4 h-4" />
             </button>
@@ -311,7 +311,7 @@ function AiImageCardInner({ src, alt, onOpenLightbox }: AiImageCardProps) {
               disabled={isDownloading}
               title="Unduh gambar"
               aria-label="Unduh gambar"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white text-zinc-900 font-medium text-xs hover:bg-white/90 active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-50"
+              className="flex items-center gap-1.5 min-h-[40px] sm:min-h-0 px-3 py-1.5 rounded-lg bg-white text-zinc-900 font-medium text-xs hover:bg-white/90 active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-50"
             >
               {isDownloading ? (
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-900" />

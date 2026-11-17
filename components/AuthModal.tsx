@@ -186,23 +186,20 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-backdrop transition-all"
+      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-backdrop transition-all"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[92vw] sm:max-w-[480px] max-h-[88dvh] sm:max-h-[85dvh] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl overflow-y-auto overscroll-contain flex flex-col focus:outline-none animate-modal-pop will-change-transform text-text-primary"
+        className="fixed inset-0 h-[100dvh] w-full rounded-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[90vw] sm:max-w-[480px] sm:h-auto sm:max-h-[85dvh] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] sm:border border-border-subtle dark:border-white/[0.08] shadow-2xl overflow-hidden flex flex-col focus:outline-none animate-modal-pop will-change-transform text-text-primary"
       >
-        {/* Mobile grab handle */}
-        <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto mb-3 sm:hidden shrink-0" />
-
-        {/* Header */}
-        <div className="flex items-start justify-between pb-5">
-          <div className="flex items-center gap-3">
+        {/* Sticky Top Header */}
+        <div className="shrink-0 flex items-start justify-between gap-3 pt-[max(0.85rem,env(safe-area-inset-top))] pb-4 px-5 sm:px-6 sm:pt-6 border-b border-border-subtle dark:border-white/[0.06] bg-bg-elevated/95 dark:bg-[#111114]/95 backdrop-blur-xl">
+          <div className="flex items-center gap-3 min-w-0">
             <AxiomaLogoMark className="w-8 h-8 shrink-0" />
-            <div>
+            <div className="min-w-0">
               <h2 id="auth-modal-title" className="text-[18px] font-semibold text-text-primary tracking-tight leading-snug">
                 {tab === "signin" ? "Masuk ke Axioma" : tab === "signup" ? "Buat Akun Axioma" : "Masuk Tanpa Sandi"}
               </h2>
@@ -216,14 +213,15 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
             onClick={onClose}
             disabled={isLoading}
             aria-label="Tutup modal masuk"
-            className="w-8 h-8 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-surface dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-50 shrink-0 -mt-0.5 -mr-0.5"
+            className="w-10 h-10 min-w-[40px] min-h-[40px] sm:w-8 sm:h-8 sm:min-w-0 sm:min-h-0 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-surface dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-50 shrink-0 -mt-0.5 -mr-0.5"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Content Body */}
-        <div className="space-y-4">
+        {/* Scrollable Content + Footer Body */}
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-4">
+          <div className="space-y-4">
           {!configured && (
             <div
               role="alert"
@@ -354,7 +352,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Nama Anda"
                     disabled={isLoading}
-                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] md:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>
@@ -373,7 +371,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                   placeholder="nama@email.com"
                   disabled={isLoading}
                   autoComplete="email"
-                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] md:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                 />
               </div>
             </div>
@@ -403,7 +401,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     disabled={isLoading}
                     minLength={6}
                     autoComplete={tab === "signup" ? "new-password" : "current-password"}
-                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] md:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>
@@ -437,20 +435,21 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               )}
             </button>
           </form>
-        </div>
+          </div>
 
-        {/* Footer info */}
-        <div className="pt-4 mt-5 border-t border-border-subtle dark:border-white/[0.06] text-center">
-          <p className="text-[12px] text-text-muted">
-            Tetap ingin menggunakan tanpa akun?{" "}
-            <button
-              type="button"
-              onClick={onClose}
-              className="text-text-primary underline underline-offset-2 hover:text-blue-400 transition-colors cursor-pointer font-medium"
-            >
-              Lanjutkan sebagai Tamu
-            </button>
-          </p>
+          {/* Footer info */}
+          <div className="pt-4 mt-5 border-t border-border-subtle dark:border-white/[0.06] text-center">
+            <p className="text-[12px] text-text-muted">
+              Tetap ingin menggunakan tanpa akun?{" "}
+              <button
+                type="button"
+                onClick={onClose}
+                className="text-text-primary underline underline-offset-2 hover:text-blue-400 transition-colors cursor-pointer font-medium"
+              >
+                Lanjutkan sebagai Tamu
+              </button>
+            </p>
+          </div>
         </div>
       </div>
     </div>

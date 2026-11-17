@@ -17,12 +17,25 @@ import { supabase } from "../lib/supabaseClient";
 import { AxiomaLogoMark } from "./AxiomaLogoMark";
 
 export const AXIOMA_CREATORS = [
-  { initials: "NR", name: "Muhammad Nizam Putra Rasya" },
-  { initials: "RR", name: "Muhammad Rendy Ramadhani" },
+  {
+    initials: "NR",
+    name: "Muhammad Nizam Putra Rasya",
+    role: "Lead Developer & System Architect",
+  },
+  {
+    initials: "RR",
+    name: "Muhammad Rendy Ramadhani",
+    role: "Frontend UI/UX & Cross-Device Engineer",
+  },
+  {
+    initials: "DR",
+    name: "Desbellion Seccar Ramis",
+    role: "AI Prompt Specialist & Quality Assurance",
+  },
 ] as const;
 
 export const AXIOMA_ABOUT_SYSTEM_IDENTITY =
-  "Axioma Pro (v2.5 Stable) dibuat oleh Muhammad Nizam Putra Rasya dan Muhammad Rendy Ramadhani, dengan kemampuan inti Penalaran & Analisis, Studio Visual Terpadu, Mode Suara Langsung, dan Arsitektur Lintas Perangkat.";
+  "Axioma Pro (v2.5 Stable) dibuat oleh Muhammad Nizam Putra Rasya, Muhammad Rendy Ramadhani, dan Desbellion Seccar Ramis, dengan kemampuan inti Penalaran & Analisis, Studio Visual Terpadu, Mode Suara Langsung, dan Arsitektur Lintas Perangkat.";
 
 const CORE_CAPABILITIES = [
   {
@@ -114,10 +127,10 @@ interface AboutSettingsViewProps {
 
 export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
   return (
-    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[88dvh] animate-fade-in">
+    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85dvh] animate-fade-in">
       <SubViewHeader title="Tentang Axioma" onBack={onBack} onClose={onClose} />
 
-      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-4 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
+      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-4 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
         {/* a) Hero Banner */}
         <div className="relative overflow-hidden rounded-2xl bg-zinc-50/90 dark:bg-gradient-to-b dark:from-[#17171b] dark:to-[#121215] border border-zinc-200/80 dark:border-white/[0.07] p-5 text-center">
           <div
@@ -184,24 +197,29 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+          <div className="flex flex-col gap-2">
             {AXIOMA_CREATORS.map((creator) => (
               <div
                 key={creator.initials}
-                className="flex items-center gap-3 p-2.5 rounded-xl bg-white dark:bg-white/[0.025] border border-zinc-200/70 dark:border-white/[0.05]"
+                className="flex items-center gap-3 p-3 rounded-xl bg-white dark:bg-white/[0.025] border border-zinc-200/70 dark:border-white/[0.05]"
               >
-                <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-[#24262b] border border-zinc-200 dark:border-white/[0.1] text-[12px] font-semibold text-zinc-800 dark:text-white flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-[#24262b] border border-zinc-200 dark:border-white/[0.1] text-[12px] font-semibold tracking-tight text-zinc-800 dark:text-white flex items-center justify-center shrink-0 select-none">
                   {creator.initials}
                 </div>
-                <div className="text-[13.5px] font-medium text-zinc-900 dark:text-white leading-snug min-w-0">
-                  {creator.name}
+                <div className="min-w-0 flex-1">
+                  <div className="text-[13.5px] font-medium text-zinc-900 dark:text-white leading-snug">
+                    {creator.name}
+                  </div>
+                  <div className="text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-snug mt-0.5">
+                    {creator.role}
+                  </div>
                 </div>
               </div>
             ))}
           </div>
 
-          <p className="mt-3 pt-2.5 border-t border-zinc-200/70 dark:border-white/[0.05] text-[12px] text-zinc-500 dark:text-zinc-400 text-center">
-            Dibuat oleh Muhammad Nizam Putra Rasya &amp; Muhammad Rendy Ramadhani
+          <p className="mt-3 pt-2.5 border-t border-zinc-200/70 dark:border-white/[0.05] text-[12px] text-zinc-500 dark:text-zinc-400 text-center leading-relaxed">
+            Dibuat oleh Muhammad Nizam Putra Rasya, Muhammad Rendy Ramadhani, &amp; Desbellion Seccar Ramis
           </p>
         </div>
 
@@ -359,10 +377,10 @@ export function FeedbackSettingsView({
   };
 
   return (
-    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[88dvh] animate-fade-in">
+    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85dvh] animate-fade-in">
       <SubViewHeader title="Kirim Masukan" onBack={onBack} onClose={onClose} />
 
-      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
+      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
         <p className="text-[13.5px] text-zinc-600 dark:text-zinc-400 leading-relaxed mb-5">
           Bagikan ide fitur baru, masukan desain, atau kendala yang Anda temui agar
           Axioma terus berkembang lebih baik.
@@ -431,7 +449,7 @@ export function FeedbackSettingsView({
               value={userEmail}
               onChange={(e) => setUserEmail(e.target.value)}
               placeholder="Email Anda (opsional, untuk balasan)"
-              className="w-full rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 px-3.5 py-3 text-[16px] sm:text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none transition-colors"
+              className="w-full rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 px-3.5 py-3 text-[16px] md:text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none transition-colors"
             />
           </div>
 
@@ -454,7 +472,7 @@ export function FeedbackSettingsView({
                 if (submitSuccess) setSubmitSuccess(false);
               }}
               placeholder="Tuliskan saran fitur, masukan desain, atau kendala yang Anda alami..."
-              className="w-full min-h-[140px] rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 p-4 text-[16px] sm:text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none resize-none transition-colors"
+              className="w-full min-h-[140px] rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 p-4 text-[16px] md:text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none resize-none transition-colors"
             />
           </div>
 

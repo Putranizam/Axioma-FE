@@ -45,7 +45,7 @@ export const CodeBlock = memo(function CodeBlock({
   }, [rawCode, language, isStreaming]);
 
   return (
-    <div className="my-3 rounded-xl bg-bg-surface border border-border-subtle overflow-hidden shadow-lg transition-all hover:border-border-strong">
+    <div className="my-3 w-full max-w-full min-w-0 rounded-xl bg-bg-surface border border-border-subtle overflow-hidden shadow-lg transition-all hover:border-border-strong">
       {/* Code Header Bar */}
       <div className="px-3.5 py-2 bg-bg-elevated border-b border-border-subtle flex items-center justify-between text-text-muted font-mono text-xs select-none">
         <span className="font-medium tracking-tight text-text-secondary">
@@ -55,7 +55,7 @@ export const CodeBlock = memo(function CodeBlock({
           type="button"
           onClick={onCopy}
           aria-label={isCopied ? "Kode berhasil disalin" : "Salin seluruh kode"}
-          className="text-text-secondary hover:text-text-primary flex items-center gap-1.5 font-sans font-medium tracking-tight text-xs transition-colors active:scale-95 cursor-pointer py-0.5 px-1 rounded hover:bg-bg-surface"
+          className="text-text-secondary hover:text-text-primary flex items-center gap-1.5 font-sans font-medium tracking-tight text-xs transition-colors active:scale-95 cursor-pointer py-1 px-1.5 min-h-[36px] sm:min-h-0 rounded hover:bg-bg-surface"
         >
           {isCopied ? (
             <Check className="w-3.5 h-3.5 text-emerald-400" />
