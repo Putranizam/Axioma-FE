@@ -64,8 +64,6 @@ import {
   ExternalLink,
   Loader2,
   WifiOff,
-  Sparkles,
-  Film,
   Palette,
   Video,
 } from "lucide-react";
@@ -441,36 +439,22 @@ interface StarterPrompt {
 const STARTER_PROMPTS: StarterPrompt[] = [
   {
     id: "create-image",
-    label: "Buatkan gambar pemandangan kota futuristik HD",
+    label: "Buat visual kota futuristik",
     mode: "prefill",
     prefillText: "Buatkan gambar: pemandangan kota futuristik Jakarta dengan pencahayaan neon sinematik, 8k",
     icon: "image",
   },
   {
-    id: "create-video",
-    label: "Buatkan video drone sinematik pegunungan",
-    mode: "prefill",
-    prefillText: "Buatkan video: kamera drone sinematik terbang di atas puncak pegunungan berkabut saat fajar",
-    icon: "video",
-  },
-  {
     id: "explain-simple",
-    label: "Jelaskan cara kerja blockchain dengan bahasa sederhana",
+    label: "Jelaskan cara kerja blockchain",
     mode: "send",
     icon: "lightbulb",
   },
   {
     id: "professional-email",
-    label: "Bantu saya menulis email profesional",
+    label: "Tulis email profesional",
     mode: "send",
     icon: "mail",
-  },
-  {
-    id: "analyze-table",
-    label: "Analisis data dari tabel berikut",
-    mode: "prefill",
-    prefillText: "Analisis data dari tabel berikut:\n\n",
-    icon: "table",
   },
   {
     id: "write-code",
@@ -1995,12 +1979,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     setGreeting(picked);
   }, [activeChatId, displayName, authUser]);
 
-  // Axioma mobile greeting helper (deterministic during SSR, randomized in useEffect on client)
+  // Axioma greeting helper (deterministic during SSR, randomized in useEffect on client)
   const defaultFallbackGreeting = authUser && displayName
     ? `Halo ${toTitleCase(displayName)}, apa yang Anda pikirkan?`
-    : "Halo, apa yang Anda pikirkan?";
+    : "Apa yang sebaiknya kita fokuskan hari ini?";
 
   const mobileGreeting = dynamicGreeting || defaultFallbackGreeting;
+  const isLoadingExistingChat =
+    isChatAreaLoading &&
+    Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"));
+  const isDesktopEmptyState = !hasMessages && !isLoadingExistingChat;
 
   useEffect(() => {
     const nextHasMessages = Boolean(currentMessages.length > 0);
@@ -4933,19 +4921,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   };
 
   const renderStarterIcon = (icon: StarterPrompt["icon"]) => {
+    const iconClass =
+      "w-4 h-4 text-text-muted dark:text-zinc-400 group-hover:text-text-primary dark:group-hover:text-zinc-200 transition-colors shrink-0";
     switch (icon) {
       case "lightbulb":
-        return <Lightbulb className="w-4 h-4 text-text-muted shrink-0" />;
+        return <Lightbulb className={iconClass} strokeWidth={1.75} />;
       case "mail":
-        return <Mail className="w-4 h-4 text-text-muted shrink-0" />;
+        return <Mail className={iconClass} strokeWidth={1.75} />;
       case "table":
-        return <Table className="w-4 h-4 text-text-muted shrink-0" />;
+        return <Table className={iconClass} strokeWidth={1.75} />;
       case "code":
-        return <Code className="w-4 h-4 text-text-muted shrink-0" />;
+        return <Code className={iconClass} strokeWidth={1.75} />;
       case "image":
-        return <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />;
+        return <ImageIcon className={iconClass} strokeWidth={1.75} />;
       case "video":
-        return <Film className="w-4 h-4 text-purple-400 shrink-0" />;
+        return <Video className={iconClass} strokeWidth={1.75} />;
     }
   };
 
@@ -4969,7 +4959,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-viewport-lock"
       style={{ height: "100dvh", transition: "none" }}
-      className="fixed top-0 left-0 right-0 w-full flex flex-col justify-between lg:flex-row bg-black text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
+      className="fixed top-0 left-0 right-0 w-full flex flex-col justify-between lg:flex-row bg-bg-primary dark:bg-[#000000] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5711,7 +5701,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed inset-y-0 left-0 z-40 w-[272px] max-w-[85vw] bg-bg-primary border-r border-border-subtle flex flex-col transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
+        className={`fixed inset-y-0 left-0 z-40 w-[272px] max-w-[85vw] bg-bg-surface dark:bg-[#0a0a0c] border-r border-border-subtle dark:border-white/[0.06] flex flex-col transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
           isDesktopSidebarCollapsed
             ? "lg:w-0 lg:opacity-0 lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
             : "lg:w-[268px] lg:opacity-100 lg:translate-x-0"
@@ -6176,9 +6166,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       </aside>
 
       {/* Main Workspace Column */}
-      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative">
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative bg-bg-primary dark:bg-[#000000]">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between px-4 py-2.5 z-20 bg-black border-b-0 md:border-b md:border-border-subtle md:h-14">
+        <header className="shrink-0 w-full flex items-center justify-between px-4 py-2.5 z-20 bg-bg-primary dark:bg-[#000000] border-b-0 md:h-14">
           {/* Mobile Header (< md) - Modern AI Pattern */}
           <div className="flex md:hidden items-center justify-between w-full">
             {/* Left: 36px (w-9 h-9) circular hamburger menu */}
@@ -6489,12 +6479,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ref={scrollRef}
             onScroll={handleChatScroll}
             className={`flex-1 min-h-0 overflow-y-auto touch-auto transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
-              hasMessages ||
-              (isChatAreaLoading &&
-                Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat")))
-                ? "opacity-100 py-6 px-4"
-                : "opacity-0 pointer-events-none py-0 hidden md:flex"
-            } max-w-2xl lg:max-w-3xl mx-auto w-full flex flex-col gap-5 sm:gap-6 md:gap-8`}
+              hasMessages || isLoadingExistingChat
+                ? "opacity-100 py-6 px-4 flex"
+                : "hidden"
+            } max-w-[720px] mx-auto w-full flex-col gap-5 sm:gap-6 md:gap-8`}
           >
             {isChatAreaLoading &&
               currentMessages.length === 0 &&
@@ -7128,66 +7116,65 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className="shrink-0 w-full px-4 pt-1 pb-1.5 bg-transparent z-20 relative"
+            className={`w-full px-4 pt-1 pb-1.5 bg-transparent z-20 relative ${
+              isDesktopEmptyState
+                ? "shrink-0 md:shrink md:flex-1 md:min-h-0 md:overflow-y-auto md:flex md:flex-col"
+                : "shrink-0"
+            }`}
           >
             {/* Seamless Radial Blue Glow (Menyatu halus tanpa garis patah) */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-[280px] -z-10"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-[280px] -z-10 hidden dark:block"
               style={{
                 background:
                   "radial-gradient(80% 60% at 50% 85%, rgba(29, 78, 216, 0.22) 0%, rgba(30, 58, 138, 0.08) 45%, rgba(0, 0, 0, 0) 100%)",
               }}
             />
-            <div className="w-full max-w-2xl lg:max-w-3xl mx-auto flex flex-col items-center">
+            <div
+              className={`w-full max-w-[720px] mx-auto flex flex-col items-center ${
+                isDesktopEmptyState ? "md:flex-1 md:justify-center md:px-4" : ""
+              }`}
+            >
               <div
-                className={`relative w-full ${
-                  hasMessages ||
-                  (isChatAreaLoading &&
-                    Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat")))
-                    ? "translate-y-0"
-                    : "translate-y-0 md:-translate-y-[30vh] md:transition-transform md:duration-300 md:ease-[cubic-bezier(0.22,1,0.36,1)]"
+                className={`relative w-full flex flex-col items-center ${
+                  isDesktopEmptyState ? "md:-mt-8" : ""
                 }`}
               >
-                {/* Desktop Greeting (Hidden on mobile where greeting is vertically centered in the viewport) */}
-                {showEmptyDecorations &&
-                  !(
-                    isChatAreaLoading &&
-                    Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
-                  ) && (
-                    <div
-                      className={`hidden md:block absolute bottom-full left-0 right-0 mb-5 sm:mb-6 pointer-events-none transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
-                        isEmptyDecorationsExiting
-                          ? "opacity-0 -translate-y-2.5"
-                          : "opacity-100 translate-y-0"
-                      }`}
-                    >
-                      <div className="w-full max-w-2xl mx-auto text-center">
-                        {isChatAreaLoading || (!dynamicGreeting && greeting === "") ? (
-                          <div
-                            role="status"
-                            aria-label="Memuat ruang kerja"
-                            className="flex flex-col items-center gap-2.5"
-                          >
-                            <div className="h-7 sm:h-8 w-64 sm:w-96 rounded-xl bg-border-subtle animate-pulse" />
-                          </div>
-                        ) : (
-                          <h1 className="text-xl sm:text-2xl md:text-3xl font-semibold text-center text-balance text-text-primary tracking-tight leading-relaxed animate-fade-in">
-                            {dynamicGreeting || greeting}
-                          </h1>
-                        )}
-                      </div>
+                {/* Desktop Minimalist Logo "A" & Optical-Center Greeting (Hidden on mobile) */}
+                {isDesktopEmptyState && (
+                  <div className="hidden md:flex flex-col items-center text-center pointer-events-none select-none w-full">
+                    <div className="w-11 h-11 rounded-2xl bg-bg-elevated dark:bg-[#141416] border border-border-subtle dark:border-white/[0.07] flex items-center justify-center p-2 shadow-sm mb-5">
+                      <Image
+                        src="/brand/axioma-logo.png"
+                        alt="Axioma"
+                        width={36}
+                        height={36}
+                        className="w-full h-full object-contain"
+                        priority
+                      />
                     </div>
-                  )}
+                    {isChatAreaLoading ? (
+                      <div
+                        role="status"
+                        aria-label="Memuat ruang kerja"
+                        className="flex flex-col items-center mb-7"
+                      >
+                        <div className="h-9 w-80 sm:w-[440px] rounded-xl bg-border-subtle animate-pulse" />
+                      </div>
+                    ) : (
+                      <h1 className="text-[28px] sm:text-[32px] font-normal tracking-[-0.02em] text-text-primary dark:text-[#ececec] mb-7 text-center text-balance leading-tight animate-fade-in">
+                        {dynamicGreeting || greeting || defaultFallbackGreeting}
+                      </h1>
+                    )}
+                  </div>
+                )}
 
                 {/* Mobile Gemini-style Mode Tabs above Composer (< md, only in empty state & hidden when recording) */}
                 {!hasMessages &&
                   !isRecording &&
                   showEmptyDecorations &&
-                  !(
-                    isChatAreaLoading &&
-                    Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
-                  ) && (
+                  !isLoadingExistingChat && (
                     <div
                       className={`md:hidden w-full mb-2 sm:mb-2.5 flex items-center justify-center gap-2.5 px-1 text-xs font-medium transition-all duration-200 ${
                         isEmptyDecorationsExiting
@@ -7332,9 +7319,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Polished Input Box (Menyerupai Kapsul Minta Gemini: min-h-[56px] rounded-[30px] px-4 bg-[#1e1f22]) */}
+                {/* Polished Input Box */}
                 <div
-                  className="bg-[#1e1f22] border border-white/[0.03] rounded-[30px] min-h-[56px] px-4 flex items-center shadow-lg w-full gap-2.5 transition-colors focus-within:border-white/[0.06]"
+                  className="max-w-[720px] w-full bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.07] focus-within:border-border-strong dark:focus-within:border-white/[0.15] rounded-[28px] min-h-[56px] px-4 py-2.5 md:py-3 flex items-center shadow-2xl gap-2.5 transition-colors"
                 >
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
@@ -7364,13 +7351,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           disabled={isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice}
                           title={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
                           aria-label={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
-                          className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center transition-all ${
+                          className={`w-10 h-10 min-w-[40px] min-h-[40px] md:w-9 md:h-9 md:min-w-0 md:min-h-0 rounded-full flex items-center justify-center transition-all ${
                             isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice
-                              ? "text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none"
-                              : "text-zinc-300 hover:text-white hover:bg-white/10 active:scale-95 cursor-pointer -ml-1"
+                              ? "text-text-muted dark:text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none"
+                              : "text-text-secondary dark:text-zinc-300 hover:text-text-primary dark:hover:text-white hover:bg-bg-subtle dark:hover:bg-white/10 active:scale-95 cursor-pointer -ml-1"
                           }`}
                         >
-                          <Plus className="w-6 h-6" />
+                          <Plus className="w-5 h-5 md:w-5 md:h-5" />
                         </button>
 
                         {/* Tooltip when 4 attachments reached */}
@@ -7630,7 +7617,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             : "Minta Axioma..."
                         }
                         style={{ height: "24px" }}
-                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-white placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 min-h-[24px] max-h-[120px] leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
+                        className="flex-1 w-full self-center resize-none overflow-y-hidden bg-transparent text-text-primary dark:text-white placeholder:text-text-muted dark:placeholder:text-[#8e918f] text-[16px] sm:text-[17px] font-normal focus:outline-none px-2 py-1 min-h-[24px] max-h-[120px] leading-6 tracking-normal transition-colors duration-150 ease-out touch-manipulation"
                       />
                     </div>
                   )}
@@ -7765,9 +7752,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }}
                             title="Dikte suara (Bahasa Indonesia)"
                             aria-label="Mulai dikte"
-                            className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center text-zinc-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer border border-transparent active:scale-95"
+                            className="w-10 h-10 min-w-[40px] min-h-[40px] md:w-9 md:h-9 md:min-w-0 md:min-h-0 rounded-full flex items-center justify-center text-icon-muted dark:text-zinc-400 hover:text-text-primary dark:hover:text-white hover:bg-bg-subtle/70 dark:hover:bg-white/10 transition-all cursor-pointer border border-transparent active:scale-95"
                           >
-                            <Mic className="w-5 h-5" />
+                            <Mic className="w-5 h-5 md:w-4 md:h-4" />
                           </button>
                         ) : (
                           <>
@@ -7777,9 +7764,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               aria-disabled="true"
                               title="Perangkat tidak mendukung input mikrofon"
                               aria-label="Perangkat tidak mendukung input mikrofon"
-                              className="w-11 h-11 min-w-[44px] min-h-[44px] lg:w-8 lg:h-8 lg:min-w-0 lg:min-h-0 rounded-full md:rounded-xl flex items-center justify-center text-icon-muted opacity-50 cursor-not-allowed"
+                              className="w-11 h-11 min-w-[44px] min-h-[44px] md:w-9 md:h-9 md:min-w-0 md:min-h-0 rounded-full md:rounded-full flex items-center justify-center text-icon-muted opacity-50 cursor-not-allowed"
                             >
-                              <MicOff className="w-5 h-5 lg:w-4 lg:h-4" />
+                              <MicOff className="w-5 h-5 md:w-4 md:h-4" />
                             </button>
                             <span
                               role="tooltip"
@@ -7881,31 +7868,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         })()}
                       </div>
 
-                      {/* DESKTOP ACTIONS: Mode Suara + Send / Stop (>= md) */}
-                      <div className="hidden md:flex items-center gap-1.5 sm:gap-2 shrink-0">
-                        {/* Mode Suara (ChatGPT-style Voice Mode) Button */}
-                        <div className="relative group shrink-0">
-                          <button
-                            type="button"
-                            onMouseDown={(e) => {
-                              e.preventDefault();
-                            }}
-                            onClick={handleOpenVoiceMode}
-                            title="Mode Suara (Percakapan langsung)"
-                            aria-label="Mode Suara (Percakapan langsung)"
-                            className="w-8 h-8 p-1.5 rounded-xl flex items-center justify-center text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-all cursor-pointer border border-transparent active:scale-[0.94]"
-                          >
-                            <AudioLines className="w-4 h-4" />
-                          </button>
-                          <span
-                            role="tooltip"
-                            className="pointer-events-none absolute right-0 bottom-full mb-2 px-2 py-1 rounded-md bg-bg-elevated border border-border-subtle text-[11px] text-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shadow-lg z-30"
-                          >
-                            Mode Suara
-                          </span>
-                        </div>
-
-                        {/* Desktop Send / Stop button */}
+                      {/* DESKTOP ACTIONS: Morphing Mode Suara <-> Send / Stop (>= md) */}
+                      <div className="hidden md:flex items-center gap-1.5 shrink-0">
                         {isGenerating ? (
                           <button
                             type="button"
@@ -7915,7 +7879,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={handleStopGeneration}
                             title="Hentikan respons"
                             aria-label="Hentikan respons"
-                            className="w-8 h-8 rounded-full flex items-center justify-center bg-text-primary text-bg-primary hover:opacity-90 active:scale-[0.94] transition-[opacity] duration-150 ease-out shadow-md cursor-pointer"
+                            className="w-9 h-9 rounded-full flex items-center justify-center bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-transform active:scale-95 shadow-md cursor-pointer"
                           >
                             <Square className="w-3.5 h-3.5 fill-current" />
                           </button>
@@ -7924,41 +7888,69 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             (a) => a.status === "uploading" || a.status === "compressing"
                           );
                           const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
+                          const hasUserTextOrAttachments = Boolean(inputText.trim()) || hasReadyAttachments;
                           const isSendDisabled =
                             !isOnline ||
-                            (!inputText.trim() && !hasReadyAttachments) ||
+                            !hasUserTextOrAttachments ||
                             isUploadingAttachment ||
                             isLoading ||
                             isGenerating ||
                             isSubmitting;
 
+                          if (hasUserTextOrAttachments) {
+                            return (
+                              <button
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                }}
+                                onClick={() => {
+                                  if (!isSendDisabled) {
+                                    void handleSendMessage();
+                                    textareaRef.current?.blur();
+                                  }
+                                }}
+                                disabled={isSendDisabled}
+                                title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
+                                aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
+                                className={`w-9 h-9 rounded-full flex items-center justify-center transition-transform duration-150 ${
+                                  !isSendDisabled
+                                    ? `bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 shadow-md cursor-pointer active:scale-95 ${
+                                        isSendPressed ? "scale-[0.94]" : "scale-100"
+                                      }`
+                                    : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
+                                }`}
+                              >
+                                {isUploadingAttachment ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <ArrowUp className="w-4 h-4 stroke-[2.25]" />
+                                )}
+                              </button>
+                            );
+                          }
+
                           return (
-                            <button
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                              }}
-                              onClick={() => {
-                                if (!isSendDisabled) {
-                                  void handleSendMessage();
-                                  textareaRef.current?.blur();
-                                }
-                              }}
-                              disabled={isSendDisabled}
-                              title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                              aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                              className={`w-8 h-8 rounded-full flex items-center justify-center transition-[background-color,color,box-shadow,opacity] duration-200 ease-out ${
-                                !isSendDisabled
-                                  ? "bg-text-primary text-bg-primary hover:opacity-90 shadow-md cursor-pointer active:scale-[0.94]"
-                                  : "bg-bg-surface text-text-muted border border-border-subtle cursor-not-allowed opacity-50"
-                              }`}
-                            >
-                              {isUploadingAttachment ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin text-text-muted" />
-                              ) : (
-                                <ArrowUp className="w-4 h-4" />
-                              )}
-                            </button>
+                            <div className="relative group shrink-0">
+                              <button
+                                type="button"
+                                onMouseDown={(e) => {
+                                  e.preventDefault();
+                                }}
+                                onClick={handleOpenVoiceMode}
+                                title="Mode Suara (Percakapan langsung)"
+                                aria-label="Mode Suara (Percakapan langsung)"
+                                className="w-9 h-9 rounded-full flex items-center justify-center text-icon-muted dark:text-zinc-400 hover:text-text-primary dark:hover:text-white hover:bg-bg-subtle/70 dark:hover:bg-white/10 transition-all cursor-pointer active:scale-95"
+                              >
+                                <AudioLines className="w-4 h-4" />
+                              </button>
+                              <span
+                                role="tooltip"
+                                className="pointer-events-none absolute right-0 bottom-full mb-2 px-2 py-1 rounded-md bg-bg-elevated border border-border-subtle text-[11px] text-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shadow-lg z-30"
+                              >
+                                Mode Suara
+                              </span>
+                            </div>
                           );
                         })()}
                       </div>
@@ -7966,70 +7958,58 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   )}
                 </div>
 
-                {/* 4 Starter Prompt Cards (Empty State only: 2x2 grid on desktop, hidden on mobile) */}
-                {showEmptyDecorations &&
-                  !(
-                    isChatAreaLoading &&
-                    Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
-                  ) && (
-                    <div
-                      className={`hidden md:grid absolute top-full left-0 right-0 mt-3 sm:mt-4 grid-cols-2 gap-2 sm:gap-2.5 transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] motion-safe-transform will-change-transform ${
-                        isEmptyDecorationsExiting
-                          ? "opacity-0 -translate-y-2.5 pointer-events-none"
-                          : "opacity-100 translate-y-0 animate-fade-up"
-                      }`}
-                    >
-                      {isChatAreaLoading || greeting === ""
-                        ? STARTER_PROMPTS.map((prompt) => (
-                            <div
-                              key={prompt.id}
-                              className="w-full h-12 sm:h-14 rounded-xl bg-border-subtle animate-pulse"
-                            />
-                          ))
-                        : STARTER_PROMPTS.map((prompt) => (
-                            <button
-                              key={prompt.id}
-                              type="button"
-                              onClick={() => handleStarterPromptClick(prompt)}
-                              className="w-full text-left px-3 py-2.5 sm:px-3.5 sm:py-3 rounded-xl bg-bg-elevated hover:bg-bg-surface border border-border-subtle hover:border-border-strong active:scale-[0.99] transition-[background-color,border-color,transform] duration-150 flex items-center gap-2.5 sm:gap-3 group cursor-pointer"
-                            >
-                              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-bg-surface border border-border-subtle flex items-center justify-center shrink-0 group-hover:border-border-strong transition-colors">
-                                {renderStarterIcon(prompt.icon)}
-                              </div>
-                              <span className="text-xs sm:text-sm font-medium text-text-secondary group-hover:text-text-primary leading-snug">
-                                {prompt.label}
-                              </span>
-                            </button>
-                          ))}
-                    </div>
-                  )}
+                {/* 4 Compact Monochrome Starter Capsules (Empty State only: 4 columns on desktop, hidden on mobile) */}
+                {isDesktopEmptyState && (
+                  <div className="hidden md:grid grid-cols-2 sm:grid-cols-4 gap-2.5 max-w-[720px] w-full mt-5 animate-fade-up">
+                    {isChatAreaLoading
+                      ? STARTER_PROMPTS.map((prompt) => (
+                          <div
+                            key={prompt.id}
+                            className="h-[82px] rounded-2xl bg-bg-elevated dark:bg-[#141416] border border-border-subtle dark:border-white/[0.06] animate-pulse"
+                          />
+                        ))
+                      : STARTER_PROMPTS.map((prompt) => (
+                          <button
+                            key={prompt.id}
+                            type="button"
+                            onClick={() => handleStarterPromptClick(prompt)}
+                            className="bg-bg-elevated dark:bg-[#141416] hover:bg-bg-surface dark:hover:bg-[#1c1d20] border border-border-subtle dark:border-white/[0.06] hover:border-border-strong dark:hover:border-white/[0.12] rounded-2xl p-3.5 transition-all duration-200 text-left group cursor-pointer active:scale-[0.98] flex flex-col items-start justify-between gap-2.5"
+                          >
+                            {renderStarterIcon(prompt.icon)}
+                            <span className="text-[13.5px] leading-snug font-normal text-text-secondary dark:text-zinc-300 group-hover:text-text-primary dark:group-hover:text-white line-clamp-2">
+                              {prompt.label}
+                            </span>
+                          </button>
+                        ))}
+                  </div>
+                )}
               </div>
+            </div>
 
-              {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
-              <div
-                className={`text-center text-[11px] sm:text-xs text-text-muted pt-1.5 sm:pt-2.5 pb-1 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 ${
-                  isInputFocused ? "hidden" : "flex"
-                }`}
-              >
-                <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
-                <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
-                <span className="hidden md:inline text-border-strong">•</span>
-                <span className="hidden md:inline-flex items-center gap-2">
-                  <Link
-                    href="/privasi"
-                    className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
-                  >
-                    Privasi
-                  </Link>
-                  <span className="text-border-strong">·</span>
-                  <Link
-                    href="/ketentuan"
-                    className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
-                  >
-                    Ketentuan
-                  </Link>
-                </span>
-              </div>
+            {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
+            <div
+              className={`shrink-0 text-center text-[11px] sm:text-xs text-text-muted pt-1.5 sm:pt-2.5 pb-1 tracking-normal flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 ${
+                isInputFocused ? "hidden" : "flex"
+              }`}
+            >
+              <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
+              <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
+              <span className="hidden md:inline text-border-strong">•</span>
+              <span className="hidden md:inline-flex items-center gap-2">
+                <Link
+                  href="/privasi"
+                  className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+                >
+                  Privasi
+                </Link>
+                <span className="text-border-strong">·</span>
+                <Link
+                  href="/ketentuan"
+                  className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+                >
+                  Ketentuan
+                </Link>
+              </span>
             </div>
           </div>
         </div>
