@@ -6,9 +6,9 @@
 @source "../components/**/*.{js,ts,jsx,tsx}";
 
 :root {
-  --background: #000000;
+  --background: #09090b;
   --foreground: #f4f4f5;
-  --bg-primary: #000000;
+  --bg-primary: #09090b;
   --bg-elevated: #121214;
   --bg-surface: #18181b;
   --bg-subtle: #27272a;
@@ -42,7 +42,7 @@ html.light body {
 
 html.dark,
 html.dark body {
-  background-color: #000000 !important;
+  background-color: #09090b !important;
 }
 
 @theme inline {
@@ -88,10 +88,11 @@ body {
   inset: 0;
   width: 100%;
   height: 100%;
+  min-height: 100dvh;
   overflow: hidden;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
-  background-color: #000000;
+  background-color: #09090b;
   margin: 0;
   padding: 0;
   color: var(--text-primary);
@@ -124,9 +125,9 @@ body {
     inset: 0;
     width: 100%;
     height: 100%;
+    min-height: 100dvh;
     overflow: hidden;
     overscroll-behavior: none;
-    background-color: #000000;
     margin: 0;
     padding: 0;
   }

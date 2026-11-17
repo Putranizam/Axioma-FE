@@ -1335,7 +1335,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         el.style.top = `${Math.max(0, Math.round(vv.offsetTop))}px`;
         el.style.bottom = "auto";
       } else {
-        // Bebaskan CSS fixed inset-0 h-[100dvh] agar menempel penuh di mode iOS Standalone (zero bottom gap)
+        // Bebaskan CSS fixed inset-0 h-full agar menempel penuh di mode iOS Standalone (zero bottom gap)
         el.style.height = "";
         el.style.top = "";
         el.style.bottom = "";
@@ -5121,7 +5121,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-viewport-lock"
       style={{ transition: "none" }}
-      className="fixed inset-0 w-full h-[100dvh] flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
+      className="fixed inset-0 w-full h-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -6375,9 +6375,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       </aside>
 
       {/* Main Workspace Column */}
-      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative bg-[#FFFFFF] dark:bg-[#000000]">
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative bg-[#FFFFFF] dark:bg-[#09090b]">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-[#000000] border-b-0">
+        <header className="shrink-0 w-full flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-[#09090b] border-b-0">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -7583,21 +7583,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className={`w-full px-3 sm:px-6 pt-2 ${
-              isInputFocused ? "pb-2" : "pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)+6px))]"
+            className={`w-full px-3 sm:px-6 pt-1.5 ${
+              isInputFocused ? "pb-2" : "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
             } bg-transparent z-20 relative ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
                 : "shrink-0"
             }`}
           >
-            {/* Seamless Radial Blue Glow (Menyatu halus tanpa garis patah) */}
+            {/* Seamless Radial Blue Glow (Menyatu halus sampai tepi paling bawah tanpa garis patah) */}
             <div
               aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-[280px] -z-10 hidden dark:block"
+              className="pointer-events-none absolute inset-x-0 bottom-0 h-[320px] -z-10 hidden dark:block"
               style={{
                 background:
-                  "radial-gradient(80% 60% at 50% 85%, rgba(29, 78, 216, 0.22) 0%, rgba(30, 58, 138, 0.08) 45%, rgba(0, 0, 0, 0) 100%)",
+                  "radial-gradient(90% 70% at 50% 100%, rgba(29, 78, 216, 0.16) 0%, rgba(30, 58, 138, 0.05) 48%, rgba(9, 9, 11, 0) 85%)",
               }}
             />
             <div
@@ -8368,13 +8368,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <div
-              className={`shrink-0 mt-1.5 w-full text-center text-[11px] sm:text-xs leading-tight text-zinc-500 dark:text-zinc-400 tracking-normal ${
+              className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-none text-zinc-500 dark:text-zinc-400 tracking-normal ${
                 isInputFocused
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
               }`}
             >
-              <span className="md:hidden block w-full text-center text-[11px] leading-tight text-zinc-500">
+              <span className="md:hidden block w-full text-center text-[11px] leading-none text-zinc-500">
                 Axioma dapat membuat kesalahan.
               </span>
               <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
