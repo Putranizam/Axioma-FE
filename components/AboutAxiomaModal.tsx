@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState } from "react";
-import Image from "next/image";
 import {
   ChevronLeft,
   X,
@@ -9,7 +8,6 @@ import {
   Image as ImageIcon,
   AudioWaveform,
   ShieldCheck,
-  Sparkles,
   CheckCircle2,
   Loader2,
   Send,
@@ -79,25 +77,28 @@ interface SettingsHeaderProps {
 
 function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
   return (
-    <div className="sticky top-0 z-10 shrink-0 bg-[#111114]/95 backdrop-blur-md -mx-5 sm:-mx-6 px-5 sm:px-6 pt-1 pb-3.5 mb-4 border-b border-white/[0.06] flex items-center justify-between gap-2">
+    <div className="relative shrink-0 pt-[max(0.85rem,env(safe-area-inset-top))] pb-3.5 px-5 sm:px-6 bg-[#0a0a0c]/90 sm:bg-[#101013]/90 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between">
       <button
         type="button"
         onClick={onBack}
-        className="inline-flex items-center gap-1 px-2.5 py-1.5 -ml-2 rounded-xl text-[13.5px] font-medium text-zinc-300 hover:text-white hover:bg-white/[0.06] active:scale-95 transition cursor-pointer"
+        className="relative z-10 inline-flex items-center gap-1.5 py-1 pr-2 -ml-1 rounded-xl text-[14px] font-medium text-zinc-300 hover:text-white active:scale-95 transition cursor-pointer"
       >
         <ChevronLeft className="w-4 h-4 shrink-0" />
         <span>Kembali</span>
       </button>
 
-      <h2 className="text-[16px] font-semibold tracking-tight text-white truncate">
+      <h1
+        id="settings-modal-title"
+        className="absolute left-1/2 -translate-x-1/2 text-[16px] font-semibold tracking-tight text-white truncate max-w-[50%]"
+      >
         {title}
-      </h2>
+      </h1>
 
       <button
         type="button"
         onClick={onClose}
         aria-label={`Tutup ${title}`}
-        className="w-9 h-9 rounded-full bg-[#1e1f20] hover:bg-zinc-700 active:scale-[0.96] transition flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer shrink-0"
+        className="relative z-10 w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] active:scale-[0.96] transition flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer shrink-0"
       >
         <X className="w-4 h-4" />
       </button>
@@ -112,124 +113,141 @@ interface AboutSettingsViewProps {
 
 export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
   return (
-    <div className="flex flex-col animate-fade-in">
+    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[88dvh] animate-fade-in">
       <SubViewHeader title="Tentang Axioma" onBack={onBack} onClose={onClose} />
 
-      {/* a) Hero Banner */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#18181c] to-[#121215] border border-white/[0.07] p-5 text-center">
-        <div
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-12 inset-x-0 mx-auto w-56 h-56 rounded-full"
-          style={{
-            background:
-              "radial-gradient(circle, rgba(59,130,246,0.16) 0%, transparent 70%)",
-          }}
-        />
-
-        <div className="relative w-14 h-14 rounded-2xl bg-[#1e1f24] border border-white/[0.1] flex items-center justify-center mx-auto mb-3 shadow-lg p-2.5">
-          <Image
-            src="/brand/axioma-logo.png"
-            alt="Axioma"
-            width={36}
-            height={36}
-            className="w-full h-full object-contain"
-          />
-        </div>
-
-        <div className="relative flex flex-col items-center">
-          <h3 className="text-[20px] font-semibold tracking-tight text-white">
-            Axioma Pro
-          </h3>
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span>v2.5 Stable</span>
-          </span>
-
-          <p className="text-[13px] text-zinc-400 leading-relaxed mt-2.5">
-            Platform asisten cerdas generasi baru yang menyatukan penalaran
-            analitis tingkat lanjut, eksplorasi kode, sintesis visual, dan
-            interaksi suara real-time dalam satu ruang kerja terpadu.
-          </p>
-        </div>
-      </div>
-
-      {/* b) Bento Grid 4 Kemampuan Utama */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mt-3.5">
-        {CORE_CAPABILITIES.map(({ id, title, description, Icon }) => (
+      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-4 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
+        {/* a) Hero Banner */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#17171b] to-[#121215] border border-white/[0.07] p-5 text-center">
           <div
-            key={id}
-            className="p-3.5 rounded-2xl bg-[#151518] border border-white/[0.06] flex items-start gap-3"
-          >
-            <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
-              <Icon className="w-4 h-4 text-zinc-300" strokeWidth={1.75} />
-            </div>
-            <div className="min-w-0">
-              <div className="text-[13.5px] font-medium text-white leading-snug">
-                {title}
-              </div>
-              <p className="text-[12px] text-zinc-400 leading-snug mt-1">
-                {description}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
+            aria-hidden="true"
+            className="pointer-events-none absolute -top-12 inset-x-0 mx-auto w-56 h-56 rounded-full"
+            style={{
+              background:
+                "radial-gradient(circle, rgba(59,130,246,0.14) 0%, transparent 70%)",
+            }}
+          />
 
-      {/* c) Kartu Kredit Pembuat (Highlight Utama) */}
-      <div className="mt-3.5 p-4 rounded-2xl bg-gradient-to-br from-[#18191e] to-[#131316] border border-white/[0.09]">
-        <div className="text-[10.5px] font-semibold tracking-[0.08em] text-zinc-400 uppercase mb-3 flex items-center gap-2">
-          <Sparkles className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
-          <span>DIBUAT OLEH</span>
+          <div className="relative w-14 h-14 rounded-2xl bg-[#191a1f] border border-white/[0.1] flex items-center justify-center mx-auto mb-3 shadow-lg">
+            <svg
+              width="26"
+              height="26"
+              viewBox="0 0 24 24"
+              fill="none"
+              role="img"
+              aria-label="Logo Axioma"
+            >
+              <path
+                d="M12 3.5L4.5 20.5M12 3.5L19.5 20.5M7.5 14.25H16.5"
+                stroke="#ffffff"
+                strokeWidth="2.1"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+
+          <div className="relative flex flex-col items-center">
+            <h2 className="text-[20px] font-semibold tracking-tight text-white">
+              Axioma Pro
+            </h2>
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+              <span>v2.5 Stable</span>
+            </span>
+
+            <p className="text-[13px] text-zinc-400 leading-relaxed mt-3">
+              Platform asisten cerdas generasi baru yang menyatukan penalaran
+              analitis tingkat lanjut, eksplorasi kode, sintesis visual, dan
+              interaksi suara real-time dalam satu ruang kerja terpadu.
+            </p>
+          </div>
         </div>
 
+        {/* b) Bento Grid 4 Kemampuan Utama */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-          {AXIOMA_CREATORS.map((creator) => (
+          {CORE_CAPABILITIES.map(({ id, title, description, Icon }) => (
             <div
-              key={creator.initials}
-              className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.025] border border-white/[0.05]"
+              key={id}
+              className="p-3.5 rounded-2xl bg-[#131316] border border-white/[0.06] flex items-start gap-3"
             >
-              <div className="w-9 h-9 rounded-full bg-[#24262b] border border-white/[0.1] text-[12px] font-semibold text-white flex items-center justify-center shrink-0">
-                {creator.initials}
+              <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
+                <Icon className="w-4 h-4 text-zinc-300" strokeWidth={1.75} />
               </div>
-              <div className="text-[13.5px] font-medium text-white leading-snug min-w-0">
-                {creator.name}
+              <div className="min-w-0">
+                <div className="text-[13.5px] font-medium text-white leading-snug">
+                  {title}
+                </div>
+                <p className="text-[12px] text-zinc-400 leading-snug mt-1">
+                  {description}
+                </p>
               </div>
             </div>
           ))}
         </div>
 
-        <p className="mt-3 pt-2.5 border-t border-white/[0.05] text-[12px] text-zinc-400 text-center">
-          Dibuat oleh Muhammad Nizam Putra Rasya &amp; Muhammad Rendy Ramadhani
-        </p>
-      </div>
-
-      {/* d) Spesifikasi Sistem & Footer */}
-      <div className="grid grid-cols-3 gap-2 mt-3.5 text-center">
-        {TECH_SPECS.map((spec) => (
-          <div
-            key={spec.label}
-            className="py-2 px-2 rounded-xl bg-[#141417] border border-white/[0.05]"
-          >
-            <div className="text-[10.5px] text-zinc-500">{spec.label}</div>
-            <div className="text-[12.5px] font-medium text-zinc-200 mt-0.5">
-              {spec.value}
-            </div>
+        {/* c) Kartu Kredit Pembuat */}
+        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#16171c] to-[#121215] border border-white/[0.08]">
+          <div className="mb-3 flex items-center gap-2">
+            <span
+              aria-hidden="true"
+              className="w-1 h-3.5 rounded-full bg-white/80 shrink-0"
+            />
+            <span className="text-[11px] font-semibold tracking-[0.12em] text-zinc-400 uppercase">
+              DIBUAT OLEH
+            </span>
           </div>
-        ))}
-      </div>
 
-      <div className="mt-4 flex items-center justify-between text-[11.5px] text-zinc-500">
-        <span>© 2026 Axioma</span>
-        <span>Hak cipta dilindungi</span>
-      </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+            {AXIOMA_CREATORS.map((creator) => (
+              <div
+                key={creator.initials}
+                className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.025] border border-white/[0.05]"
+              >
+                <div className="w-9 h-9 rounded-full bg-[#24262b] border border-white/[0.1] text-[12px] font-semibold text-white flex items-center justify-center shrink-0">
+                  {creator.initials}
+                </div>
+                <div className="text-[13.5px] font-medium text-white leading-snug min-w-0">
+                  {creator.name}
+                </div>
+              </div>
+            ))}
+          </div>
 
-      <button
-        type="button"
-        onClick={onBack}
-        className="mt-4 w-full h-11 rounded-xl bg-white text-black font-medium text-[14px] hover:bg-zinc-200 transition active:scale-[0.98] cursor-pointer"
-      >
-        Kembali ke Setelan
-      </button>
+          <p className="mt-3 pt-2.5 border-t border-white/[0.05] text-[12px] text-zinc-400 text-center">
+            Dibuat oleh Muhammad Nizam Putra Rasya &amp; Muhammad Rendy Ramadhani
+          </p>
+        </div>
+
+        {/* d) 3 Kotak Spesifikasi Sistem */}
+        <div className="grid grid-cols-3 gap-2 text-center">
+          {TECH_SPECS.map((spec) => (
+            <div
+              key={spec.label}
+              className="py-2.5 px-2 rounded-xl bg-[#131316] border border-white/[0.06]"
+            >
+              <div className="text-[10.5px] text-zinc-500">{spec.label}</div>
+              <div className="text-[12.5px] font-medium text-zinc-200 mt-0.5">
+                {spec.value}
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer */}
+        <div className="pt-1 flex items-center justify-between text-[11.5px] text-zinc-500">
+          <span>© 2026 Axioma</span>
+          <span>Hak cipta dilindungi</span>
+        </div>
+
+        <button
+          type="button"
+          onClick={onBack}
+          className="w-full h-12 rounded-2xl bg-white text-black font-semibold text-[15px] hover:bg-zinc-200 transition active:scale-[0.98] cursor-pointer"
+        >
+          Kembali ke Setelan
+        </button>
+      </div>
     </div>
   );
 }
@@ -355,123 +373,127 @@ export function FeedbackSettingsView({
   };
 
   return (
-    <div className="flex flex-col animate-fade-in">
+    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[88dvh] animate-fade-in">
       <SubViewHeader title="Kirim Masukan" onBack={onBack} onClose={onClose} />
 
-      <p className="text-[13px] text-zinc-400 leading-relaxed mb-4">
-        Bagikan ide fitur baru, masukan desain, atau kendala yang Anda temui agar
-        Axioma terus berkembang lebih baik.
-      </p>
+      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
+        <p className="text-[13.5px] text-zinc-400 leading-relaxed mb-5">
+          Bagikan ide fitur baru, masukan desain, atau kendala yang Anda temui agar
+          Axioma terus berkembang lebih baik.
+        </p>
 
-      {submitSuccess && (
-        <div className="mb-4 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3 animate-fade-up">
-          <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-          <div className="text-[13.5px] text-emerald-200 leading-relaxed">
-            Terima kasih! Masukan Anda telah dikirim ke tim pengembang Axioma.
+        {submitSuccess && (
+          <div className="mb-5 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3 animate-fade-up">
+            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
+            <div className="text-[13.5px] text-emerald-200 leading-relaxed">
+              Terima kasih! Masukan Anda telah dikirim ke tim pengembang Axioma.
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {submitError && (
-        <div
-          role="alert"
-          className="mb-4 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 flex items-start gap-2.5 text-[13px] text-red-300"
-        >
-          <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-          <span>{submitError}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* a) Pilihan Kategori (4 Pill Monokrom) */}
-        <div>
-          <div className="text-[12px] font-medium text-zinc-400 mb-2">
-            Kategori Masukan
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {FEEDBACK_CATEGORIES.map((item) => {
-              const isSelected = category === item;
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => {
-                    setCategory(item);
-                    if (submitSuccess) setSubmitSuccess(false);
-                  }}
-                  className={`px-3.5 py-2 rounded-full text-[13px] transition active:scale-95 cursor-pointer ${
-                    isSelected
-                      ? "bg-white text-black font-medium shadow-xs"
-                      : "bg-[#18181c] text-zinc-400 border border-white/[0.06] hover:text-zinc-200"
-                  }`}
-                >
-                  {item}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* b) Input Email Pengirim (Opsional) */}
-        <div>
-          <label
-            htmlFor="feedback-user-email"
-            className="block text-[12px] font-medium text-zinc-400 mb-1.5"
+        {submitError && (
+          <div
+            role="alert"
+            className="mb-5 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 flex items-start gap-2.5 text-[13px] text-red-300"
           >
-            Email (Opsional)
-          </label>
-          <input
-            id="feedback-user-email"
-            type="email"
-            value={userEmail}
-            onChange={(e) => setUserEmail(e.target.value)}
-            placeholder="Email Anda (opsional, untuk balasan)"
-            className="w-full rounded-xl bg-[#16161a] border border-white/[0.08] focus:border-white/25 px-3.5 py-2.5 text-[16px] sm:text-[15px] text-white placeholder:text-zinc-500 outline-none transition-colors"
-          />
-        </div>
+            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <span>{submitError}</span>
+          </div>
+        )}
 
-        {/* c) Textarea Pesan Masukan */}
-        <div>
-          <label
-            htmlFor="feedback-message-text"
-            className="block text-[12px] font-medium text-zinc-400 mb-1.5"
-          >
-            Pesan Masukan
-          </label>
-          <textarea
-            id="feedback-message-text"
-            required
-            rows={4}
-            value={message}
-            onChange={(e) => {
-              setMessage(e.target.value);
-              if (submitError) setSubmitError(null);
-              if (submitSuccess) setSubmitSuccess(false);
-            }}
-            placeholder="Tuliskan saran fitur, masukan desain, atau kendala yang Anda alami..."
-            className="w-full rounded-2xl bg-[#16161a] border border-white/[0.08] focus:border-white/25 p-3.5 text-[16px] sm:text-[15px] text-white placeholder:text-zinc-500 outline-none resize-none transition-colors"
-          />
-        </div>
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* a) Pilihan Kategori (Grid 2 Kolom Simetris) */}
+          <div>
+            <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 mb-2.5 px-0.5">
+              Kategori Masukan
+            </div>
+            <div className="grid grid-cols-2 gap-2.5">
+              {FEEDBACK_CATEGORIES.map((item) => {
+                const isSelected = category === item;
+                return (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => {
+                      setCategory(item);
+                      if (submitSuccess) setSubmitSuccess(false);
+                    }}
+                    className={`h-11 rounded-xl text-[13.5px] font-medium flex items-center justify-center transition active:scale-[0.98] cursor-pointer ${
+                      isSelected
+                        ? "bg-white text-black shadow-xs"
+                        : "bg-[#131316] text-zinc-400 border border-white/[0.07] hover:text-zinc-200"
+                    }`}
+                  >
+                    {item}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-        {/* d) Tombol Submit */}
-        <button
-          type="submit"
-          disabled={isSending || !message.trim()}
-          className="w-full h-11 rounded-xl bg-white text-black font-medium text-[14px] hover:bg-zinc-200 transition flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98] cursor-pointer"
-        >
-          {isSending ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              <span>Mengirim masukan...</span>
-            </>
-          ) : (
-            <>
-              <Send className="w-4 h-4" />
-              <span>Kirim Masukan</span>
-            </>
-          )}
-        </button>
-      </form>
+          {/* b) Input Email Pengirim (Opsional) */}
+          <div>
+            <label
+              htmlFor="feedback-user-email"
+              className="block text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 mb-2 px-0.5"
+            >
+              Email (Opsional)
+            </label>
+            <input
+              id="feedback-user-email"
+              type="email"
+              value={userEmail}
+              onChange={(e) => setUserEmail(e.target.value)}
+              placeholder="Email Anda (opsional, untuk balasan)"
+              className="w-full rounded-xl bg-[#131316] border border-white/[0.08] focus:border-white/25 px-3.5 py-3 text-[16px] sm:text-[15px] text-white placeholder:text-zinc-500 outline-none transition-colors"
+            />
+          </div>
+
+          {/* c) Textarea Pesan Masukan */}
+          <div>
+            <label
+              htmlFor="feedback-message-text"
+              className="block text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 mb-2 px-0.5"
+            >
+              Pesan Masukan
+            </label>
+            <textarea
+              id="feedback-message-text"
+              required
+              rows={5}
+              value={message}
+              onChange={(e) => {
+                setMessage(e.target.value);
+                if (submitError) setSubmitError(null);
+                if (submitSuccess) setSubmitSuccess(false);
+              }}
+              placeholder="Tuliskan saran fitur, masukan desain, atau kendala yang Anda alami..."
+              className="w-full min-h-[140px] rounded-2xl bg-[#131316] border border-white/[0.08] focus:border-white/25 p-4 text-[16px] sm:text-[15px] text-white placeholder:text-zinc-500 outline-none resize-none transition-colors"
+            />
+          </div>
+
+          {/* d) Tombol Submit */}
+          <div className="pt-1">
+            <button
+              type="submit"
+              disabled={isSending || !message.trim()}
+              className="w-full h-12 rounded-2xl bg-white text-black font-semibold text-[15px] hover:bg-zinc-200 disabled:bg-[#27272a] disabled:text-zinc-500 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+            >
+              {isSending ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Mengirim masukan...</span>
+                </>
+              ) : (
+                <>
+                  <Send className="w-4 h-4" />
+                  <span>Kirim Masukan</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

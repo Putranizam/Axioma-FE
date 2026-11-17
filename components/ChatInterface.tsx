@@ -34,7 +34,7 @@ import {
   Clock,
   Bell,
   Database,
-  Bot,
+  Cpu,
   CircleAlert,
   RotateCw,
   Ellipsis,
@@ -5287,13 +5287,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Settings Modal (Enter & Exit Animated Bottom Sheet / Centered Modal) */}
+      {/* Settings Modal (Full-Screen Mobile Native Page / Centered Modal sm+) */}
       {shouldRenderSettings && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isSettingsEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5303,15 +5303,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-x-0 bottom-0 max-h-[88dvh] sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 sm:w-[92vw] sm:max-w-[480px] sm:max-h-[85dvh] rounded-t-[28px] sm:rounded-[28px] bg-[#111114] px-5 pt-3 pb-[max(2rem,env(safe-area-inset-bottom))] sm:p-6 overflow-y-auto overscroll-contain touch-auto flex flex-col shadow-2xl border-t sm:border border-white/[0.08] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent] transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-0 z-50 w-full h-[100dvh] bg-[#0a0a0c] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[92vw] sm:max-w-[520px] sm:h-auto sm:max-h-[88dvh] sm:rounded-[28px] sm:bg-[#101013] sm:border sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
             }`}
           >
-            {/* Grab handle for mobile */}
-            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-2 shrink-0 sm:hidden" />
-
             {settingsView === "about" ? (
               <AboutSettingsView
                 onBack={() => setSettingsView("main")}
@@ -5326,31 +5323,29 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               />
             ) : (
               <>
-                {/* Circular Close Button Row (Aligned to right) */}
-                <div className="flex justify-end shrink-0 mb-1">
+                {/* Sticky Top Navigation Bar */}
+                <div className="shrink-0 pt-[max(0.85rem,env(safe-area-inset-top))] pb-3.5 px-5 sm:px-6 bg-[#0a0a0c]/90 sm:bg-[#101013]/90 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between">
+                  <h1 id="settings-modal-title" className="text-[18px] font-semibold tracking-tight text-white">
+                    Setelan
+                  </h1>
                   <button
                     type="button"
                     onClick={() => setIsSettingsModalOpen(false)}
                     aria-label="Tutup setelan"
-                    className="w-10 h-10 rounded-full bg-[#1e1f20] hover:bg-zinc-700 active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer"
+                    className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer"
                   >
-                    <X className="w-5 h-5" />
+                    <X className="w-4 h-4" />
                   </button>
                 </div>
 
-                {/* Title "Setelan" (Below close button, left-aligned, adaptif & font-medium) */}
-                <h1 id="settings-modal-title" className="shrink-0 text-[26px] sm:text-[30px] font-medium tracking-[-0.02em] text-[#e3e3e3] mt-1 mb-5">
-                  Setelan
-                </h1>
-
-                {/* 4 Grouped Inset Cards */}
-                <div className="space-y-4">
+                {/* Scrollable Body Area */}
+                <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 py-5 space-y-5 pb-[max(2rem,env(safe-area-inset-bottom))] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
                   {/* Grup 1: Akun */}
                   <div>
-                    <div className="text-[14px] font-medium text-zinc-400 mb-2 px-1">
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
                       Akun
                     </div>
-                    <div className="h-auto bg-[#161618] border border-white/[0.06] rounded-2xl divide-y divide-white/[0.06]">
+                    <div className="h-auto bg-[#131316] border border-white/[0.06] rounded-2xl divide-y divide-white/[0.05]">
                       {/* Manage account */}
                       <button
                         type="button"
@@ -5467,10 +5462,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Grup 2: Preferensi */}
                   <div>
-                    <div className="text-[14px] font-medium text-zinc-400 mb-2 px-1">
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
                       Preferensi
                     </div>
-                    <div className="h-auto bg-[#161618] border border-white/[0.06] rounded-2xl divide-y divide-white/[0.06]">
+                    <div className="h-auto bg-[#131316] border border-white/[0.06] rounded-2xl divide-y divide-white/[0.05]">
                       {/* Notifikasi */}
                       <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
                         <div className="flex items-center min-w-0">
@@ -5487,7 +5482,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
                       >
                         <div className="flex items-center min-w-0">
-                          <Bot className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <Cpu className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
                           <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Model Default</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
@@ -5621,10 +5616,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Grup 3: Bantuan & Informasi */}
                   <div>
-                    <div className="text-[14px] font-medium text-zinc-400 mb-2 px-1">
+                    <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
                       Bantuan &amp; Informasi
                     </div>
-                    <div className="rounded-2xl bg-[#161618] border border-white/[0.06] divide-y divide-white/[0.06] overflow-hidden">
+                    <div className="rounded-2xl bg-[#131316] border border-white/[0.06] divide-y divide-white/[0.05] overflow-hidden">
                       {/* 1) Kirim Masukan */}
                       <button
                         type="button"
@@ -5660,7 +5655,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
 
                   {/* Grup 4: Kartu Terpisah Hapus semua percakapan */}
-                  <div className="rounded-2xl bg-[#161618] border border-red-500/15 hover:bg-red-500/[0.06] transition overflow-hidden">
+                  <div className="rounded-2xl bg-[#131316] border border-red-500/15 hover:bg-red-500/[0.06] transition overflow-hidden">
                     <button
                       type="button"
                       onClick={() => {
@@ -5676,13 +5671,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <ChevronRight className="w-5 h-5 text-red-400/50 group-hover:text-red-400 transition-colors shrink-0" />
                     </button>
                   </div>
-                </div>
 
-                {/* Clean Version Footer */}
-                <div className="shrink-0 pt-5 pb-2 text-center text-xs text-zinc-500 space-y-1">
-                  <div>Axioma v2.5</div>
-                  <div className="text-[11px] leading-relaxed">
-                    Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
+                  {/* Clean Version Footer */}
+                  <div className="pt-2 pb-1 text-center text-xs text-zinc-500 space-y-1">
+                    <div>Axioma v2.5</div>
+                    <div className="text-[11px] leading-relaxed">
+                      Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
+                    </div>
                   </div>
                 </div>
               </>
