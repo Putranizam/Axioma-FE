@@ -190,16 +190,104 @@ export function extractReadySentences(text: string): { sentences: string[]; rema
 }
 
 /**
- * Speaks text using browser window.speechSynthesis (Text-to-Speech)
- * Automatically cancels previous utterances, sets Indonesian language (id-ID),
- * and handles mobile Safari / Android audio resumption.
+ * Cleans Markdown symbols, code blocks, links, bullet markers, and URLs so TTS
+ * reads natural conversational Indonesian without spelling punctuation.
+ */
+export function stripMarkdownForTts(raw: string): string {
+  if (!raw || typeof raw !== "string") return "";
+  return raw
+    .replace(/^[^\w\n]*Mengoptimalkan prompt visual[^\n]*\n*/gim, "")
+    .replace(/^[^\w\n]*Sedang merender[^\n]*\n*/gim, "")
+    .replace(/.*Gemini AI\.\.\..*\n*/gi, "")
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+    .replace(/https?:\/\/\S+/g, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/[*_]{1,3}(.*?)[*_]{1,3}/g, "$1")
+    .replace(/~~(.*?)~~/g, "$1")
+    .replace(/^\s*[-*+•]\s+/gm, "")
+    .replace(/^\s*\d+\.\s+/gm, "")
+    .replace(/^>\s+/gm, "")
+    .replace(/[*_#~`|]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Selects the clearest Indonesian voice available on the user's OS/browser
+ * (e.g., Damayanti on iOS/macOS, Google Bahasa Indonesia on Android/Chrome).
+ */
+export function pickBestIndonesianVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
+  const voices = window.speechSynthesis.getVoices?.() || [];
+  if (!voices.length) return null;
+
+  const preferred = voices.find(
+    (v) =>
+      v.lang.toLowerCase().replace("_", "-").startsWith("id") &&
+      /google|damayanti|ardi|gadis|natural|wavenet|neural/i.test(v.name)
+  );
+  if (preferred) return preferred;
+
+  const exactId = voices.find(
+    (v) => v.lang.toLowerCase().replace("_", "-") === "id-id"
+  );
+  if (exactId) return exactId;
+
+  return voices.find((v) => v.lang.toLowerCase().startsWith("id")) || null;
+}
+
+/**
+ * Fetches neural MP3 speech audio from Next.js /api/tts route.
+ */
+export async function fetchNeuralTtsBlob(
+  text: string,
+  options?: {
+    voice?: string;
+    rate?: number;
+    signal?: AbortSignal;
+  }
+): Promise<Blob> {
+  const cleanText = stripMarkdownForTts(text);
+  if (!cleanText) {
+    throw new Error("Teks kosong");
+  }
+
+  const response = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      text: cleanText,
+      voice: options?.voice || "id-ID-ArdiNeural",
+      rate: options?.rate ?? 1.05,
+    }),
+    signal: options?.signal,
+  });
+
+  if (!response.ok) {
+    throw new Error(`Neural TTS HTTP ${response.status}`);
+  }
+
+  const blob = await response.blob();
+  if (!blob || blob.size === 0) {
+    throw new Error("Audio TTS kosong");
+  }
+  return blob;
+}
+
+/**
+ * Speaks text using browser window.speechSynthesis (Text-to-Speech fallback)
+ * Picks best Indonesian voice, rate=1.05, pitch=1.0, and unlocks mobile playback.
  */
 export function speakResponse(
   text: string,
   options?: {
     rate?: number;
+    pitch?: number;
     lang?: string;
     onStart?: () => void;
+    onBoundary?: (event: SpeechSynthesisEvent) => void;
     onEnd?: () => void;
     onError?: (err: unknown) => void;
   }
@@ -209,30 +297,26 @@ export function speakResponse(
     return null;
   }
 
-  const cleanText = text
-    .replace(/```[\s\S]*?```/g, "")
-    .replace(/`([^`]+)`/g, "$1")
-    .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
-    .replace(/[*_#~>]/g, "")
-    .replace(/^[•\-*]\s+/gm, "")
-    .replace(/\s+/g, " ")
-    .trim();
-
+  const cleanText = stripMarkdownForTts(text);
   if (!cleanText) return null;
 
   try {
     window.speechSynthesis.resume();
-  } catch {}
-
-  try {
     window.speechSynthesis.cancel();
   } catch {}
 
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = options?.lang || "id-ID";
-  utterance.rate = options?.rate ?? 1.0;
+  utterance.rate = options?.rate ?? 1.05;
+  utterance.pitch = options?.pitch ?? 1.0;
+
+  const bestVoice = pickBestIndonesianVoice();
+  if (bestVoice) {
+    utterance.voice = bestVoice;
+  }
 
   if (options?.onStart) utterance.onstart = () => options.onStart?.();
+  if (options?.onBoundary) utterance.onboundary = (e) => options.onBoundary?.(e);
   if (options?.onEnd) utterance.onend = () => options.onEnd?.();
   if (options?.onError) utterance.onerror = (e) => options.onError?.(e);
 

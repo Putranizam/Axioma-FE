@@ -602,6 +602,38 @@ body {
   }
 }
 
+@keyframes voiceWordReveal {
+  0% {
+    color: #71717a;
+    opacity: 0.45;
+  }
+  100% {
+    color: #f1f3f4;
+    opacity: 1;
+  }
+}
+
+@keyframes voiceControlMorph {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+.animate-voice-word {
+  animation: voiceWordReveal 260ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+.animate-voice-morph {
+  animation: voiceControlMorph 320ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+  transform: translateZ(0);
+}
+
 .animate-fade-in {
   animation: smoothFadeIn 260ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
   will-change: opacity;
