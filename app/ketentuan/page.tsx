@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import Image from "next/image";
 import { ArrowLeft, ShieldAlert } from "lucide-react";
+import { AxiomaLogoMark } from "@/components/AxiomaLogoMark";
 
 export const metadata: Metadata = {
   title: "Ketentuan Layanan (Draf) — Axioma",
@@ -23,14 +23,9 @@ export default function KetentuanPage() {
             <span>Kembali ke Axioma</span>
           </Link>
           <div className="flex items-center gap-2">
-            <Image
-              src="/brand/axioma-logo.png"
-              alt="Axioma"
-              width={28}
-              height={28}
-              className="w-7 h-7 object-contain rounded-lg shrink-0 dark:ring-1 dark:ring-white/10"
-              priority
-            />
+            <div className="w-7 h-7 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] shrink-0">
+              <AxiomaLogoMark className="w-4 h-4" />
+            </div>
             <span className="text-xs font-semibold uppercase tracking-tight text-text-primary">
               Axioma
             </span>

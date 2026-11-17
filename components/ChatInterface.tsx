@@ -2,8 +2,8 @@
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import dynamic from "next/dynamic";
+import { AxiomaLogoMark } from "./AxiomaLogoMark";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -458,9 +458,9 @@ const STARTER_PROMPTS: StarterPrompt[] = [
   },
   {
     id: "write-code",
-    label: "Buatkan kode untuk…",
+    label: "Buat struktur kode aplikasi",
     mode: "prefill",
-    prefillText: "Buatkan kode untuk: ",
+    prefillText: "Buat struktur kode aplikasi untuk: ",
     icon: "code",
   },
 ];
@@ -5060,22 +5060,29 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   };
 
   const renderStarterIcon = (icon: StarterPrompt["icon"]) => {
-    const iconClass =
-      "w-4 h-4 text-text-muted dark:text-zinc-400 group-hover:text-text-primary dark:group-hover:text-zinc-200 transition-colors shrink-0";
-    switch (icon) {
-      case "lightbulb":
-        return <Lightbulb className={iconClass} strokeWidth={1.75} />;
-      case "mail":
-        return <Mail className={iconClass} strokeWidth={1.75} />;
-      case "table":
-        return <Table className={iconClass} strokeWidth={1.75} />;
-      case "code":
-        return <Code className={iconClass} strokeWidth={1.75} />;
-      case "image":
-        return <ImageIcon className={iconClass} strokeWidth={1.75} />;
-      case "video":
-        return <Video className={iconClass} strokeWidth={1.75} />;
-    }
+    const iconEl = (() => {
+      const iconClass = "w-4 h-4 shrink-0";
+      switch (icon) {
+        case "lightbulb":
+          return <Lightbulb className={iconClass} strokeWidth={1.75} />;
+        case "mail":
+          return <Mail className={iconClass} strokeWidth={1.75} />;
+        case "table":
+          return <Table className={iconClass} strokeWidth={1.75} />;
+        case "code":
+          return <Code className={iconClass} strokeWidth={1.75} />;
+        case "image":
+          return <ImageIcon className={iconClass} strokeWidth={1.75} />;
+        case "video":
+          return <Video className={iconClass} strokeWidth={1.75} />;
+      }
+    })();
+
+    return (
+      <div className="w-7 h-7 rounded-lg bg-white dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/[0.06] flex items-center justify-center text-zinc-600 dark:text-zinc-400 group-hover:text-zinc-900 dark:group-hover:text-zinc-200 transition-colors shrink-0">
+        {iconEl}
+      </div>
+    );
   };
 
   return (
@@ -5098,7 +5105,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-viewport-lock"
       style={{ height: "100dvh", transition: "none" }}
-      className="fixed top-0 left-0 right-0 w-full flex flex-col justify-between lg:flex-row bg-bg-primary dark:bg-[#000000] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
+      className="fixed top-0 left-0 right-0 w-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#000000] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5243,9 +5250,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               isClearAllConfirmEntered ? "translate-y-0 opacity-100 sm:scale-100" : "translate-y-full opacity-0 sm:scale-95"
             }`}
           >
-            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
+            <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-red-950/50 border border-red-800/50 flex items-center justify-center shrink-0 text-red-400">
+              <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 text-red-600 dark:bg-red-950/50 dark:border-red-800/50 dark:text-red-400 flex items-center justify-center shrink-0">
                 <TriangleAlert className="w-4 h-4" />
               </div>
               <div className="space-y-1 min-w-0">
@@ -5303,7 +5310,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-0 z-50 w-full h-[100dvh] bg-[#0a0a0c] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[92vw] sm:max-w-[520px] sm:h-auto sm:max-h-[88dvh] sm:rounded-[28px] sm:bg-[#101013] sm:border sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-0 z-50 w-full h-[100dvh] bg-[#F8F8FA] sm:bg-white dark:bg-[#0a0a0c] dark:sm:bg-[#101013] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[92vw] sm:max-w-[520px] sm:h-auto sm:max-h-[88dvh] sm:rounded-[28px] sm:border sm:border-zinc-200/80 dark:sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5324,15 +5331,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) : (
               <>
                 {/* Sticky Top Navigation Bar */}
-                <div className="shrink-0 pt-[max(0.85rem,env(safe-area-inset-top))] pb-3.5 px-5 sm:px-6 bg-[#0a0a0c]/90 sm:bg-[#101013]/90 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between">
-                  <h1 id="settings-modal-title" className="text-[18px] font-semibold tracking-tight text-white">
+                <div className="shrink-0 pt-[max(0.85rem,env(safe-area-inset-top))] pb-3.5 px-5 sm:px-6 bg-[#F8F8FA]/90 sm:bg-white/90 dark:bg-[#0a0a0c]/90 dark:sm:bg-[#101013]/90 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between">
+                  <h1 id="settings-modal-title" className="text-[18px] font-semibold tracking-tight text-zinc-900 dark:text-white">
                     Setelan
                   </h1>
                   <button
                     type="button"
                     onClick={() => setIsSettingsModalOpen(false)}
                     aria-label="Tutup setelan"
-                    className="w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer"
+                    className="w-9 h-9 rounded-full bg-zinc-200/70 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-white/[0.06] dark:hover:bg-white/[0.12] dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center cursor-pointer"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -5345,16 +5352,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
                       Akun
                     </div>
-                    <div className="h-auto bg-[#131316] border border-white/[0.06] rounded-2xl divide-y divide-white/[0.05]">
+                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none">
                       {/* Manage account */}
                       <button
                         type="button"
                         onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
-                        className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] rounded-t-2xl cursor-pointer"
+                        className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] rounded-t-2xl cursor-pointer"
                       >
                         <div className="flex items-center min-w-0">
-                          <User className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Manage account</span>
+                          <User className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Manage account</span>
                         </div>
                         <ChevronRight
                           className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -5365,9 +5372,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Manage account drawer */}
                       {expandedSettingsSection === "account" && (
-                        <div className="px-5 py-4 bg-[#121215] space-y-3">
+                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] space-y-3">
                           <div>
-                            <label htmlFor="settings-display-name" className="block text-xs font-medium text-zinc-300 mb-1.5">
+                            <label htmlFor="settings-display-name" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300 mb-1.5">
                               Nama Tampilan
                             </label>
                             <div className="flex gap-2">
@@ -5392,25 +5399,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   handleUpdateDisplayName(settingsNameInput);
                                 }}
                                 placeholder="Masukkan nama tampilan..."
-                                className="flex-1 min-w-0 bg-[#141416] border border-white/[0.08] focus:border-white/20 rounded-xl px-3.5 py-2.5 text-[16px] sm:text-[15px] text-zinc-100 placeholder:text-zinc-500 focus:outline-none transition-colors"
+                                className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3.5 py-2.5 text-[16px] sm:text-[15px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors"
                               />
                               <button
                                 type="button"
                                 onClick={() => handleUpdateDisplayName(settingsNameInput)}
-                                className="shrink-0 rounded-xl px-4 py-2.5 text-[14px] font-medium bg-white text-black hover:bg-zinc-200 transition-colors cursor-pointer active:scale-95"
+                                className="shrink-0 rounded-xl px-4 py-2.5 text-[14px] font-medium bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors cursor-pointer active:scale-95"
                               >
                                 Simpan
                               </button>
                             </div>
                             {settingsNameError && (
-                              <p role="alert" className="text-[11px] text-red-400 mt-1">
+                              <p role="alert" className="text-[11px] text-red-500 dark:text-red-400 mt-1">
                                 {settingsNameError}
                               </p>
                             )}
                           </div>
                           {authUser && (
-                            <div className="text-xs text-zinc-400">
-                              Email terhubung: <span className="font-mono text-zinc-200">{authUser.email}</span>
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                              Email terhubung: <span className="font-mono text-zinc-800 dark:text-zinc-200">{authUser.email}</span>
                             </div>
                           )}
                         </div>
@@ -5420,13 +5427,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <button
                         type="button"
                         onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
-                        className={`w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-white/[0.04] cursor-pointer ${
+                        className={`w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer ${
                           expandedSettingsSection === "quota" ? "" : "rounded-b-2xl"
                         }`}
                       >
                         <div className="flex items-center min-w-0">
-                          <Clock className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Batas penggunaan</span>
+                          <Clock className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Batas penggunaan</span>
                         </div>
                         <ChevronRight
                           className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -5437,8 +5444,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Quota Details */}
                       {expandedSettingsSection === "quota" && (
-                        <div className="px-5 py-4 bg-[#121215] rounded-b-2xl space-y-2 text-xs">
-                          <p className="text-zinc-300 leading-relaxed text-sm">
+                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] rounded-b-2xl space-y-2 text-xs">
+                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed text-sm">
                             {authUser
                               ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan seluruh fitur Axioma Pro."
                               : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
@@ -5450,7 +5457,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 setIsSettingsModalOpen(false);
                                 setIsAuthModalOpen(true);
                               }}
-                              className="mt-2 px-4 py-2 rounded-xl bg-zinc-200 hover:bg-white text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
+                              className="mt-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-200 dark:hover:bg-white dark:text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
                             >
                               Hubungkan Akun
                             </button>
@@ -5465,12 +5472,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
                       Preferensi
                     </div>
-                    <div className="h-auto bg-[#131316] border border-white/[0.06] rounded-2xl divide-y divide-white/[0.05]">
+                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none">
                       {/* Notifikasi */}
                       <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
                         <div className="flex items-center min-w-0">
-                          <Bell className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Notifikasi</span>
+                          <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Notifikasi</span>
                         </div>
                         <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
                       </div>
@@ -5479,14 +5486,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <button
                         type="button"
                         onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
                       >
                         <div className="flex items-center min-w-0">
-                          <Cpu className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Model Default</span>
+                          <Cpu className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Model Default</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[14px] text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
+                          <span className="text-[14px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
                             {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
                           </span>
                           <ChevronRight
@@ -5499,7 +5506,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Model Selector */}
                       {expandedSettingsSection === "agent" && (
-                        <div className="px-5 py-4 bg-[#121215] space-y-2">
+                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] space-y-2">
                           {AVAILABLE_AGENTS.map((agent) => {
                             const isChecked = defaultAgentId === agent.id;
                             return (
@@ -5507,8 +5514,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 key={agent.id}
                                 className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
                                   isChecked
-                                    ? "bg-zinc-800/90 border-zinc-600 text-white shadow-xs"
-                                    : "bg-[#1e1f20]/60 border-zinc-800 text-zinc-300 hover:border-zinc-700"
+                                    ? "bg-white dark:bg-zinc-800/90 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white shadow-xs"
+                                    : "bg-white/60 dark:bg-[#1e1f20]/60 border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
                                 }`}
                               >
                                 <div className="flex items-center gap-3 min-w-0">
@@ -5518,14 +5525,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                     value={agent.id}
                                     checked={isChecked}
                                     onChange={() => handleSelectDefaultAgent(agent.id)}
-                                    className="w-4 h-4 accent-white cursor-pointer shrink-0"
+                                    className="w-4 h-4 accent-zinc-900 dark:accent-white cursor-pointer shrink-0"
                                   />
                                   <div className="min-w-0">
-                                    <div className="font-semibold text-sm text-zinc-100">{agent.name}</div>
-                                    <div className="text-xs text-zinc-400 line-clamp-1">{agent.description}</div>
+                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{agent.name}</div>
+                                    <div className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">{agent.description}</div>
                                   </div>
                                 </div>
-                                <span className="text-xs px-2 py-0.5 rounded bg-zinc-800 text-zinc-400 font-medium border border-zinc-700 ml-2 shrink-0">
+                                <span className="text-xs px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium border border-zinc-200 dark:border-zinc-700 ml-2 shrink-0">
                                   {agent.tag}
                                 </span>
                               </label>
@@ -5537,10 +5544,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {/* Penyimpanan Riwayat */}
                       <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left">
                         <div className="flex items-center shrink-0">
-                          <Database className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] whitespace-nowrap">Penyimpanan Riwayat</span>
+                          <Database className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] whitespace-nowrap">Penyimpanan Riwayat</span>
                         </div>
-                        <span className="text-[14px] text-zinc-400 whitespace-nowrap shrink-0 text-right">
+                        <span className="text-[14px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap shrink-0 text-right">
                           {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
                         </span>
                       </div>
@@ -5549,11 +5556,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <button
                         type="button"
                         onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-white/[0.04] transition-colors cursor-pointer"
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
                       >
                         <div className="flex items-center min-w-0">
-                          <Keyboard className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Pintasan Keyboard</span>
+                          <Keyboard className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Pintasan Keyboard</span>
                         </div>
                         <ChevronRight
                           className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -5564,28 +5571,28 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Keyboard Shortcuts */}
                       {expandedSettingsSection === "shortcuts" && (
-                        <div className="px-5 py-4 bg-[#121215] space-y-2 text-xs">
-                          <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                            <span className="text-zinc-400">Cari percakapan</span>
-                            <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
+                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] space-y-2 text-xs">
+                          <div className="flex items-center justify-between py-1 border-b border-zinc-200/70 dark:border-zinc-800/60">
+                            <span className="text-zinc-600 dark:text-zinc-400">Cari percakapan</span>
+                            <kbd className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
                               Ctrl / ⌘ K
                             </kbd>
                           </div>
-                          <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                            <span className="text-zinc-400">Percakapan baru</span>
-                            <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[11px] text-zinc-300">
+                          <div className="flex items-center justify-between py-1 border-b border-zinc-200/70 dark:border-zinc-800/60">
+                            <span className="text-zinc-600 dark:text-zinc-400">Percakapan baru</span>
+                            <kbd className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
                               Ctrl / ⌘ ⇧ O
                             </kbd>
                           </div>
-                          <div className="flex items-center justify-between py-1 border-b border-zinc-800/60">
-                            <span className="text-zinc-400">Hentikan balasan</span>
-                            <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                          <div className="flex items-center justify-between py-1 border-b border-zinc-200/70 dark:border-zinc-800/60">
+                            <span className="text-zinc-600 dark:text-zinc-400">Hentikan balasan</span>
+                            <kbd className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[10px] text-zinc-700 dark:text-zinc-300">
                               Esc
                             </kbd>
                           </div>
                           <div className="flex items-center justify-between py-1">
-                            <span className="text-zinc-400">Kirim pesan</span>
-                            <kbd className="px-2 py-0.5 rounded bg-zinc-800 border border-zinc-700 font-mono text-[10px] text-zinc-300">
+                            <span className="text-zinc-600 dark:text-zinc-400">Kirim pesan</span>
+                            <kbd className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[10px] text-zinc-700 dark:text-zinc-300">
                               Enter
                             </kbd>
                           </div>
@@ -5595,18 +5602,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {/* Tema */}
                       <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left rounded-b-2xl">
                         <div className="flex items-center min-w-0">
-                          <Moon className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Tema</span>
+                          <Moon className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Tema</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <select
                             value={themeMode}
                             onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
-                            className="appearance-none bg-transparent text-[14px] font-normal text-zinc-400 border-0 cursor-pointer focus:outline-none pr-1 text-right"
+                            className="appearance-none bg-transparent text-[14px] font-normal text-zinc-600 dark:text-zinc-400 border-0 cursor-pointer focus:outline-none pr-1 text-right"
                           >
-                            <option value="system" className="bg-[#1e1f20] text-white">Default sistem</option>
-                            <option value="dark" className="bg-[#1e1f20] text-white">Gelap</option>
-                            <option value="light" className="bg-[#1e1f20] text-white">Terang</option>
+                            <option value="system" className="bg-white text-zinc-900 dark:bg-[#1e1f20] dark:text-white">Default sistem</option>
+                            <option value="dark" className="bg-white text-zinc-900 dark:bg-[#1e1f20] dark:text-white">Gelap</option>
+                            <option value="light" className="bg-white text-zinc-900 dark:bg-[#1e1f20] dark:text-white">Terang</option>
                           </select>
                           <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0 pointer-events-none" />
                         </div>
@@ -5619,20 +5626,20 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
                       Bantuan &amp; Informasi
                     </div>
-                    <div className="rounded-2xl bg-[#131316] border border-white/[0.06] divide-y divide-white/[0.05] overflow-hidden">
+                    <div className="rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none overflow-hidden">
                       {/* 1) Kirim Masukan */}
                       <button
                         type="button"
                         onClick={() => setSettingsView("feedback")}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group"
                       >
                         <div className="flex items-center min-w-0">
-                          <MessageSquarePlus className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Kirim Masukan</span>
+                          <MessageSquarePlus className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Kirim Masukan</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[13px] text-zinc-400 whitespace-nowrap">Saran &amp; Bug</span>
-                          <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0" />
+                          <span className="text-[13px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">Saran &amp; Bug</span>
+                          <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
 
@@ -5640,35 +5647,35 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <button
                         type="button"
                         onClick={() => setSettingsView("about")}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group"
                       >
                         <div className="flex items-center min-w-0">
-                          <Info className="w-5 h-5 text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-[#e3e3e3] truncate">Tentang Axioma</span>
+                          <Info className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Tentang Axioma</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[13px] text-zinc-400 whitespace-nowrap">v2.5 Pro</span>
-                          <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-zinc-300 transition-colors shrink-0" />
+                          <span className="text-[13px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">v2.5 Pro</span>
+                          <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
                     </div>
                   </div>
 
                   {/* Grup 4: Kartu Terpisah Hapus semua percakapan */}
-                  <div className="rounded-2xl bg-[#131316] border border-red-500/15 hover:bg-red-500/[0.06] transition overflow-hidden">
+                  <div className="rounded-2xl bg-white dark:bg-[#131316] border border-red-200 dark:border-red-500/15 hover:bg-red-50/70 dark:hover:bg-red-500/[0.06] transition overflow-hidden">
                     <button
                       type="button"
                       onClick={() => {
                         setIsSettingsModalOpen(false);
                         setIsClearAllConfirmOpen(true);
                       }}
-                      className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left cursor-pointer text-red-400 group"
+                      className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left cursor-pointer text-red-600 dark:text-red-400 group"
                     >
                       <div className="flex items-center min-w-0">
-                        <Trash className="w-5 h-5 text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
-                        <span className="text-[15.5px] font-normal text-red-400 truncate">Hapus semua percakapan</span>
+                        <Trash className="w-5 h-5 text-red-600 dark:text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
+                        <span className="text-[15.5px] font-normal text-red-600 dark:text-red-400 truncate">Hapus semua percakapan</span>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-red-400/50 group-hover:text-red-400 transition-colors shrink-0" />
+                      <ChevronRight className="w-5 h-5 text-red-400/70 group-hover:text-red-600 dark:text-red-400/50 dark:group-hover:text-red-400 transition-colors shrink-0" />
                     </button>
                   </div>
 
@@ -5703,7 +5710,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Popup Container (Bottom-sheet on mobile, centered modal on sm+) */}
           <div
             ref={profileDropdownRef}
-            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[92vw] sm:max-w-[480px] h-auto rounded-t-[28px] sm:rounded-[28px] bg-[#111114] px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 sm:max-h-[85dvh] max-h-[88dvh] flex flex-col shadow-2xl border-t sm:border border-white/[0.08] overflow-y-auto overscroll-contain touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[92vw] sm:max-w-[480px] h-auto rounded-t-[28px] sm:rounded-[28px] bg-[#F8F8FA] sm:bg-white dark:bg-[#111114] px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 sm:max-h-[85dvh] max-h-[88dvh] flex flex-col shadow-2xl border-t sm:border border-zinc-200/80 dark:border-white/[0.08] overflow-y-auto overscroll-contain touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isProfileEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5711,27 +5718,27 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           >
             {/* Top Area: Drag handle & "Selesai" Action */}
             <div className="shrink-0">
-              <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto mb-2 sm:hidden" />
+              <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/60 mx-auto mb-2 sm:hidden" />
 
               <div className="flex justify-end pb-3">
                 <button
                   type="button"
                   onClick={() => setIsProfileDropdownOpen(false)}
-                  className="text-[16px] font-medium text-blue-300 hover:text-blue-200 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer"
+                  className="text-[16px] font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer"
                 >
                   Selesai
                 </button>
               </div>
 
               {/* Card 1: Main User Account Card */}
-              <div className="bg-[#16161a] rounded-3xl p-4 flex items-center justify-between gap-4 mb-3.5 border border-white/[0.06] shadow-sm">
+              <div className="bg-white dark:bg-[#16161a] rounded-3xl p-4 flex items-center justify-between gap-4 mb-3.5 border border-zinc-200/80 dark:border-white/[0.06] shadow-sm">
                 <div className="flex items-center min-w-0 flex-1">
                   <div className="relative w-14 h-14 rounded-full shrink-0">
                     <div
                       className={`w-14 h-14 rounded-full font-bold text-2xl flex items-center justify-center overflow-hidden shadow-inner ${
                         authUser
                           ? "bg-indigo-500/90 text-white border border-white/[0.1]"
-                          : "bg-[#1e1f22] text-zinc-200 border border-white/[0.08]"
+                          : "bg-zinc-100 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f22] dark:text-zinc-200 dark:border-white/[0.08]"
                       }`}
                     >
                       {authUser ? (
@@ -5750,17 +5757,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       }}
                       title="Ubah nama tampilan"
                       aria-label="Ubah nama tampilan"
-                      className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-[#1e1f20] border border-zinc-700 text-zinc-300 flex items-center justify-center hover:bg-zinc-700 cursor-pointer transition-colors shadow-sm"
+                      className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:bg-[#1e1f20] dark:border-zinc-700 dark:text-zinc-300 flex items-center justify-center dark:hover:bg-zinc-700 cursor-pointer transition-colors shadow-sm"
                     >
                       <Pencil className="w-3 h-3" />
                     </button>
                   </div>
 
                   <div className="min-w-0 flex-1 ml-4">
-                    <div className="text-[18px] font-semibold text-white truncate">
+                    <div className="text-[18px] font-semibold text-zinc-900 dark:text-white truncate">
                       {displayName ? toTitleCase(displayName) : (authUser ? "Pengguna" : "Mode Tamu")}
                     </div>
-                    <div className="text-[14px] text-zinc-400 truncate mt-0.5">
+                    <div className="text-[14px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
                       {authUser?.email || "Mode Tamu (Lokal)"}
                     </div>
                   </div>
@@ -5773,7 +5780,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     openSettingsModal("main", "account");
                   }}
                   aria-label="Pengaturan akun"
-                  className="w-8 h-8 rounded-full bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center shrink-0 text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                  className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 flex items-center justify-center shrink-0 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
                 >
                   <ChevronDown className="w-4 h-4" />
                 </button>
@@ -5792,7 +5799,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       openSettingsModal("main", "account");
                     }
                   }}
-                  className="w-full bg-[#16161a] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-white/[0.06] shadow-sm"
+                  className="w-full bg-white hover:bg-zinc-50 dark:bg-[#16161a] dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-zinc-900 dark:text-white transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -5801,7 +5808,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                     </svg>
-                    <span className="text-[16px] font-medium text-white truncate">
+                    <span className="text-[16px] font-medium text-zinc-900 dark:text-white truncate">
                       {authUser ? "Kelola Akun Google Anda" : "Masuk dengan Google"}
                     </span>
                   </div>
@@ -5814,11 +5821,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     setIsProfileDropdownOpen(false);
                     openSettingsModal("main");
                   }}
-                  className="w-full bg-[#16161a] hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-white transition-all duration-150 cursor-pointer text-left border border-white/[0.06] shadow-sm"
+                  className="w-full bg-white hover:bg-zinc-50 dark:bg-[#16161a] dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-zinc-900 dark:text-white transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
                 >
                   <div className="flex items-center gap-3.5">
-                    <Settings className="w-5 h-5 text-zinc-300 shrink-0" strokeWidth={1.75} />
-                    <span className="text-[16px] font-medium text-white">Setelan</span>
+                    <Settings className="w-5 h-5 text-zinc-600 dark:text-zinc-300 shrink-0" strokeWidth={1.75} />
+                    <span className="text-[16px] font-medium text-zinc-900 dark:text-white">Setelan</span>
                   </div>
                 </button>
 
@@ -5838,9 +5845,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       showToastNotice("Berhasil keluar dari akun.");
                       void refreshChatHistory();
                     }}
-                    className="w-full bg-[#16161a] hover:bg-red-950/30 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[16px] font-medium text-red-400 hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-white/[0.06] shadow-sm"
+                    className="w-full bg-white hover:bg-red-50 dark:bg-[#16161a] dark:hover:bg-red-950/30 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[16px] font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
                   >
-                    <LogOut className="w-5 h-5 text-red-400 shrink-0" strokeWidth={1.75} />
+                    <LogOut className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" strokeWidth={1.75} />
                     <span>Keluar dari Akun</span>
                   </button>
                 )}
@@ -5852,7 +5859,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <Link
                 href="/privasi"
                 onClick={() => setIsProfileDropdownOpen(false)}
-                className="hover:text-zinc-300 transition-colors"
+                className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
               >
                 Kebijakan Privasi
               </Link>
@@ -5860,7 +5867,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <Link
                 href="/ketentuan"
                 onClick={() => setIsProfileDropdownOpen(false)}
-                className="hover:text-zinc-300 transition-colors"
+                className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
               >
                 Persyaratan Layanan
               </Link>
@@ -5890,7 +5897,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed inset-y-0 left-0 z-40 w-[280px] max-w-[82vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:pt-0 lg:pb-0 bg-bg-surface dark:bg-[#09090b] border-r border-border-subtle dark:border-white/[0.06] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
+        className={`fixed inset-y-0 left-0 z-40 w-[280px] max-w-[82vw] pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)] lg:pt-0 lg:pb-0 bg-[#F8F8F9] dark:bg-[#09090b] border-r border-zinc-200/80 dark:border-white/[0.06] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
           isDesktopSidebarCollapsed
             ? "lg:w-0 lg:opacity-0 lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
             : "lg:w-[268px] lg:opacity-100 lg:translate-x-0"
@@ -5899,22 +5906,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         {/* Brand Header */}
         <div className="h-14 flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center gap-2.5">
-            <Image
-              src="/brand/axioma-logo.png"
-              alt="Axioma"
-              width={32}
-              height={32}
-              className="w-7 h-7 sm:w-8 sm:h-8 object-contain rounded-lg shrink-0 dark:ring-1 dark:ring-white/10"
-              priority
-            />
-            <span className="font-semibold text-xs tracking-tight uppercase text-text-primary">
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-none shrink-0">
+              <AxiomaLogoMark className="w-4 h-4" />
+            </div>
+            <span className="font-semibold text-xs tracking-tight uppercase text-zinc-900 dark:text-text-primary">
               Axioma
             </span>
           </div>
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
+            className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-icon-muted dark:hover:text-text-primary dark:hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
             aria-label="Tutup menu"
           >
             <X className="w-4 h-4" />
@@ -5931,23 +5933,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 handleCreateNewChat();
                 if (isTouchOrMobile) setIsMobileSidebarOpen(false);
               }}
-              className="w-full flex items-center justify-between rounded-full bg-[#1e1f20] hover:bg-[#282a2c] border-none px-4 py-3 text-[14.5px] font-medium text-[#e3e3e3] transition-colors cursor-pointer shadow-xs active:scale-[0.98]"
+              className="w-full flex items-center justify-between bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] rounded-xl h-10 px-3.5 text-[13.5px] font-medium dark:h-auto dark:rounded-full dark:bg-[#1e1f20] dark:hover:bg-[#282a2c] dark:border-0 dark:px-4 dark:py-3 dark:text-[14.5px] dark:text-[#e3e3e3] dark:shadow-xs transition-colors cursor-pointer active:scale-[0.98]"
             >
               <span className="flex items-center gap-2.5">
-                <Plus className="w-4 h-4 text-zinc-300" />
+                <Plus className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
                 <span>Percakapan Baru</span>
               </span>
             </button>
 
             {/* Guest Mode Cloud Sync Prompt Banner */}
-            <div className="bg-[#161718] border border-white/[0.05] rounded-[22px] p-4 flex flex-col gap-3 shrink-0">
+            <div className="bg-white dark:bg-[#161718] border border-zinc-200/80 dark:border-white/[0.05] rounded-2xl dark:rounded-[22px] p-4 shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-none flex flex-col gap-3 shrink-0">
               <div className="flex items-start gap-2.5">
-                <Cloud className="w-4 h-4 text-zinc-400 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <Cloud className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0 mt-0.5" strokeWidth={1.75} />
                 <div className="min-w-0">
-                  <span className="text-[14.5px] font-medium text-white block mb-1 tracking-normal">
+                  <span className="text-[13.5px] dark:text-[14.5px] font-semibold dark:font-medium text-zinc-900 dark:text-white block mb-1 tracking-normal">
                     Cadangkan Percakapan
                   </span>
-                  <p className="tracking-normal leading-[1.5] text-[13px] text-zinc-400">
+                  <p className="tracking-normal leading-relaxed dark:leading-[1.5] text-[12px] dark:text-[13px] text-zinc-500 dark:text-zinc-400">
                     Hubungkan akun untuk menyimpan riwayat chat agar bisa diakses dari perangkat lain.
                   </p>
                 </div>
@@ -5958,7 +5960,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsMobileSidebarOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full rounded-full py-2.5 text-[14px] font-medium bg-white text-black hover:bg-zinc-200 transition-all shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                className="w-full h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-[13px] transition dark:h-auto dark:rounded-full dark:py-2.5 dark:text-[14px] dark:bg-white dark:text-black dark:hover:bg-zinc-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <span>Hubungkan Akun</span>
               </button>
@@ -5973,10 +5975,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 handleCreateNewChat();
                 if (isTouchOrMobile) setIsMobileSidebarOpen(false);
               }}
-              className="w-full flex items-center justify-between rounded-full bg-[#1e1f20] hover:bg-[#282a2c] border-none px-4 py-3 text-[14.5px] font-medium text-[#e3e3e3] transition-colors cursor-pointer shadow-xs active:scale-[0.98]"
+              className="w-full flex items-center justify-between bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] rounded-xl h-10 px-3.5 text-[13.5px] font-medium dark:h-auto dark:rounded-full dark:bg-[#1e1f20] dark:hover:bg-[#282a2c] dark:border-0 dark:px-4 dark:py-3 dark:text-[14.5px] dark:text-[#e3e3e3] dark:shadow-xs transition-colors cursor-pointer active:scale-[0.98]"
             >
               <span className="flex items-center gap-2.5">
-                <Plus className="w-4 h-4 text-zinc-300" />
+                <Plus className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
                 <span>Percakapan Baru</span>
               </span>
             </button>
@@ -6212,8 +6214,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </span>
                 </div>
               ) : (
-                <div className="w-full h-full rounded-full bg-[#1e1f22] border border-white/[0.08] text-zinc-200 flex items-center justify-center">
-                  <User className="w-4 h-4" />
+                <div className="w-full h-full rounded-full bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f22] dark:hover:bg-[#27282b] dark:border-white/[0.08] dark:text-zinc-200 flex items-center justify-center transition-colors">
+                  <User className="w-4 h-4 text-current" />
                 </div>
               )}
             </div>
@@ -6353,9 +6355,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       </aside>
 
       {/* Main Workspace Column */}
-      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative bg-bg-primary dark:bg-[#000000]">
+      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative bg-[#FFFFFF] dark:bg-[#000000]">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between px-4 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 md:pt-[env(safe-area-inset-top)] md:pb-0 md:px-6 z-20 bg-bg-primary dark:bg-[#000000] border-b-0 md:h-14">
+        <header className="shrink-0 w-full flex items-center justify-between px-4 pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 md:pt-[env(safe-area-inset-top)] md:pb-0 md:px-6 z-20 bg-[#FFFFFF] dark:bg-[#000000] border-b-0 md:h-14">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -6562,7 +6564,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <button
                   type="button"
                   onClick={() => setIsMobileSidebarOpen(true)}
-                  className="w-9 h-9 rounded-full bg-[#1e1f20] border-none text-zinc-300 hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f20] dark:border-transparent dark:text-zinc-300 dark:hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                   aria-label="Buka bilah sisi"
                 >
                   <Menu className="w-[18px] h-[18px]" />
@@ -6578,9 +6580,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   className="flex items-center gap-1 px-2.5 py-1 rounded-full active:opacity-75 transition-opacity cursor-pointer focus:outline-none"
                   aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
                 >
-                  <span className="text-[17px] font-medium tracking-[-0.01em] text-[#e3e3e3] flex items-center">
+                  <span className="text-[17px] font-medium tracking-[-0.01em] text-zinc-900 dark:text-[#e3e3e3] flex items-center">
                     <span>Axioma {selectedAgent.shortName}</span>
-                    <ChevronDown className="w-4 h-4 text-zinc-400 ml-1" />
+                    <ChevronDown className="w-4 h-4 text-zinc-500 dark:text-zinc-400 ml-1" />
                   </span>
                 </button>
 
@@ -6591,7 +6593,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     onClick={() => handleCreateNewChat()}
                     aria-label="Percakapan Baru"
                     title="Percakapan Baru"
-                    className="w-9 h-9 rounded-full bg-[#1e1f20] border-none text-zinc-300 hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                    className="w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f20] dark:border-transparent dark:text-zinc-300 dark:hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                   >
                     <SquarePen className="w-[18px] h-[18px]" />
                   </button>
@@ -6605,7 +6607,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       className={`w-9 h-9 rounded-full flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
                         authUser
                           ? "bg-indigo-500/90 text-white border border-white/[0.1]"
-                          : "bg-[#1e1f22] text-zinc-200 border border-white/[0.08]"
+                          : "bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f22] dark:hover:bg-[#27282b] dark:text-zinc-200 dark:border-white/[0.08]"
                       }`}
                     >
                       {authUser ? (
@@ -6613,7 +6615,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           {(userName || "N").trim().charAt(0).toUpperCase()}
                         </span>
                       ) : (
-                        <User className="w-4 h-4 text-zinc-200" />
+                        <User className="w-4 h-4 text-current" />
                       )}
                     </button>
                   </div>
@@ -6662,15 +6664,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </button>
 
                   <div className="flex items-center gap-2 lg:hidden">
-                    <Image
-                      src="/brand/axioma-logo.png"
-                      alt="Axioma"
-                      width={28}
-                      height={28}
-                      className="w-7 h-7 object-contain rounded-lg shrink-0 dark:ring-1 dark:ring-white/10"
-                      priority
-                    />
-                    <span className="text-sm font-semibold tracking-tight text-text-primary">
+                    <div className="w-7 h-7 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-none shrink-0">
+                      <AxiomaLogoMark className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-text-primary">
                       Axioma
                     </span>
                   </div>
@@ -6712,7 +6709,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     className={`w-8 h-8 md:w-9 md:h-9 rounded-full flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
                       authUser
                         ? "bg-indigo-500/90 border border-white/[0.1] text-white font-semibold text-xs uppercase"
-                        : "bg-[#1e1f22] border border-white/[0.08] text-zinc-200 hover:text-white hover:bg-[#27272a]"
+                        : "bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f22] dark:border-white/[0.08] dark:text-zinc-200 dark:hover:text-white dark:hover:bg-[#27272a]"
                     }`}
                   >
                     {authUser ? (
@@ -6720,7 +6717,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         {(userName || "N").trim().charAt(0).toUpperCase()}
                       </span>
                     ) : (
-                      <User className="w-4 h-4 text-text-secondary" />
+                      <User className="w-4 h-4 text-current" />
                     )}
                   </button>
                 </div>
@@ -6921,23 +6918,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     }`}
                   >
                     <div className="w-full max-w-[340px] mx-auto flex flex-col items-center">
-                      {/* Brand Logo with subtle glow (Ukuran proporsional ala Gemini Star) */}
-                      <div className="relative group mb-2.5 sm:mb-4">
-                        <div className="absolute -inset-3 bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-500/25 rounded-full blur-xl opacity-80 pointer-events-none" />
-                        <div className="relative rounded-2xl bg-zinc-900/90 dark:bg-[#141416]/95 border border-zinc-700/60 dark:border-white/10 flex items-center justify-center shadow-2xl p-2 backdrop-blur-md w-11 h-11 sm:w-14 sm:h-14">
-                          <Image
-                            src="/brand/axioma-logo.png"
-                            alt="Axioma"
-                            width={48}
-                            height={48}
-                            className="w-full h-full object-contain"
-                            priority
-                          />
+                      {/* Brand Logo with subtle glow */}
+                      <div className="relative group mb-3 sm:mb-4">
+                        <div className="hidden dark:block absolute -inset-3 bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-500/25 rounded-full blur-xl opacity-80 pointer-events-none" />
+                        <div className="relative rounded-2xl bg-white dark:bg-[#141416]/95 border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-2xl backdrop-blur-md w-11 h-11 sm:w-14 sm:h-14">
+                          <AxiomaLogoMark className="w-5 h-5 sm:w-6 sm:h-6" />
                         </div>
                       </div>
 
                       {/* Sapaan besar adaptif dengan tipografi fluida */}
-                      <h1 className="text-[24px] sm:text-[28px] font-normal leading-[1.3] tracking-[-0.02em] text-text-primary dark:text-[#ececec] px-6 text-center max-w-[340px] sm:max-w-[480px] mx-auto text-balance whitespace-pre-line animate-fade-in">
+                      <h1 className="text-[24px] sm:text-[28px] font-medium dark:font-normal leading-[1.3] tracking-[-0.025em] dark:tracking-[-0.02em] text-zinc-900 dark:text-[#ececec] px-6 text-center max-w-[340px] sm:max-w-[480px] mx-auto text-balance whitespace-pre-line animate-fade-in">
                         {mobileGreeting}
                       </h1>
                     </div>
@@ -7097,7 +7087,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Text bubble */}
                       {message.content && message.content !== "(Lampiran)" && (
-                        <div className="relative px-4 py-2.5 rounded-[22px] rounded-br-[6px] bg-bg-surface dark:bg-[#242628] text-text-primary dark:text-[#ececec] text-[15.5px] leading-relaxed tracking-normal shadow-xs border border-border-subtle dark:border-white/[0.04] whitespace-pre-wrap break-words">
+                        <div className="relative px-4 py-2.5 rounded-[22px] rounded-br-[6px] bg-zinc-100 dark:bg-[#242628] text-zinc-900 dark:text-[#ececec] text-[15.5px] leading-relaxed tracking-normal shadow-xs border border-zinc-200/80 dark:border-white/[0.04] whitespace-pre-wrap break-words">
                           {message.content}
                         </div>
                       )}
@@ -7193,16 +7183,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <div className="w-full space-y-2 sm:space-y-2.5 min-w-0">
                     {/* Axioma Identity Header */}
                     <div className="flex items-center gap-2 mb-2 select-none">
-                      <div className="w-5 h-5 rounded-md bg-bg-surface dark:bg-white/[0.06] border border-border-subtle dark:border-white/[0.06] flex items-center justify-center p-0.5 shrink-0">
-                        <Image
-                          src="/brand/axioma-logo.png"
-                          alt="Axioma"
-                          width={16}
-                          height={16}
-                          className="w-full h-full object-contain"
-                        />
+                      <div className="w-5 h-5 rounded-md bg-white dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/[0.06] text-zinc-900 dark:text-zinc-200 flex items-center justify-center shrink-0">
+                        <AxiomaLogoMark className="w-3 h-3" />
                       </div>
-                      <span className="text-[13px] font-medium text-text-primary dark:text-zinc-300">
+                      <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-300">
                         Axioma
                       </span>
                     </div>
@@ -7492,13 +7476,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <Video className="w-3.5 h-3.5 text-zinc-300 animate-pulse" />
                       </div>
                     ) : (
-                      <Image
-                        src="/brand/axioma-logo.png"
-                        alt="Axioma"
-                        width={28}
-                        height={28}
-                        className="w-6 h-6 object-contain rounded-md shrink-0 dark:ring-1 dark:ring-white/10"
-                      />
+                      <div className="w-6 h-6 rounded-md bg-white dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/10 text-zinc-900 dark:text-zinc-200 flex items-center justify-center shrink-0">
+                        <AxiomaLogoMark className="w-3.5 h-3.5" />
+                      </div>
                     )}
                     <div className="flex items-center gap-2.5">
                       <div className="flex items-center gap-1 h-5" aria-hidden="true">
@@ -7617,15 +7597,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {/* Desktop Minimalist Logo "A" & Optical-Center Greeting (Hidden on mobile) */}
                 {isDesktopEmptyState && (
                   <div className="hidden md:flex flex-col items-center text-center pointer-events-none select-none w-full">
-                    <div className="w-11 h-11 rounded-2xl bg-bg-elevated dark:bg-[#141416] border border-border-subtle dark:border-white/[0.07] flex items-center justify-center p-2 shadow-sm mb-5">
-                      <Image
-                        src="/brand/axioma-logo.png"
-                        alt="Axioma"
-                        width={36}
-                        height={36}
-                        className="w-full h-full object-contain"
-                        priority
-                      />
+                    <div className="w-11 h-11 rounded-2xl bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.07] text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-sm mb-5">
+                      <AxiomaLogoMark className="w-5 h-5" />
                     </div>
                     {isChatAreaLoading ? (
                       <div
@@ -7636,7 +7609,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <div className="h-9 w-80 sm:w-[440px] rounded-xl bg-border-subtle animate-pulse" />
                       </div>
                     ) : (
-                      <h1 className="text-[clamp(24px,4.5vw,32px)] font-normal leading-[1.28] tracking-[-0.02em] text-text-primary dark:text-[#ececec] text-center max-w-[320px] sm:max-w-[480px] md:max-w-[560px] mb-7 text-balance animate-fade-in">
+                      <h1 className="text-[clamp(24px,4.5vw,32px)] font-medium dark:font-normal leading-[1.28] tracking-[-0.025em] dark:tracking-[-0.02em] text-zinc-900 dark:text-[#ececec] text-center max-w-[320px] sm:max-w-[480px] md:max-w-[560px] mb-7 text-balance animate-fade-in">
                         {dynamicGreeting || greeting || defaultFallbackGreeting}
                       </h1>
                     )}
@@ -7659,7 +7632,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         type="button"
                         onClick={() => textareaRef.current?.focus()}
                         aria-label="Mode Percakapan Teks"
-                        className="bg-[#0b0b0c]/90 text-[#e3e3e3] text-[13.5px] font-medium px-4 py-1.5 rounded-full border border-white/[0.05] shadow-sm cursor-pointer active:scale-95 transition-all"
+                        className="bg-zinc-900 text-white dark:bg-[#0b0b0c]/90 dark:text-[#e3e3e3] text-[13.5px] font-medium px-4 py-1.5 rounded-full border border-transparent dark:border-white/[0.05] shadow-sm cursor-pointer active:scale-95 transition-all"
                       >
                         Percakapan
                       </button>
@@ -7667,9 +7640,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         type="button"
                         onClick={handleOpenVoiceMode}
                         aria-label="Buka Mode Suara"
-                        className="px-4 py-1.5 rounded-full text-zinc-400 hover:text-white font-medium text-[13.5px] cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
+                        className="px-4 py-1.5 rounded-full text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white font-medium text-[13.5px] cursor-pointer active:scale-95 transition-all flex items-center gap-1.5"
                       >
-                        <AudioLines className="w-4 h-4 text-blue-400 shrink-0" />
+                        <AudioLines className="w-4 h-4 text-blue-500 dark:text-blue-400 shrink-0" />
                         <span>Mode Suara</span>
                       </button>
                     </div>
@@ -7794,7 +7767,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Polished Input Box */}
                 <div
-                  className="max-w-[720px] w-full bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.07] focus-within:border-border-strong dark:focus-within:border-white/[0.15] rounded-[28px] min-h-[56px] px-4 py-2.5 md:py-3 flex items-center shadow-2xl gap-2.5 transition-colors"
+                  className="max-w-[720px] w-full bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/[0.07] focus-within:border-zinc-300 dark:focus-within:border-white/[0.15] rounded-[26px] dark:rounded-[28px] min-h-[56px] px-4 py-2.5 md:py-3 flex items-center shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-2xl gap-2.5 transition-colors"
                 >
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
@@ -7826,8 +7799,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           aria-label={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
                           className={`w-10 h-10 min-w-[40px] min-h-[40px] md:w-9 md:h-9 md:min-w-0 md:min-h-0 rounded-full flex items-center justify-center transition-all ${
                             isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice
-                              ? "text-text-muted dark:text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none"
-                              : "text-text-secondary dark:text-zinc-300 hover:text-text-primary dark:hover:text-white hover:bg-bg-subtle dark:hover:bg-white/10 active:scale-95 cursor-pointer -ml-1"
+                              ? "text-zinc-400 dark:text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none"
+                              : "bg-zinc-100 hover:bg-zinc-200/70 text-zinc-700 dark:bg-transparent dark:text-zinc-300 dark:hover:text-white dark:hover:bg-white/10 active:scale-95 cursor-pointer -ml-1"
                           }`}
                         >
                           <Plus className="w-5 h-5 md:w-5 md:h-5" />
@@ -7862,7 +7835,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   closeAttachmentMenu(true)
                                 )
                               }
-                              className={`absolute -left-4 bottom-full mb-2 md:mb-2.5 z-40 w-[260px] sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-[#1e1f20] border border-white/[0.06] p-1.5 shadow-2xl space-y-1 origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
+                              className={`absolute -left-4 bottom-full mb-2 md:mb-2.5 z-40 w-[260px] sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-white dark:bg-[#1e1f20] border border-zinc-200/90 dark:border-white/[0.06] p-1.5 shadow-xl dark:shadow-2xl space-y-1 origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
                                 isAttachmentMenuEntered
                                   ? "scale-100 opacity-100 translate-y-0"
                                   : "scale-95 opacity-0 translate-y-1 pointer-events-none"
@@ -7879,9 +7852,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 closeAttachmentMenu(false);
                                 imageInputRef.current?.click();
                               }}
-                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
+                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
                             >
-                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
                                 <ImageIcon className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
                               <span className="flex-1">Foto &amp; Gambar</span>
@@ -7898,9 +7871,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 closeAttachmentMenu(false);
                                 pdfInputRef.current?.click();
                               }}
-                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
+                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
                             >
-                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
                                 <FileText className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
                               <span className="flex-1">Dokumen PDF</span>
@@ -7926,9 +7899,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   }
                                 });
                               }}
-                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
+                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
                             >
-                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
                                 <Palette className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
                               <span className="flex-1">Buat Gambar</span>
@@ -7954,9 +7927,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   }
                                 });
                               }}
-                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
+                              className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
                             >
-                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
                                 <Video className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
                               <span className="flex-1">Buat Video</span>
@@ -7973,17 +7946,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 closeAttachmentMenu(false);
                                 cameraInputRef.current?.click();
                               }}
-                              className="hidden [@media(pointer:coarse)]:flex w-full items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-100 hover:bg-white/[0.06] active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-white/[0.06]"
+                              className="hidden [@media(pointer:coarse)]:flex w-full items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
                             >
-                              <div className="w-9 h-9 rounded-xl bg-white/[0.06] text-zinc-300 flex items-center justify-center shrink-0">
+                              <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
                                 <Camera className="w-[18px] h-[18px]" strokeWidth={1.75} />
                               </div>
                               <span className="flex-1">Ambil Foto</span>
                             </button>
 
                             {/* Footer limitation note */}
-                            <div className="border-t border-white/[0.06] pt-2 pb-1 px-3.5 mt-1">
-                              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                            <div className="border-t border-zinc-200/70 dark:border-white/[0.06] pt-2 pb-1 px-3.5 mt-1">
+                              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
                                 Maks. 4 file · 10 MB per file · PDF maks. 30 halaman
                               </p>
                             </div>
@@ -8091,11 +8064,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               setIsAgentMenuOpen(true);
                             }
                           }}
-                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold tracking-tight text-text-secondary hover:text-text-primary hover:bg-bg-surface active:scale-95 transition-all cursor-pointer"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold tracking-tight text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
                           aria-label="Pilih model"
                         >
                           <span>{selectedAgent.shortName}</span>
-                          <ChevronDown className="w-3.5 h-3.5 text-icon-muted" />
+                          <ChevronDown className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
                         </button>
 
                         {shouldRenderDesktopAgentMenu && (
@@ -8175,7 +8148,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }}
                             title="Dikte suara (Bahasa Indonesia)"
                             aria-label="Mulai dikte"
-                            className="w-10 h-10 min-w-[40px] min-h-[40px] md:w-9 md:h-9 md:min-w-0 md:min-h-0 rounded-full flex items-center justify-center text-icon-muted dark:text-zinc-400 hover:text-text-primary dark:hover:text-white hover:bg-bg-subtle/70 dark:hover:bg-white/10 transition-all cursor-pointer border border-transparent active:scale-95"
+                            className="w-10 h-10 min-w-[40px] min-h-[40px] md:w-9 md:h-9 md:min-w-0 md:min-h-0 rounded-full flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer border border-transparent active:scale-95"
                           >
                             <Mic className="w-5 h-5 md:w-4 md:h-4" />
                           </button>
@@ -8363,7 +8336,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 onClick={handleOpenVoiceMode}
                                 title="Mode Suara (Percakapan langsung)"
                                 aria-label="Mode Suara (Percakapan langsung)"
-                                className="w-9 h-9 rounded-full flex items-center justify-center text-icon-muted dark:text-zinc-400 hover:text-text-primary dark:hover:text-white hover:bg-bg-subtle/70 dark:hover:bg-white/10 transition-all cursor-pointer active:scale-95"
+                                className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10 transition-all cursor-pointer active:scale-95"
                               >
                                 <AudioLines className="w-4 h-4" />
                               </button>
@@ -8388,7 +8361,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       ? STARTER_PROMPTS.map((prompt) => (
                           <div
                             key={prompt.id}
-                            className="h-[82px] rounded-2xl bg-bg-elevated dark:bg-[#141416] border border-border-subtle dark:border-white/[0.06] animate-pulse"
+                            className="h-[88px] rounded-2xl bg-[#FAFAFA] dark:bg-[#141416] border border-zinc-200/80 dark:border-white/[0.06] animate-pulse"
                           />
                         ))
                       : STARTER_PROMPTS.map((prompt) => (
@@ -8396,10 +8369,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             key={prompt.id}
                             type="button"
                             onClick={() => handleStarterPromptClick(prompt)}
-                            className="bg-bg-elevated dark:bg-[#141416] hover:bg-bg-surface dark:hover:bg-[#1c1d20] border border-border-subtle dark:border-white/[0.06] hover:border-border-strong dark:hover:border-white/[0.12] rounded-2xl p-3.5 transition-all duration-200 text-left group cursor-pointer active:scale-[0.98] flex flex-col items-start justify-between gap-2.5"
+                            className="bg-[#FAFAFA] hover:bg-white border border-zinc-200/80 hover:border-zinc-300 hover:shadow-[0_4px_12px_rgba(0,0,0,0.04)] dark:bg-[#141416] dark:hover:bg-[#1c1d20] dark:border-white/[0.06] dark:hover:border-white/[0.12] dark:hover:shadow-none rounded-2xl p-3.5 transition-all duration-200 text-left group cursor-pointer active:scale-[0.98] flex flex-col items-start justify-between gap-2.5"
                           >
                             {renderStarterIcon(prompt.icon)}
-                            <span className="text-[13.5px] leading-snug font-normal text-text-secondary dark:text-zinc-300 group-hover:text-text-primary dark:group-hover:text-white line-clamp-2">
+                            <span className="text-[13px] leading-snug font-medium text-zinc-700 group-hover:text-zinc-900 dark:font-normal dark:text-zinc-300 dark:group-hover:text-white line-clamp-2">
                               {prompt.label}
                             </span>
                           </button>
@@ -8526,7 +8499,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 : "translate-y-full opacity-0 sm:scale-95"
             }`}
           >
-            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
+            <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
             <button
               type="button"
               onClick={() => setIsGuestLimitModalOpen(false)}

@@ -14,6 +14,7 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
+import { AxiomaLogoMark } from "./AxiomaLogoMark";
 
 export const AXIOMA_CREATORS = [
   { initials: "NR", name: "Muhammad Nizam Putra Rasya" },
@@ -77,11 +78,11 @@ interface SettingsHeaderProps {
 
 function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
   return (
-    <div className="relative shrink-0 pt-[max(0.85rem,env(safe-area-inset-top))] pb-3.5 px-5 sm:px-6 bg-[#0a0a0c]/90 sm:bg-[#101013]/90 backdrop-blur-xl border-b border-white/[0.06] flex items-center justify-between">
+    <div className="relative shrink-0 pt-[max(0.85rem,env(safe-area-inset-top))] pb-3.5 px-5 sm:px-6 bg-[#F8F8FA]/90 sm:bg-white/90 dark:bg-[#0a0a0c]/90 dark:sm:bg-[#101013]/90 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between">
       <button
         type="button"
         onClick={onBack}
-        className="relative z-10 inline-flex items-center gap-1.5 py-1 pr-2 -ml-1 rounded-xl text-[14px] font-medium text-zinc-300 hover:text-white active:scale-95 transition cursor-pointer"
+        className="relative z-10 inline-flex items-center gap-1.5 py-1 pr-2 -ml-1 rounded-xl text-[14px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white active:scale-95 transition cursor-pointer"
       >
         <ChevronLeft className="w-4 h-4 shrink-0" />
         <span>Kembali</span>
@@ -89,7 +90,7 @@ function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
 
       <h1
         id="settings-modal-title"
-        className="absolute left-1/2 -translate-x-1/2 text-[16px] font-semibold tracking-tight text-white truncate max-w-[50%]"
+        className="absolute left-1/2 -translate-x-1/2 text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-white truncate max-w-[50%]"
       >
         {title}
       </h1>
@@ -98,7 +99,7 @@ function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
         type="button"
         onClick={onClose}
         aria-label={`Tutup ${title}`}
-        className="relative z-10 w-9 h-9 rounded-full bg-white/[0.06] hover:bg-white/[0.12] active:scale-[0.96] transition flex items-center justify-center text-zinc-300 hover:text-white cursor-pointer shrink-0"
+        className="relative z-10 w-9 h-9 rounded-full bg-zinc-200/70 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-white/[0.06] dark:hover:bg-white/[0.12] dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition flex items-center justify-center cursor-pointer shrink-0"
       >
         <X className="w-4 h-4" />
       </button>
@@ -118,45 +119,30 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
 
       <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-4 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
         {/* a) Hero Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-b from-[#17171b] to-[#121215] border border-white/[0.07] p-5 text-center">
+        <div className="relative overflow-hidden rounded-2xl bg-zinc-50/90 dark:bg-gradient-to-b dark:from-[#17171b] dark:to-[#121215] border border-zinc-200/80 dark:border-white/[0.07] p-5 text-center">
           <div
             aria-hidden="true"
-            className="pointer-events-none absolute -top-12 inset-x-0 mx-auto w-56 h-56 rounded-full"
+            className="hidden dark:block pointer-events-none absolute -top-12 inset-x-0 mx-auto w-56 h-56 rounded-full"
             style={{
               background:
                 "radial-gradient(circle, rgba(59,130,246,0.14) 0%, transparent 70%)",
             }}
           />
 
-          <div className="relative w-14 h-14 rounded-2xl bg-[#191a1f] border border-white/[0.1] flex items-center justify-center mx-auto mb-3 shadow-lg">
-            <svg
-              width="26"
-              height="26"
-              viewBox="0 0 24 24"
-              fill="none"
-              role="img"
-              aria-label="Logo Axioma"
-            >
-              <path
-                d="M12 3.5L4.5 20.5M12 3.5L19.5 20.5M7.5 14.25H16.5"
-                stroke="#ffffff"
-                strokeWidth="2.1"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
+          <div className="relative w-14 h-14 rounded-2xl bg-white dark:bg-[#191a1f] border border-zinc-200/90 dark:border-white/[0.1] text-zinc-900 dark:text-white flex items-center justify-center mx-auto mb-3 shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-lg">
+            <AxiomaLogoMark className="w-6 h-6" />
           </div>
 
           <div className="relative flex flex-col items-center">
-            <h2 className="text-[20px] font-semibold tracking-tight text-white">
+            <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 dark:text-white">
               Axioma Pro
             </h2>
-            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 mt-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
               <span>v2.5 Stable</span>
             </span>
 
-            <p className="text-[13px] text-zinc-400 leading-relaxed mt-3">
+            <p className="text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed mt-3">
               Platform asisten cerdas generasi baru yang menyatukan penalaran
               analitis tingkat lanjut, eksplorasi kode, sintesis visual, dan
               interaksi suara real-time dalam satu ruang kerja terpadu.
@@ -169,16 +155,16 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
           {CORE_CAPABILITIES.map(({ id, title, description, Icon }) => (
             <div
               key={id}
-              className="p-3.5 rounded-2xl bg-[#131316] border border-white/[0.06] flex items-start gap-3"
+              className="p-3.5 rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] shadow-[0_1px_2px_rgba(0,0,0,0.02)] dark:shadow-none flex items-start gap-3"
             >
-              <div className="w-8 h-8 rounded-xl bg-white/[0.04] border border-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
-                <Icon className="w-4 h-4 text-zinc-300" strokeWidth={1.75} />
+              <div className="w-8 h-8 rounded-xl bg-zinc-100/80 dark:bg-white/[0.04] border border-zinc-200/70 dark:border-white/[0.06] flex items-center justify-center shrink-0 mt-0.5">
+                <Icon className="w-4 h-4 text-zinc-700 dark:text-zinc-300" strokeWidth={1.75} />
               </div>
               <div className="min-w-0">
-                <div className="text-[13.5px] font-medium text-white leading-snug">
+                <div className="text-[13.5px] font-medium text-zinc-900 dark:text-white leading-snug">
                   {title}
                 </div>
-                <p className="text-[12px] text-zinc-400 leading-snug mt-1">
+                <p className="text-[12px] text-zinc-500 dark:text-zinc-400 leading-snug mt-1">
                   {description}
                 </p>
               </div>
@@ -187,13 +173,13 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
         </div>
 
         {/* c) Kartu Kredit Pembuat */}
-        <div className="p-4 rounded-2xl bg-gradient-to-br from-[#16171c] to-[#121215] border border-white/[0.08]">
+        <div className="p-4 rounded-2xl bg-zinc-50/90 dark:bg-gradient-to-br dark:from-[#16171c] dark:to-[#121215] border border-zinc-200/80 dark:border-white/[0.08]">
           <div className="mb-3 flex items-center gap-2">
             <span
               aria-hidden="true"
-              className="w-1 h-3.5 rounded-full bg-white/80 shrink-0"
+              className="w-1 h-3.5 rounded-full bg-zinc-900/75 dark:bg-white/80 shrink-0"
             />
-            <span className="text-[11px] font-semibold tracking-[0.12em] text-zinc-400 uppercase">
+            <span className="text-[11px] font-semibold tracking-[0.12em] text-zinc-500 dark:text-zinc-400 uppercase">
               DIBUAT OLEH
             </span>
           </div>
@@ -202,19 +188,19 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
             {AXIOMA_CREATORS.map((creator) => (
               <div
                 key={creator.initials}
-                className="flex items-center gap-3 p-2.5 rounded-xl bg-white/[0.025] border border-white/[0.05]"
+                className="flex items-center gap-3 p-2.5 rounded-xl bg-white dark:bg-white/[0.025] border border-zinc-200/70 dark:border-white/[0.05]"
               >
-                <div className="w-9 h-9 rounded-full bg-[#24262b] border border-white/[0.1] text-[12px] font-semibold text-white flex items-center justify-center shrink-0">
+                <div className="w-9 h-9 rounded-full bg-zinc-100 dark:bg-[#24262b] border border-zinc-200 dark:border-white/[0.1] text-[12px] font-semibold text-zinc-800 dark:text-white flex items-center justify-center shrink-0">
                   {creator.initials}
                 </div>
-                <div className="text-[13.5px] font-medium text-white leading-snug min-w-0">
+                <div className="text-[13.5px] font-medium text-zinc-900 dark:text-white leading-snug min-w-0">
                   {creator.name}
                 </div>
               </div>
             ))}
           </div>
 
-          <p className="mt-3 pt-2.5 border-t border-white/[0.05] text-[12px] text-zinc-400 text-center">
+          <p className="mt-3 pt-2.5 border-t border-zinc-200/70 dark:border-white/[0.05] text-[12px] text-zinc-500 dark:text-zinc-400 text-center">
             Dibuat oleh Muhammad Nizam Putra Rasya &amp; Muhammad Rendy Ramadhani
           </p>
         </div>
@@ -224,10 +210,10 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
           {TECH_SPECS.map((spec) => (
             <div
               key={spec.label}
-              className="py-2.5 px-2 rounded-xl bg-[#131316] border border-white/[0.06]"
+              className="py-2.5 px-2 rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06]"
             >
               <div className="text-[10.5px] text-zinc-500">{spec.label}</div>
-              <div className="text-[12.5px] font-medium text-zinc-200 mt-0.5">
+              <div className="text-[12.5px] font-medium text-zinc-900 dark:text-zinc-200 mt-0.5">
                 {spec.value}
               </div>
             </div>
@@ -243,7 +229,7 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
         <button
           type="button"
           onClick={onBack}
-          className="w-full h-12 rounded-2xl bg-white text-black font-semibold text-[15px] hover:bg-zinc-200 transition active:scale-[0.98] cursor-pointer"
+          className="w-full h-12 rounded-2xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 font-semibold text-[15px] transition active:scale-[0.98] cursor-pointer"
         >
           Kembali ke Setelan
         </button>
@@ -377,15 +363,15 @@ export function FeedbackSettingsView({
       <SubViewHeader title="Kirim Masukan" onBack={onBack} onClose={onClose} />
 
       <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
-        <p className="text-[13.5px] text-zinc-400 leading-relaxed mb-5">
+        <p className="text-[13.5px] text-zinc-600 dark:text-zinc-400 leading-relaxed mb-5">
           Bagikan ide fitur baru, masukan desain, atau kendala yang Anda temui agar
           Axioma terus berkembang lebih baik.
         </p>
 
         {submitSuccess && (
-          <div className="mb-5 p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/25 flex items-start gap-3 animate-fade-up">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-            <div className="text-[13.5px] text-emerald-200 leading-relaxed">
+          <div className="mb-5 p-4 rounded-2xl bg-emerald-50 border border-emerald-200 dark:bg-emerald-500/10 dark:border-emerald-500/25 flex items-start gap-3 animate-fade-up">
+            <CheckCircle2 className="w-5 h-5 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
+            <div className="text-[13.5px] text-emerald-800 dark:text-emerald-200 leading-relaxed">
               Terima kasih! Masukan Anda telah dikirim ke tim pengembang Axioma.
             </div>
           </div>
@@ -394,9 +380,9 @@ export function FeedbackSettingsView({
         {submitError && (
           <div
             role="alert"
-            className="mb-5 p-3.5 rounded-2xl bg-red-500/10 border border-red-500/25 flex items-start gap-2.5 text-[13px] text-red-300"
+            className="mb-5 p-3.5 rounded-2xl bg-red-50 border border-red-200 dark:bg-red-500/10 dark:border-red-500/25 flex items-start gap-2.5 text-[13px] text-red-700 dark:text-red-300"
           >
-            <AlertCircle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+            <AlertCircle className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0 mt-0.5" />
             <span>{submitError}</span>
           </div>
         )}
@@ -420,8 +406,8 @@ export function FeedbackSettingsView({
                     }}
                     className={`h-11 rounded-xl text-[13.5px] font-medium flex items-center justify-center transition active:scale-[0.98] cursor-pointer ${
                       isSelected
-                        ? "bg-white text-black shadow-xs"
-                        : "bg-[#131316] text-zinc-400 border border-white/[0.07] hover:text-zinc-200"
+                        ? "bg-zinc-900 text-white dark:bg-white dark:text-black shadow-xs"
+                        : "bg-white dark:bg-[#131316] text-zinc-600 dark:text-zinc-400 border border-zinc-200/80 dark:border-white/[0.07] hover:text-zinc-900 dark:hover:text-zinc-200"
                     }`}
                   >
                     {item}
@@ -445,7 +431,7 @@ export function FeedbackSettingsView({
               value={userEmail}
               onChange={(e) => setUserEmail(e.target.value)}
               placeholder="Email Anda (opsional, untuk balasan)"
-              className="w-full rounded-xl bg-[#131316] border border-white/[0.08] focus:border-white/25 px-3.5 py-3 text-[16px] sm:text-[15px] text-white placeholder:text-zinc-500 outline-none transition-colors"
+              className="w-full rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 px-3.5 py-3 text-[16px] sm:text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none transition-colors"
             />
           </div>
 
@@ -468,7 +454,7 @@ export function FeedbackSettingsView({
                 if (submitSuccess) setSubmitSuccess(false);
               }}
               placeholder="Tuliskan saran fitur, masukan desain, atau kendala yang Anda alami..."
-              className="w-full min-h-[140px] rounded-2xl bg-[#131316] border border-white/[0.08] focus:border-white/25 p-4 text-[16px] sm:text-[15px] text-white placeholder:text-zinc-500 outline-none resize-none transition-colors"
+              className="w-full min-h-[140px] rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 p-4 text-[16px] sm:text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none resize-none transition-colors"
             />
           </div>
 
@@ -477,7 +463,7 @@ export function FeedbackSettingsView({
             <button
               type="submit"
               disabled={isSending || !message.trim()}
-              className="w-full h-12 rounded-2xl bg-white text-black font-semibold text-[15px] hover:bg-zinc-200 disabled:bg-[#27272a] disabled:text-zinc-500 disabled:cursor-not-allowed transition flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
+              className="w-full h-12 rounded-2xl bg-zinc-900 text-white hover:bg-zinc-800 disabled:bg-zinc-200 disabled:text-zinc-400 dark:bg-white dark:text-black dark:hover:bg-zinc-200 dark:disabled:bg-[#27272a] dark:disabled:text-zinc-500 font-semibold text-[15px] disabled:cursor-not-allowed transition flex items-center justify-center gap-2 active:scale-[0.98] cursor-pointer"
             >
               {isSending ? (
                 <>

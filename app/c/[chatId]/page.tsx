@@ -12,8 +12,8 @@ async function ChatRouteResolver({ params }: ChatPageProps) {
 
 export default function ChatPage({ params }: ChatPageProps) {
   return (
-    <main className="fixed inset-0 w-full h-full overflow-hidden bg-black flex flex-col">
-      <Suspense fallback={<div className="h-full w-full bg-black" />}>
+    <main className="fixed inset-0 w-full h-full overflow-hidden bg-bg-primary dark:bg-black flex flex-col">
+      <Suspense fallback={<div className="h-full w-full bg-bg-primary dark:bg-black" />}>
         <ChatRouteResolver params={params} />
       </Suspense>
     </main>
