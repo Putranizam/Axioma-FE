@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Download, Eye, Palette, Loader2, CircleAlert, RotateCw } from "lucide-react";
 
 interface AiImageCardProps {
@@ -9,63 +9,186 @@ interface AiImageCardProps {
   onOpenLightbox?: (url: string, name: string) => void;
 }
 
-export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
-  const [currentSrc, setCurrentSrc] = useState<string>(src);
+function sanitizeVisualPrompt(raw: string): string {
+  const cleaned = (raw || "")
+    .replace(/[\r\n\[\]]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return cleaned || "scenic cinematic landscape artwork";
+}
+
+function cleanRawImageUrl(rawUrl: string): string {
+  let cleaned = (rawUrl || "").trim().replace(/^['"`]+|['"`]+$/g, "");
+  // Hapus tanda kurung penutup nyasar hasil parsing markdown
+  if (cleaned.startsWith("http")) {
+    const openParens = (cleaned.match(/\(/g) || []).length;
+    const closeParens = (cleaned.match(/\)/g) || []).length;
+    if (closeParens > openParens) {
+      cleaned = cleaned.replace(/\)+$/, "");
+    }
+    cleaned = cleaned.replace(/ /g, "%20");
+  }
+  return cleaned;
+}
+
+function buildInternalProxyUrl(
+  prompt: string,
+  options?: { seed?: string; width?: number; height?: number; engine?: string; fresh?: boolean }
+): string {
+  const params = new URLSearchParams();
+  params.set("prompt", sanitizeVisualPrompt(prompt).slice(0, 400));
+  params.set("seed", options?.seed || "42");
+  if (options?.width) params.set("width", String(options.width));
+  if (options?.height) params.set("height", String(options.height));
+  if (options?.engine) params.set("engine", options.engine);
+  if (options?.fresh) params.set("fresh", "1");
+  return `/api/image?${params.toString()}`;
+}
+
+function extractPromptAndParams(
+  rawSrc: string,
+  alt: string
+): {
+  initialSrc: string;
+  promptForFallback: string;
+  width: number;
+  height: number;
+} {
+  const cleanedUrl = cleanRawImageUrl(rawSrc);
+  const altPrompt = sanitizeVisualPrompt(alt);
+
+  if (
+    !cleanedUrl ||
+    cleanedUrl.startsWith("data:") ||
+    cleanedUrl.startsWith("blob:") ||
+    cleanedUrl.startsWith("/api/image")
+  ) {
+    return {
+      initialSrc: cleanedUrl || buildInternalProxyUrl(altPrompt),
+      promptForFallback: altPrompt,
+      width: 1024,
+      height: 1024,
+    };
+  }
+
+  try {
+    const parsed = new URL(cleanedUrl);
+    const isPollinations = parsed.hostname.toLowerCase().includes("pollinations.ai");
+    if (isPollinations) {
+      const pathMatch = parsed.pathname.match(/\/(?:prompt|p)\/(.+)/i);
+      let decodedPrompt = altPrompt;
+      if (pathMatch?.[1]) {
+        try {
+          decodedPrompt = sanitizeVisualPrompt(decodeURIComponent(pathMatch[1]));
+        } catch {
+          decodedPrompt = sanitizeVisualPrompt(pathMatch[1]);
+        }
+      }
+
+      const rawWidth = Number(parsed.searchParams.get("width"));
+      const rawHeight = Number(parsed.searchParams.get("height"));
+      const width =
+        Number.isFinite(rawWidth) && rawWidth >= 256 && rawWidth <= 1024
+          ? Math.round(rawWidth)
+          : 1024;
+      const height =
+        Number.isFinite(rawHeight) && rawHeight >= 256 && rawHeight <= 1024
+          ? Math.round(rawHeight)
+          : 1024;
+      const seed = parsed.searchParams.get("seed") || "42";
+
+      return {
+        initialSrc: buildInternalProxyUrl(decodedPrompt, { seed, width, height }),
+        promptForFallback: decodedPrompt,
+        width,
+        height,
+      };
+    }
+  } catch {
+    // Jika URL rusak dan tidak bisa diparse, alihkan langsung lewat proxy prompt alt
+    if (cleanedUrl.toLowerCase().includes("pollinations.ai")) {
+      return {
+        initialSrc: buildInternalProxyUrl(altPrompt),
+        promptForFallback: altPrompt,
+        width: 1024,
+        height: 1024,
+      };
+    }
+  }
+
+  return {
+    initialSrc: cleanedUrl,
+    promptForFallback: altPrompt,
+    width: 1024,
+    height: 1024,
+  };
+}
+
+function AiImageCardInner({ src, alt, onOpenLightbox }: AiImageCardProps) {
+  const descriptor = useMemo(() => extractPromptAndParams(src, alt), [src, alt]);
+  const [currentSrc, setCurrentSrc] = useState<string>(descriptor.initialSrc);
   const [isLoaded, setIsLoaded] = useState<boolean>(false);
   const [hasError, setHasError] = useState<boolean>(false);
+  const [retryAttempt, setRetryAttempt] = useState<number>(0);
   const [isDownloading, setIsDownloading] = useState<boolean>(false);
-  const retryAttemptRef = useRef<number>(0);
+  const imgRef = useRef<HTMLImageElement | null>(null);
 
   const triggerFallback = useCallback(() => {
-    if (retryAttemptRef.current === 0) {
-      retryAttemptRef.current = 1;
-      const cleanWords = (alt || "scenic landscape")
-        .replace(/[^a-zA-Z0-9\s]/g, " ")
-        .trim()
-        .split(/\s+/)
-        .slice(0, 12)
-        .join(" ");
-      const cleanQuery = encodeURIComponent(cleanWords || "scenic landscape");
-      const fallbackUrl = `https://image.pollinations.ai/prompt/${cleanQuery}?width=800&height=800&model=turbo&nologo=true&seed=${Date.now()}`;
-      setCurrentSrc(fallbackUrl);
+    if (retryAttempt === 0) {
+      setRetryAttempt(1);
+      setIsLoaded(false);
+      setHasError(false);
+      setCurrentSrc(
+        buildInternalProxyUrl(descriptor.promptForFallback, {
+          seed: String(Date.now()),
+          width: Math.min(descriptor.width, 800),
+          height: Math.min(descriptor.height, 800),
+          engine: "fallback",
+        })
+      );
     } else {
+      setIsLoaded(false);
       setHasError(true);
-      setIsLoaded(true);
     }
-  }, [alt]);
+  }, [retryAttempt, descriptor]);
 
+  // Jika browser sudah menyimpan gambar dalam cache sebelum event onLoad terpasang
   useEffect(() => {
-    setCurrentSrc(src);
-    setIsLoaded(false);
-    setHasError(false);
-    retryAttemptRef.current = 0;
-  }, [src]);
+    const imgEl = imgRef.current;
+    if (imgEl && imgEl.complete && imgEl.naturalWidth > 0 && !isLoaded && !hasError) {
+      const raf = requestAnimationFrame(() => {
+        setIsLoaded(true);
+      });
+      return () => cancelAnimationFrame(raf);
+    }
+  }, [currentSrc, isLoaded, hasError]);
 
-  // Anti-stuck watchdog: If image hasn't loaded within 8s, automatically trigger fast fallback
+  // Safety Timeout: 15 detik pada percobaan awal (auto-retry seed/engine),
+  // lalu 20 detik pada percobaan fallback sebelum menghentikan spinner secara bersih.
   useEffect(() => {
     if (isLoaded || hasError) return;
 
+    const timeoutMs = retryAttempt === 0 ? 15_000 : 20_000;
     const timer = setTimeout(() => {
-      if (!isLoaded && !hasError) {
-        triggerFallback();
-      }
-    }, 8000);
+      triggerFallback();
+    }, timeoutMs);
 
     return () => clearTimeout(timer);
-  }, [currentSrc, isLoaded, hasError, triggerFallback]);
+  }, [currentSrc, isLoaded, hasError, retryAttempt, triggerFallback]);
 
   const handleManualRetry = () => {
     setHasError(false);
     setIsLoaded(false);
-    retryAttemptRef.current = 0;
-    const cleanWords = (alt || "visual")
-      .replace(/[^a-zA-Z0-9\s]/g, " ")
-      .trim()
-      .split(/\s+/)
-      .slice(0, 12)
-      .join(" ");
-    const cleanQuery = encodeURIComponent(cleanWords || "visual");
-    setCurrentSrc(`https://image.pollinations.ai/prompt/${cleanQuery}?width=800&height=800&model=turbo&nologo=true&seed=${Date.now()}`);
+    setRetryAttempt(0);
+    setCurrentSrc(
+      buildInternalProxyUrl(descriptor.promptForFallback, {
+        seed: String(Date.now()),
+        width: descriptor.width,
+        height: descriptor.height,
+        engine: "fallback",
+        fresh: true,
+      })
+    );
   };
 
   const handleDownload = async (e: React.MouseEvent) => {
@@ -75,7 +198,6 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
 
     try {
       if (currentSrc.startsWith("data:")) {
-        // Data URL direct download
         const link = document.createElement("a");
         link.href = currentSrc;
         const cleanName = (alt || "axioma-visual")
@@ -87,8 +209,10 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
         link.click();
         document.body.removeChild(link);
       } else {
-        // Remote URL fetch blob download
-        const response = await fetch(currentSrc, { mode: "cors" });
+        const fetchOpts: RequestInit = currentSrc.startsWith("/")
+          ? {}
+          : { mode: "cors" };
+        const response = await fetch(currentSrc, fetchOpts);
         const blob = await response.blob();
         const blobUrl = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -104,7 +228,6 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
         setTimeout(() => URL.revokeObjectURL(blobUrl), 2000);
       }
     } catch {
-      // Fallback direct link open
       const link = document.createElement("a");
       link.href = currentSrc;
       link.target = "_blank";
@@ -119,32 +242,47 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
   };
 
   return (
-    <div className="my-3 max-w-xl w-full group/ai-img relative rounded-2xl overflow-hidden border border-border-subtle bg-bg-surface shadow-md transition-all hover:border-border-strong hover:shadow-lg">
-      {/* Loading Skeleton */}
+    <div
+      className={`my-3 max-w-xl w-full group/ai-img relative rounded-2xl overflow-hidden border border-border-subtle bg-bg-surface shadow-md transition-all hover:border-border-strong hover:shadow-lg ${
+        !isLoaded && !hasError ? "aspect-square sm:aspect-[4/3]" : ""
+      }`}
+    >
+      {/* Loading Skeleton Overlay (mengizinkan <img> tetap mounted tanpa display:none agar onLoad selalu terpanggil) */}
       {!isLoaded && !hasError && (
-        <div className="w-full aspect-square sm:aspect-[4/3] bg-bg-elevated/70 animate-pulse flex flex-col items-center justify-center gap-2.5 text-text-muted select-none">
+        <div className="absolute inset-0 z-10 bg-bg-elevated/80 animate-pulse flex flex-col items-center justify-center gap-2.5 text-text-muted select-none">
           <Loader2 className="w-6 h-6 animate-spin text-icon-muted" />
           <span className="text-xs font-medium tracking-tight">Menyiapkan visual...</span>
         </div>
       )}
 
-      {/* Render Image (Eager loading, no-referrer for privacy & bypass anti-hotlinking) */}
-      <img
-        src={currentSrc}
-        alt={alt}
-        loading="eager"
-        decoding="async"
-        referrerPolicy="no-referrer"
-        onLoad={() => setIsLoaded(true)}
-        onError={() => triggerFallback()}
-        onClick={() => onOpenLightbox?.(currentSrc, alt)}
-        className={`w-full max-h-[520px] object-cover rounded-2xl cursor-pointer transition-transform duration-300 group-hover/ai-img:scale-[1.01] ${
-          isLoaded ? "block" : "hidden"
-        }`}
-      />
+      {/* Render Image: gunakan opacity-0 saat loading (BUKAN hidden/display:none) */}
+      {!hasError && (
+        <img
+          ref={imgRef}
+          src={currentSrc}
+          alt={alt}
+          loading="eager"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          onLoad={(e) => {
+            if (e.currentTarget.naturalWidth > 0) {
+              setIsLoaded(true);
+            } else {
+              triggerFallback();
+            }
+          }}
+          onError={() => triggerFallback()}
+          onClick={() => isLoaded && onOpenLightbox?.(currentSrc, alt)}
+          className={`w-full object-cover rounded-2xl transition-opacity duration-500 ${
+            isLoaded
+              ? "max-h-[520px] opacity-100 cursor-pointer transition-transform group-hover/ai-img:scale-[1.01]"
+              : "h-full opacity-0 pointer-events-none"
+          }`}
+        />
+      )}
 
       {/* Top Badge Overlay */}
-      {isLoaded && (
+      {isLoaded && !hasError && (
         <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md text-zinc-200 text-[11px] font-medium border border-white/10 pointer-events-none shadow-sm">
           <Palette className="w-3.5 h-3.5 text-zinc-300" />
           <span>Studio Visual</span>
@@ -152,7 +290,7 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
       )}
 
       {/* Bottom Action Bar */}
-      {isLoaded && (
+      {isLoaded && !hasError && (
         <div className="absolute bottom-0 inset-x-0 p-3 bg-gradient-to-t from-black/85 via-black/45 to-transparent flex items-center justify-between opacity-95 sm:opacity-0 sm:group-hover/ai-img:opacity-100 transition-opacity">
           <span className="text-xs text-white/95 truncate max-w-[60%] font-medium px-1 drop-shadow-sm select-none">
             {alt}
@@ -186,30 +324,30 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
         </div>
       )}
 
-      {/* Error Fallback with Retry Option */}
+      {/* Error Fallback with "Muat Ulang Visual" Button */}
       {hasError && (
-        <div className="p-4 rounded-2xl bg-bg-elevated border border-border-subtle flex flex-col gap-2.5 text-text-muted">
+        <div className="p-4 rounded-2xl bg-bg-elevated border border-border-subtle flex flex-col gap-3 text-text-muted">
           <div className="flex items-center gap-3">
             <CircleAlert className="w-5 h-5 text-amber-500 shrink-0" />
             <div className="text-xs leading-relaxed">
-              Gambar tidak dapat ditampilkan secara langsung di peramban.{" "}
+              Visual gagal dimuat karena batas antrean server gambar sementara penuh.{" "}
               <a
                 href={currentSrc}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-text-primary underline font-medium hover:text-text-primary"
               >
-                Buka gambar di tab baru
+                Buka tautan gambar
               </a>
             </div>
           </div>
           <button
             type="button"
             onClick={handleManualRetry}
-            className="self-start mt-1 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-bg-surface hover:bg-bg-subtle text-text-primary text-xs font-medium border border-border-strong cursor-pointer transition-colors"
+            className="self-start flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-bg-surface hover:bg-bg-subtle text-text-primary text-xs font-medium border border-border-strong cursor-pointer transition-colors active:scale-95"
           >
             <RotateCw className="w-3.5 h-3.5" />
-            <span>Muat Ulang Gambar</span>
+            <span>Muat Ulang Visual</span>
           </button>
         </div>
       )}
@@ -217,5 +355,8 @@ export function AiImageCard({ src, alt, onOpenLightbox }: AiImageCardProps) {
   );
 }
 
-export default AiImageCard;
+export function AiImageCard(props: AiImageCardProps) {
+  return <AiImageCardInner key={`${props.src}::${props.alt}`} {...props} />;
+}
 
+export default AiImageCard;
