@@ -2637,19 +2637,30 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, []);
 
-  const closeHeaderAgentMenu = useCallback((restoreFocus = true) => {
-    setIsHeaderAgentMenuOpen(false);
-    setHeaderMenuTop(null);
-    if (restoreFocus) {
-      const trigger = headerAgentTriggerRef.current || tabletAgentTriggerRef.current;
-      requestAnimationFrame(() => trigger?.focus());
+  const getVisibleHeaderAgentTrigger = useCallback(() => {
+    const mobileEl = headerAgentTriggerRef.current;
+    if (mobileEl && mobileEl.getBoundingClientRect().height > 0) {
+      return mobileEl;
     }
+    return tabletAgentTriggerRef.current;
   }, []);
+
+  const closeHeaderAgentMenu = useCallback(
+    (restoreFocus = true) => {
+      setIsHeaderAgentMenuOpen(false);
+      setHeaderMenuTop(null);
+      if (restoreFocus) {
+        const trigger = getVisibleHeaderAgentTrigger();
+        requestAnimationFrame(() => trigger?.focus());
+      }
+    },
+    [getVisibleHeaderAgentTrigger]
+  );
 
   const toggleHeaderAgentMenu = useCallback(() => {
     setIsHeaderAgentMenuOpen((prev) => {
       const next = !prev;
-      const trigger = headerAgentTriggerRef.current || tabletAgentTriggerRef.current;
+      const trigger = getVisibleHeaderAgentTrigger();
       if (next && trigger) {
         const rect = trigger.getBoundingClientRect();
         setHeaderMenuTop(Math.round(rect.bottom + 8));
@@ -2658,7 +2669,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }
       return next;
     });
-  }, []);
+  }, [getVisibleHeaderAgentTrigger]);
 
   const closeChatItemMenu = useCallback((chatId: string | null, restoreFocus = true) => {
     setOpenChatMenuId(null);
@@ -6356,7 +6367,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative bg-[#FFFFFF] dark:bg-[#000000]">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between px-3 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2.5 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-[#000000] border-b-0">
+        <header className="shrink-0 w-full flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-[#000000] border-b-0">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -6557,39 +6568,71 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
           ) : (
             <>
-              {/* Mobile Header (< md) - Minimalist 2-Button Pattern */}
+              {/* Mobile Header (< md) - Gemini Mobile Pattern: [Menu + Model] left, [Avatar] right */}
               <div className="flex md:hidden items-center justify-between w-full">
-                {/* Left: 40px (w-10 h-10) circular hamburger menu */}
-                <button
-                  type="button"
-                  onClick={() => setIsMobileSidebarOpen(true)}
-                  className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f20] dark:border-transparent dark:text-zinc-300 dark:hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
-                  aria-label="Buka bilah sisi"
-                >
-                  <Menu className="w-[18px] h-[18px]" />
-                </button>
-
-                {/* Right: 40px (w-10 h-10) circular Avatar / Profile button */}
-                <div className="relative">
+                {/* Sisi Kiri: Tombol Sidebar + Pemilih Model "Axioma Pro ⌄" */}
+                <div className="flex items-center gap-2.5 min-w-0">
                   <button
                     type="button"
-                    onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
-                    aria-label="Buka menu profil dan akun"
-                    title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                    className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
-                      authUser
-                        ? "bg-indigo-500/90 text-white border border-white/[0.1]"
-                        : "bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f22] dark:hover:bg-[#27282b] dark:text-zinc-200 dark:border-white/[0.08]"
-                    }`}
+                    onClick={() => setIsMobileSidebarOpen(true)}
+                    className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-zinc-100 hover:bg-zinc-200/80 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-700 dark:text-zinc-200 active:scale-95 transition-all flex items-center justify-center shrink-0 cursor-pointer"
+                    aria-label="Buka bilah sisi"
                   >
-                    {authUser ? (
-                      <span className="uppercase font-semibold select-none text-white text-[15px]">
-                        {(userName || "N").trim().charAt(0).toUpperCase()}
-                      </span>
-                    ) : (
-                      <User className="w-4 h-4 text-current" />
-                    )}
+                    <Menu className="w-[18px] h-[18px]" />
                   </button>
+
+                  <button
+                    ref={headerAgentTriggerRef}
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={isHeaderAgentMenuOpen}
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                    }}
+                    onClick={() => {
+                      if (typeof window !== "undefined" && window.innerWidth < 768) {
+                        textareaRef.current?.blur();
+                      }
+                      toggleHeaderAgentMenu();
+                    }}
+                    aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[40px] rounded-full text-[16px] font-medium tracking-tight text-zinc-900 dark:text-zinc-100 active:bg-zinc-200/70 dark:active:bg-white/[0.08] transition cursor-pointer focus:outline-none truncate"
+                  >
+                    <span>Axioma</span>
+                    <span className="text-zinc-500 dark:text-zinc-300 font-normal">
+                      {selectedAgent.shortName}
+                    </span>
+                    <ChevronDown
+                      className={`w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0 transition-transform duration-200 ${
+                        isHeaderAgentMenuOpen ? "rotate-180" : ""
+                      }`}
+                    />
+                  </button>
+                </div>
+
+                {/* Sisi Kanan: Tombol Avatar / Profil Pengguna */}
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="relative">
+                    <button
+                      type="button"
+                      onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
+                      aria-label="Buka menu profil dan akun"
+                      title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
+                      className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
+                        authUser
+                          ? "bg-indigo-500/90 text-white border border-white/[0.1]"
+                          : "bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f22] dark:hover:bg-[#27282b] dark:text-zinc-200 dark:border-white/[0.08]"
+                      }`}
+                    >
+                      {authUser ? (
+                        <span className="uppercase font-semibold select-none text-white text-[15px]">
+                          {(userName || "N").trim().charAt(0).toUpperCase()}
+                        </span>
+                      ) : (
+                        <User className="w-4 h-4 text-current" />
+                      )}
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -6702,11 +6745,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                   isHeaderAgentMenuEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
                 }`}
-                onClick={() => closeHeaderAgentMenu(true)}
+                onClick={() => closeHeaderAgentMenu(false)}
                 aria-hidden="true"
               />
 
-              {/* Mobile Fixed Model Menu */}
+              {/* Mobile / Tablet Fixed Model Menu */}
               <div
                 ref={headerAgentMenuRef}
                 role="menu"
@@ -6717,7 +6760,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   )
                 }
                 style={headerMenuTop ? { top: `${headerMenuTop}px` } : undefined}
-                className={`fixed left-4 right-4 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 max-w-[calc(100vw-2rem)] sm:max-w-md mx-auto max-h-[70dvh] overflow-y-auto rounded-2xl bg-bg-elevated border border-border-strong p-2 shadow-2xl space-y-1.5 focus:outline-none origin-top transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+                className={`fixed left-4 right-4 sm:left-6 sm:right-auto sm:w-80 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 max-w-md sm:max-w-[calc(100vw-2rem)] mx-auto sm:mx-0 max-h-[70dvh] overflow-y-auto overscroll-y-contain rounded-2xl bg-bg-elevated border border-border-strong p-2 shadow-2xl space-y-1.5 focus:outline-none origin-top sm:origin-top-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
                   isHeaderAgentMenuEntered
                     ? "scale-100 opacity-100 translate-y-0"
                     : "scale-95 opacity-0 -translate-y-2 pointer-events-none"
@@ -7980,30 +8023,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </div>
                     </div>
                   ) : (
-                    <div className="flex items-center gap-0.5 sm:gap-2 shrink-0 self-center">
-                      {/* Engine Selector inside capsule (Mobile < md & Desktop >= lg) */}
-                      <div className="relative md:hidden lg:block">
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0 self-center">
+                      {/* Desktop Engine Selector inside capsule (>= lg; hidden on Mobile < md because it lives in Top Header) */}
+                      <div className="relative hidden lg:block">
                         <button
                           ref={desktopAgentTriggerRef}
                           type="button"
                           aria-haspopup="menu"
                           aria-expanded={isAgentMenuOpen}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                          }}
-                          onClick={() => {
-                            if (typeof window !== "undefined" && window.innerWidth < 768) {
-                              textareaRef.current?.blur();
-                            }
-                            setIsAgentMenuOpen((prev) => !prev);
-                          }}
+                          onClick={() => setIsAgentMenuOpen((prev) => !prev)}
                           onKeyDown={(e) => {
                             if (e.key === "ArrowDown" || e.key === "ArrowUp") {
                               e.preventDefault();
                               setIsAgentMenuOpen(true);
                             }
                           }}
-                          className="flex items-center gap-0.5 sm:gap-1 px-1.5 sm:px-2.5 py-1.5 min-h-[38px] sm:min-h-[36px] rounded-lg text-[12px] font-semibold tracking-tight text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
+                          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold tracking-tight text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-white/10 active:scale-95 transition-all cursor-pointer"
                           aria-label="Pilih model"
                         >
                           <span>{selectedAgent.shortName}</span>
@@ -8011,29 +8046,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </button>
 
                         {shouldRenderDesktopAgentMenu && (
-                          <>
-                            <div
-                              className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-xs md:hidden transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                                isDesktopAgentMenuEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                              }`}
-                              onClick={() => closeDesktopAgentMenu(false)}
-                              aria-hidden="true"
-                            />
-                            <div
-                              ref={desktopAgentMenuRef}
-                              role="menu"
-                              aria-label="Pilih model AI"
-                              onKeyDown={(e) =>
-                                handleMenuArrowKeyDown(e, desktopAgentItemRefs.current, () =>
-                                  closeDesktopAgentMenu(true)
-                                )
-                              }
-                              className={`fixed left-4 right-4 bottom-24 sm:left-auto sm:right-0 sm:bottom-full sm:mb-2 sm:absolute z-50 max-w-md sm:max-w-[calc(100vw-2rem)] sm:w-80 mx-auto sm:mx-0 rounded-2xl sm:rounded-xl bg-bg-elevated border border-border-subtle p-2 shadow-2xl space-y-1.5 focus:outline-none origin-bottom sm:origin-bottom-right transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
-                                isDesktopAgentMenuEntered
-                                  ? "scale-100 opacity-100 translate-y-0"
-                                  : "scale-95 opacity-0 translate-y-2 pointer-events-none"
-                              }`}
-                            >
+                          <div
+                            ref={desktopAgentMenuRef}
+                            role="menu"
+                            aria-label="Pilih model AI"
+                            onKeyDown={(e) =>
+                              handleMenuArrowKeyDown(e, desktopAgentItemRefs.current, () =>
+                                closeDesktopAgentMenu(true)
+                              )
+                            }
+                            className={`absolute bottom-full mb-2 right-0 z-50 w-72 sm:w-80 max-w-[calc(100vw-2rem)] rounded-xl bg-bg-elevated border border-border-subtle p-2 shadow-2xl space-y-1.5 focus:outline-none origin-bottom-right transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+                              isDesktopAgentMenuEntered
+                                ? "scale-100 opacity-100 translate-y-0"
+                                : "scale-95 opacity-0 translate-y-2 pointer-events-none"
+                            }`}
+                          >
                             {AVAILABLE_AGENTS.map((agent, idx) => {
                               const isSelected = agent.id === selectedAgent.id;
                               return (
@@ -8077,8 +8104,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 </button>
                               );
                             })}
-                            </div>
-                          </>
+                          </div>
                         )}
                       </div>
 
