@@ -1,29 +1,39 @@
 import React from "react";
+import Image from "next/image";
 
 interface AxiomaLogoMarkProps {
   className?: string;
+  size?: number;
 }
 
 /**
- * Logo geometris huruf "A" murni monokrom tanpa aksen bintang/sparkle AI.
+ * Logo resmi Axioma 3D Ribbon "A" dengan deteksi tema real-time:
+ * - Mode Terang: `/brand/light/axioma-logo.png`
+ * - Mode Gelap: `/brand/dark/axioma-logo.png`
  */
-export function AxiomaLogoMark({ className = "w-4 h-4" }: AxiomaLogoMarkProps) {
+export function AxiomaLogoMark({
+  className = "w-full h-full",
+  size = 64,
+}: AxiomaLogoMarkProps) {
   return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="none"
-      role="img"
-      aria-label="Axioma"
-      className={className}
-    >
-      <path
-        d="M12 3.5L4.5 20.5M12 3.5L19.5 20.5M7.5 14.25H16.5"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <>
+      <Image
+        src="/brand/light/axioma-logo.png"
+        alt="Axioma"
+        width={size}
+        height={size}
+        className={`${className} object-contain dark:hidden`}
+        priority
       />
-    </svg>
+      <Image
+        src="/brand/dark/axioma-logo.png"
+        alt="Axioma"
+        width={size}
+        height={size}
+        className={`${className} object-contain hidden dark:block`}
+        priority
+      />
+    </>
   );
 }
 

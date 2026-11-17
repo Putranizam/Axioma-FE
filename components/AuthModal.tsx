@@ -201,8 +201,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         {/* Header */}
         <div className="flex items-start justify-between pb-5">
           <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-white dark:bg-[#1a1b1e] border border-zinc-200/90 dark:border-white/[0.07] text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] shrink-0">
-              <AxiomaLogoMark className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-white dark:bg-[#1a1b1e] border border-zinc-200/90 dark:border-white/[0.07] text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] shrink-0 overflow-hidden">
+              <AxiomaLogoMark className="w-5 h-5" />
             </div>
             <div>
               <h2 id="auth-modal-title" className="text-[18px] font-semibold text-text-primary tracking-tight leading-snug">

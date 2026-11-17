@@ -72,12 +72,54 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/brand/icon-192.png", sizes: "192x192", type: "image/png" },
-      { url: "/brand/icon-512.png", sizes: "512x512", type: "image/png" },
+      {
+        url: "/brand/light/favicon.ico",
+        sizes: "any",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/brand/dark/favicon.ico",
+        sizes: "any",
+        media: "(prefers-color-scheme: dark)",
+      },
+      {
+        url: "/brand/light/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/brand/dark/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        media: "(prefers-color-scheme: dark)",
+      },
+      {
+        url: "/brand/light/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/brand/dark/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        media: "(prefers-color-scheme: dark)",
+      },
     ],
     apple: [
-      { url: "/brand/apple-icon.png", sizes: "180x180", type: "image/png" },
+      {
+        url: "/brand/light/apple-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+        media: "(prefers-color-scheme: light)",
+      },
+      {
+        url: "/brand/dark/apple-icon.png",
+        sizes: "180x180",
+        type: "image/png",
+        media: "(prefers-color-scheme: dark)",
+      },
     ],
   },
 };

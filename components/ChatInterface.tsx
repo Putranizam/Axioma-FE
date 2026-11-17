@@ -5720,7 +5720,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div className="shrink-0">
               <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/60 mx-auto mb-2 sm:hidden" />
 
-              <div className="flex justify-end pb-3">
+              <div className="flex items-center justify-between pb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 flex items-center justify-center p-0.5 shadow-xs">
+                    <AxiomaLogoMark className="w-4 h-4" />
+                  </div>
+                  <span className="text-[12px] font-semibold tracking-wider uppercase text-zinc-700 dark:text-zinc-300">
+                    Axioma
+                  </span>
+                </div>
                 <button
                   type="button"
                   onClick={() => setIsProfileDropdownOpen(false)}
@@ -5906,8 +5914,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         {/* Brand Header */}
         <div className="h-14 flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center gap-2.5">
-            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-none shrink-0">
-              <AxiomaLogoMark className="w-4 h-4" />
+            <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-none shrink-0 overflow-hidden">
+              <AxiomaLogoMark className="w-5 h-5" />
             </div>
             <span className="font-semibold text-xs tracking-tight uppercase text-zinc-900 dark:text-text-primary">
               Axioma
@@ -6664,8 +6672,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </button>
 
                   <div className="flex items-center gap-2 lg:hidden">
-                    <div className="w-7 h-7 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-none shrink-0">
-                      <AxiomaLogoMark className="w-3.5 h-3.5" />
+                    <div className="w-7 h-7 rounded-lg bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_1px_2px_rgba(0,0,0,0.03)] dark:shadow-none shrink-0 overflow-hidden">
+                      <AxiomaLogoMark className="w-4 h-4" />
                     </div>
                     <span className="text-sm font-semibold tracking-tight text-zinc-900 dark:text-text-primary">
                       Axioma
@@ -6921,8 +6929,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {/* Brand Logo with subtle glow */}
                       <div className="relative group mb-3 sm:mb-4">
                         <div className="hidden dark:block absolute -inset-3 bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-500/25 rounded-full blur-xl opacity-80 pointer-events-none" />
-                        <div className="relative rounded-2xl bg-white dark:bg-[#141416]/95 border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-2xl backdrop-blur-md w-11 h-11 sm:w-14 sm:h-14">
-                          <AxiomaLogoMark className="w-5 h-5 sm:w-6 sm:h-6" />
+                        <div className="relative rounded-2xl bg-white dark:bg-[#141416]/95 border border-zinc-200/90 dark:border-white/10 text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-2xl backdrop-blur-md w-11 h-11 sm:w-14 sm:h-14 overflow-hidden">
+                          <AxiomaLogoMark className="w-7 h-7 sm:w-9 sm:h-9" />
                         </div>
                       </div>
 
@@ -7183,8 +7191,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <div className="w-full space-y-2 sm:space-y-2.5 min-w-0">
                     {/* Axioma Identity Header */}
                     <div className="flex items-center gap-2 mb-2 select-none">
-                      <div className="w-5 h-5 rounded-md bg-white dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/[0.06] text-zinc-900 dark:text-zinc-200 flex items-center justify-center shrink-0">
-                        <AxiomaLogoMark className="w-3 h-3" />
+                      <div className="w-5 h-5 rounded-md bg-white dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/[0.06] text-zinc-900 dark:text-zinc-200 flex items-center justify-center shrink-0 overflow-hidden">
+                        <AxiomaLogoMark className="w-3.5 h-3.5" />
                       </div>
                       <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-300">
                         Axioma
@@ -7476,8 +7484,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <Video className="w-3.5 h-3.5 text-zinc-300 animate-pulse" />
                       </div>
                     ) : (
-                      <div className="w-6 h-6 rounded-md bg-white dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/10 text-zinc-900 dark:text-zinc-200 flex items-center justify-center shrink-0">
-                        <AxiomaLogoMark className="w-3.5 h-3.5" />
+                      <div className="w-6 h-6 rounded-md bg-white dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/10 text-zinc-900 dark:text-zinc-200 flex items-center justify-center shrink-0 overflow-hidden">
+                        <AxiomaLogoMark className="w-4 h-4" />
                       </div>
                     )}
                     <div className="flex items-center gap-2.5">
@@ -7597,8 +7605,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {/* Desktop Minimalist Logo "A" & Optical-Center Greeting (Hidden on mobile) */}
                 {isDesktopEmptyState && (
                   <div className="hidden md:flex flex-col items-center text-center pointer-events-none select-none w-full">
-                    <div className="w-11 h-11 rounded-2xl bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.07] text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-sm mb-5">
-                      <AxiomaLogoMark className="w-5 h-5" />
+                    <div className="w-11 h-11 rounded-2xl bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.07] text-zinc-900 dark:text-white flex items-center justify-center shadow-[0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-sm mb-5 overflow-hidden">
+                      <AxiomaLogoMark className="w-7 h-7" />
                     </div>
                     {isChatAreaLoading ? (
                       <div
