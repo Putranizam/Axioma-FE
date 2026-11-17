@@ -186,15 +186,18 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-backdrop transition-all"
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-backdrop transition-all"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="w-full max-w-md rounded-[28px] bg-bg-elevated dark:bg-[#121214] border border-border-subtle dark:border-white/[0.07] p-6 shadow-2xl overflow-hidden flex flex-col focus:outline-none animate-modal-pop will-change-transform relative text-text-primary"
+        className="fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:max-w-[460px] max-h-[92dvh] sm:max-h-[85dvh] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#121214] border-t sm:border border-border-subtle dark:border-white/[0.07] px-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl overflow-y-auto overscroll-contain flex flex-col focus:outline-none animate-modal-pop will-change-transform text-text-primary"
       >
+        {/* Mobile grab handle */}
+        <div className="w-10 h-1 rounded-full bg-zinc-700/60 mx-auto mb-3 sm:hidden shrink-0" />
+
         {/* Header */}
         <div className="flex items-start justify-between pb-5">
           <div className="flex items-center gap-3">
@@ -359,7 +362,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Nama Anda"
                     disabled={isLoading}
-                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>
@@ -378,7 +381,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                   placeholder="nama@email.com"
                   disabled={isLoading}
                   autoComplete="email"
-                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                 />
               </div>
             </div>
@@ -408,7 +411,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     disabled={isLoading}
                     minLength={6}
                     autoComplete={tab === "signup" ? "new-password" : "current-password"}
-                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[14.5px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>
