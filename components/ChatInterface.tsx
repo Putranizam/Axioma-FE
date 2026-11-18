@@ -6378,7 +6378,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 overflow-hidden bg-transparent">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-transparent border-b-0">
+        <header className="shrink-0 w-full flex items-center justify-between pt-[calc(env(safe-area-inset-top,0px)+14px)] pb-3 px-4 sm:px-6 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-transparent border-b-0">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -6580,13 +6580,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           ) : (
             <>
               {/* Mobile Header (< md) - Gemini Mobile Pattern: [Menu + Model] left, [Avatar] right */}
-              <div className="flex md:hidden items-center justify-between w-full">
+              <div className="min-h-[44px] w-full flex md:hidden items-center justify-between gap-3">
                 {/* Sisi Kiri: Tombol Sidebar + Pemilih Model "Axioma Pro ⌄" */}
-                <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex items-center gap-3 min-w-0">
                   <button
                     type="button"
                     onClick={() => setIsMobileSidebarOpen(true)}
-                    className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-zinc-100 hover:bg-zinc-200/80 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-700 dark:text-zinc-200 active:scale-95 transition-all flex items-center justify-center shrink-0 cursor-pointer"
+                    className="w-10 h-10 min-w-[40px] min-h-[40px] shrink-0 rounded-full bg-zinc-100 hover:bg-zinc-200/80 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] text-zinc-700 dark:text-zinc-200 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                     aria-label="Buka bilah sisi"
                   >
                     <Menu className="w-[18px] h-[18px]" />
@@ -6607,7 +6607,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       toggleHeaderAgentMenu();
                     }}
                     aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 min-h-[40px] rounded-full text-[16px] font-medium tracking-tight text-zinc-900 dark:text-zinc-100 active:bg-zinc-200/70 dark:active:bg-white/[0.08] transition cursor-pointer focus:outline-none truncate"
+                    className="inline-flex items-center gap-1.5 h-10 px-2 rounded-full text-[16px] font-medium leading-none tracking-tight whitespace-nowrap text-zinc-900 dark:text-zinc-100 active:bg-zinc-200/70 dark:active:bg-white/[0.08] transition cursor-pointer focus:outline-none"
                   >
                     <span>Axioma</span>
                     <span className="text-zinc-500 dark:text-zinc-300 font-normal">
@@ -6622,14 +6622,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* Sisi Kanan: Tombol Avatar / Profil Pengguna */}
-                <div className="flex items-center gap-2 shrink-0">
+                <div className="flex items-center shrink-0">
                   <div className="relative">
                     <button
                       type="button"
                       onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                       aria-label="Buka menu profil dan akun"
                       title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                      className={`w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
+                      className={`w-10 h-10 min-w-[40px] min-h-[40px] shrink-0 rounded-full flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
                         authUser
                           ? "bg-indigo-500/90 text-white border border-white/[0.1]"
                           : "bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f22] dark:hover:bg-[#27282b] dark:text-zinc-200 dark:border-white/[0.08]"
@@ -6771,7 +6771,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   )
                 }
                 style={headerMenuTop ? { top: `${headerMenuTop}px` } : undefined}
-                className={`fixed left-4 right-4 sm:left-6 sm:right-auto sm:w-80 top-[calc(env(safe-area-inset-top,0px)+64px)] z-50 max-w-md sm:max-w-[calc(100vw-2rem)] mx-auto sm:mx-0 max-h-[70dvh] overflow-y-auto overscroll-y-contain rounded-2xl bg-bg-elevated border border-border-strong p-2 shadow-2xl space-y-1.5 focus:outline-none origin-top sm:origin-top-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+                className={`fixed left-4 right-4 sm:left-6 sm:right-auto sm:w-80 top-[calc(env(safe-area-inset-top,0px)+74px)] z-50 max-w-md sm:max-w-[calc(100vw-2rem)] mx-auto sm:mx-0 max-h-[70dvh] overflow-y-auto overscroll-y-contain rounded-2xl bg-bg-elevated border border-border-strong p-2 shadow-2xl space-y-1.5 focus:outline-none origin-top sm:origin-top-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
                   isHeaderAgentMenuEntered
                     ? "scale-100 opacity-100 translate-y-0"
                     : "scale-95 opacity-0 -translate-y-2 pointer-events-none"
