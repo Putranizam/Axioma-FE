@@ -935,7 +935,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const [isVirtualKeyboardOpen, setIsVirtualKeyboardOpen] = useState<boolean>(false);
-  const focusScrollTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const [activeMediaMode, setActiveMediaMode] = useState<"image" | "video" | null>(null);
   const activeMediaModeRef = useRef<"image" | "video" | null>(null);
 
@@ -1318,88 +1317,63 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   ]);
 
 
-  // Sinkronisasi Viewport iOS & Android secara real-time saat keyboard virtual muncul/tutup
+  // Sinkronisasi window.visualViewport stabil tanpa translateY / animasi berulang
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
-    let rafId = 0;
+    let rafId: number | null = null;
     let lastWidth = window.innerWidth;
     let maxTouchViewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight, vv.height);
 
     const syncViewport = () => {
-      const root = document.getElementById("axioma-app-shell");
-      if (!root) return;
+      if (rafId) cancelAnimationFrame(rafId);
+      rafId = requestAnimationFrame(() => {
+        const root = document.getElementById("axioma-app-shell");
+        if (!root) return;
 
-      const currentFullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
-      if (Math.abs(window.innerWidth - lastWidth) > 20) {
-        lastWidth = window.innerWidth;
-        maxTouchViewportHeight = Math.max(currentFullHeight, vv.height);
-      } else if (currentFullHeight >= maxTouchViewportHeight) {
-        maxTouchViewportHeight = currentFullHeight;
-      }
-
-      const isCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-      const activeTag = document.activeElement?.tagName;
-      const isTextFocused = activeTag === "TEXTAREA" || activeTag === "INPUT";
-      const referenceHeight = isCoarsePointer ? maxTouchViewportHeight : currentFullHeight;
-      const keyboardDelta = referenceHeight - vv.height;
-      const keyboardOpen =
-        vv.height < window.innerHeight * 0.8 ||
-        (isCoarsePointer && keyboardDelta > 120) ||
-        (isTextFocused && keyboardDelta > 80);
-
-      setIsVirtualKeyboardOpen((prev) => (prev === keyboardOpen ? prev : keyboardOpen));
-
-      if (keyboardOpen) {
-        // Paksa tinggi & offsetTop kontainer utama mengikuti visualViewport tepat di atas keyboard
-        root.style.height = `${Math.round(vv.height)}px`;
-        root.style.minHeight = "0px";
-        root.style.bottom = "auto";
-        root.style.transform = `translateY(${Math.max(0, Math.round(vv.offsetTop))}px)`;
-      } else {
-        // Kembalikan ke layout penuh layar (termasuk 100lvh iOS Standalone) saat keyboard ditutup
-        root.style.height = "";
-        root.style.minHeight = "";
-        root.style.bottom = "";
-        root.style.transform = "";
-      }
-
-      if (window.scrollY !== 0 || window.scrollX !== 0) {
-        window.scrollTo(0, 0);
-      }
-    };
-
-    // Polling 60fps selama 650ms saat input focus/blur agar transisi keyboard iOS mulus seperti Gemini Mobile
-    const startSmoothSync = () => {
-      const start = performance.now();
-      const tick = (now: number) => {
-        syncViewport();
-        if (now - start < 650) {
-          rafId = requestAnimationFrame(tick);
+        const currentFullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+        if (Math.abs(window.innerWidth - lastWidth) > 20) {
+          lastWidth = window.innerWidth;
+          maxTouchViewportHeight = Math.max(currentFullHeight, vv.height);
+        } else if (currentFullHeight >= maxTouchViewportHeight) {
+          maxTouchViewportHeight = currentFullHeight;
         }
-      };
-      cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(tick);
+
+        const isCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+        const activeTag = document.activeElement?.tagName;
+        const isTextFocused = activeTag === "TEXTAREA" || activeTag === "INPUT";
+        const referenceHeight = isCoarsePointer ? maxTouchViewportHeight : currentFullHeight;
+        const keyboardDelta = referenceHeight - vv.height;
+        const keyboardOpen =
+          vv.height < window.innerHeight * 0.8 ||
+          (isCoarsePointer && keyboardDelta > 120) ||
+          (isTextFocused && keyboardDelta > 80);
+
+        setIsVirtualKeyboardOpen((prev) => (prev === keyboardOpen ? prev : keyboardOpen));
+
+        if (keyboardOpen) {
+          // Gunakan height saja tanpa translateY yang memicu jitter di iOS standalone
+          root.style.height = `${Math.round(vv.height)}px`;
+          root.style.bottom = "auto";
+        } else {
+          // Kembalikan penuh layar (inset-0 / 100lvh iOS Standalone) saat keyboard ditutup
+          root.style.height = "";
+          root.style.bottom = "";
+        }
+
+        if (window.scrollY !== 0) {
+          window.scrollTo(0, 0);
+        }
+      });
     };
 
-    vv.addEventListener("resize", syncViewport);
-    vv.addEventListener("scroll", syncViewport);
-    window.addEventListener("resize", syncViewport);
-    window.addEventListener("focusin", startSmoothSync);
-    window.addEventListener("focusout", startSmoothSync);
-    window.addEventListener("orientationchange", startSmoothSync);
     syncViewport();
-
+    vv.addEventListener("resize", syncViewport);
+    window.addEventListener("resize", syncViewport);
     return () => {
-      cancelAnimationFrame(rafId);
-      focusScrollTimersRef.current.forEach((timerId) => clearTimeout(timerId));
-      focusScrollTimersRef.current = [];
+      if (rafId) cancelAnimationFrame(rafId);
       vv.removeEventListener("resize", syncViewport);
-      vv.removeEventListener("scroll", syncViewport);
       window.removeEventListener("resize", syncViewport);
-      window.removeEventListener("focusin", startSmoothSync);
-      window.removeEventListener("focusout", startSmoothSync);
-      window.removeEventListener("orientationchange", startSmoothSync);
     };
   }, []);
 
@@ -5148,7 +5122,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-app-shell"
       style={{ transition: "none" }}
-      className="fixed top-0 left-0 right-0 bottom-0 w-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,transform]"
+      className="fixed top-0 left-0 right-0 bottom-0 w-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5948,9 +5922,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         aria-label="Riwayat percakapan"
         className={`fixed inset-y-0 left-0 z-40 w-[82vw] max-w-[300px] sm:w-[290px] sm:max-w-[290px] lg:max-w-none pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] lg:pt-0 lg:pb-0 bg-[#F8F8F9] dark:bg-[#09090b] border-r border-zinc-200/80 dark:border-white/[0.06] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
           isDesktopSidebarCollapsed
-            ? "lg:w-0 lg:opacity-0 lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
-            : "lg:w-[268px] lg:opacity-100 lg:translate-x-0"
-        } ${isMobileSidebarOpen ? "translate-x-0" : "-translate-x-full"}`}
+            ? "lg:w-0 lg:opacity-0 lg:invisible lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
+            : "lg:w-[268px] lg:opacity-100 lg:visible lg:translate-x-0"
+        } ${isMobileSidebarOpen ? "translate-x-0 visible" : "-translate-x-full invisible lg:visible"}`}
       >
         {/* Brand Header */}
         <div className="h-14 flex items-center justify-between px-4 shrink-0">
@@ -6963,7 +6937,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                 ) && (
                   <div
-                    className={`sm:hidden flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain flex flex-col items-center justify-center px-5 text-center pointer-events-none ${
+                    className={`sm:hidden flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain flex flex-col items-center justify-center px-5 py-3 text-center pointer-events-none ${
                       isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                     }`}
                   >
@@ -7771,7 +7745,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Polished Input Box */}
                 <div
-                  className="max-w-[660px] lg:max-w-[720px] w-full bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/[0.07] focus-within:border-zinc-300 dark:focus-within:border-white/[0.15] rounded-[26px] dark:rounded-[28px] min-h-[52px] sm:min-h-[56px] px-3 py-1.5 sm:px-4 sm:py-2 flex items-center shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-2xl gap-1.5 sm:gap-2.5 transition-colors"
+                  className="max-w-[660px] lg:max-w-[720px] w-full bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/[0.07] focus-within:border-zinc-300 dark:focus-within:border-white/[0.15] rounded-[26px] sm:rounded-[28px] min-h-[52px] sm:min-h-[56px] px-3.5 py-2 sm:px-4 flex items-center shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-2xl gap-2 sm:gap-2.5 transition-colors"
                 >
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
@@ -7991,45 +7965,38 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </span>
                     </div>
                   ) : (
-                    <div className="flex-1 min-w-0 flex items-center">
-                      <textarea
-                        ref={textareaRef}
-                        rows={1}
-                        enterKeyHint="send"
-                        autoComplete="off"
-                        autoCorrect="off"
-                        value={inputText}
-                        onChange={handleTextareaChange}
-                        onKeyDown={handleKeyDown}
-                        onPaste={handlePaste}
-                        onFocus={() => {
-                          setIsInputFocused(true);
-                          if (typeof window !== "undefined") {
-                            window.scrollTo(0, 0);
-                            focusScrollTimersRef.current.forEach((timerId) => clearTimeout(timerId));
-                            focusScrollTimersRef.current = [
-                              setTimeout(() => window.scrollTo(0, 0), 50),
-                              setTimeout(() => window.scrollTo(0, 0), 150),
-                            ];
-                          }
-                        }}
-                        onBlur={() => {
-                          setIsInputFocused(false);
-                          focusScrollTimersRef.current.forEach((timerId) => clearTimeout(timerId));
-                          focusScrollTimersRef.current = [];
-                        }}
-                        aria-label="Ketik pesan untuk Axioma"
-                        placeholder={
-                          activeMediaMode === "image"
-                            ? "Deskripsikan gambar yang ingin dibuat..."
-                            : activeMediaMode === "video"
-                            ? "Deskripsikan video sinematik yang ingin dibuat..."
-                            : "Minta Axioma..."
+                    <textarea
+                      ref={textareaRef}
+                      rows={1}
+                      tabIndex={0}
+                      enterKeyHint="send"
+                      autoComplete="off"
+                      autoCorrect="on"
+                      spellCheck={true}
+                      value={inputText}
+                      onChange={handleTextareaChange}
+                      onKeyDown={handleKeyDown}
+                      onPaste={handlePaste}
+                      onFocus={() => {
+                        setIsInputFocused(true);
+                        if (typeof window !== "undefined" && window.scrollY !== 0) {
+                          window.scrollTo(0, 0);
                         }
-                        style={{ height: "40px" }}
-                        className="flex-1 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-text-primary dark:text-white placeholder:text-zinc-500 text-[16px] md:text-[15px] lg:text-[16px] leading-[24px] py-[8px] px-1 sm:px-1.5 my-auto min-h-[40px] max-h-[140px] overflow-y-auto font-normal tracking-normal transition-colors duration-150 ease-out touch-manipulation"
-                      />
-                    </div>
+                      }}
+                      onBlur={() => {
+                        setIsInputFocused(false);
+                      }}
+                      aria-label="Ketik pesan untuk Axioma"
+                      placeholder={
+                        activeMediaMode === "image"
+                          ? "Deskripsikan gambar yang ingin dibuat..."
+                          : activeMediaMode === "video"
+                          ? "Deskripsikan video sinematik yang ingin dibuat..."
+                          : "Minta Axioma..."
+                      }
+                      style={{ height: "40px" }}
+                      className="flex-1 min-w-0 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-text-primary dark:text-white placeholder:text-zinc-500 text-[16px] md:text-[15px] lg:text-[16px] leading-[24px] py-[8px] px-1 sm:px-1.5 my-auto min-h-[40px] max-h-[140px] overflow-y-auto font-normal tracking-normal transition-colors duration-150 ease-out touch-manipulation"
+                    />
                   )}
 
                   {isRecording ? (
