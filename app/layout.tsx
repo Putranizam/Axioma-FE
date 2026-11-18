@@ -128,10 +128,11 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${plusJakartaSans.variable} ${geistMono.variable} dark w-full h-full overflow-hidden`}
+      className={`${plusJakartaSans.variable} ${geistMono.variable} dark`}
       suppressHydrationWarning
     >
       <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
         <link rel="preconnect" href="https://axioma-be.onrender.com" crossOrigin="anonymous" />
         <link rel="dns-prefetch" href="https://axioma-be.onrender.com" />
         <script
@@ -141,7 +142,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="w-full h-full overflow-hidden bg-bg-primary text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary"
+        className="w-full overflow-hidden bg-bg-primary text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary"
         suppressHydrationWarning
       >
         {children}

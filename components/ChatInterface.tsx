@@ -1363,6 +1363,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
     vv.addEventListener("resize", syncViewport);
     vv.addEventListener("scroll", syncViewport);
+    window.addEventListener("resize", syncViewport);
     window.addEventListener("focusin", startSmoothSync);
     window.addEventListener("focusout", startSmoothSync);
     window.addEventListener("orientationchange", startSmoothSync);
@@ -1372,6 +1373,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       cancelAnimationFrame(rafId);
       vv.removeEventListener("resize", syncViewport);
       vv.removeEventListener("scroll", syncViewport);
+      window.removeEventListener("resize", syncViewport);
       window.removeEventListener("focusin", startSmoothSync);
       window.removeEventListener("focusout", startSmoothSync);
       window.removeEventListener("orientationchange", startSmoothSync);
@@ -5123,17 +5125,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-viewport-lock"
       style={{ transition: "none" }}
-      className="fixed inset-0 w-full h-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
+      className="fixed inset-0 w-full min-h-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
     >
-      {/* Seamless Full-Screen Ambient Glow Layer (fixed inset-0 z-0 prevents bottom cut-off lines on iOS Standalone) */}
-      <div
-        aria-hidden="true"
-        className="fixed inset-0 pointer-events-none z-0 hidden dark:block"
-        style={{
-          background:
-            "radial-gradient(95% 42% at 50% 100%, rgba(29, 78, 216, 0.14) 0%, rgba(30, 58, 138, 0.04) 45%, rgba(9, 9, 11, 0) 80%)",
-        }}
-      />
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
         <div className="fixed inset-0 z-50 bg-bg-primary/80 backdrop-blur-sm border-2 border-dashed border-border-strong flex flex-col items-center justify-center p-6 pointer-events-none animate-fade-in">
@@ -7595,7 +7588,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Input Console (Anak 3) */}
           <div
             className={`relative z-20 w-full bg-transparent px-3 sm:px-6 pt-2 ${
-              isInputFocused ? "pb-2" : "pb-[calc(env(safe-area-inset-bottom,0px)+8px)]"
+              isInputFocused ? "pb-2" : "pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)-8px))]"
             } ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
