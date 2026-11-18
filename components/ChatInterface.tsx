@@ -1327,7 +1327,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       if (!el) return;
       const fullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
       const keyboardDelta = fullHeight - vv.height;
-      const isKeyboardOpen = keyboardDelta > 120 || vv.offsetTop > 2;
+      const activeTag = document.activeElement?.tagName;
+      const isTextFocused = activeTag === "TEXTAREA" || activeTag === "INPUT";
+      const isKeyboardOpen = keyboardDelta > 120 || (isTextFocused && keyboardDelta > 80);
 
       if (isKeyboardOpen) {
         // Kunci tinggi dan posisi top sesuai visualViewport saat keyboard virtual terbuka
@@ -1335,7 +1337,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         el.style.top = `${Math.max(0, Math.round(vv.offsetTop))}px`;
         el.style.bottom = "auto";
       } else {
-        // Bebaskan CSS fixed inset-0 h-full agar menempel penuh di mode iOS Standalone (zero bottom gap)
+        // Bebaskan CSS fixed inset-0 h-full agar menempel penuh sampai ujung bawah iOS Standalone
         el.style.height = "";
         el.style.top = "";
         el.style.bottom = "";
@@ -5123,6 +5125,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       style={{ transition: "none" }}
       className="fixed inset-0 w-full h-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
     >
+      {/* Seamless Full-Screen Ambient Glow Layer (fixed inset-0 z-0 prevents bottom cut-off lines on iOS Standalone) */}
+      <div
+        aria-hidden="true"
+        className="fixed inset-0 pointer-events-none z-0 hidden dark:block"
+        style={{
+          background:
+            "radial-gradient(95% 42% at 50% 100%, rgba(29, 78, 216, 0.14) 0%, rgba(30, 58, 138, 0.04) 45%, rgba(9, 9, 11, 0) 80%)",
+        }}
+      />
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
         <div className="fixed inset-0 z-50 bg-bg-primary/80 backdrop-blur-sm border-2 border-dashed border-border-strong flex flex-col items-center justify-center p-6 pointer-events-none animate-fade-in">
@@ -6375,9 +6386,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       </aside>
 
       {/* Main Workspace Column */}
-      <div className="flex-1 flex flex-col h-full min-w-0 overflow-hidden relative bg-[#FFFFFF] dark:bg-[#09090b]">
+      <div className="relative z-10 flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-transparent">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-[#09090b] border-b-0">
+        <header className="shrink-0 w-full flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-transparent border-b-0">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -7583,23 +7594,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className={`w-full px-3 sm:px-6 pt-1.5 ${
-              isInputFocused ? "pb-2" : "pb-[max(0.5rem,env(safe-area-inset-bottom))]"
-            } bg-transparent z-20 relative ${
+            className={`relative z-20 w-full bg-transparent px-3 sm:px-6 pt-2 ${
+              isInputFocused ? "pb-2" : "pb-[calc(env(safe-area-inset-bottom,0px)+8px)]"
+            } ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
                 : "shrink-0"
             }`}
           >
-            {/* Seamless Radial Blue Glow (Menyatu halus sampai tepi paling bawah tanpa garis patah) */}
-            <div
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 bottom-0 h-[320px] -z-10 hidden dark:block"
-              style={{
-                background:
-                  "radial-gradient(90% 70% at 50% 100%, rgba(29, 78, 216, 0.16) 0%, rgba(30, 58, 138, 0.05) 48%, rgba(9, 9, 11, 0) 85%)",
-              }}
-            />
             <div
               className={`w-full max-w-[660px] lg:max-w-[720px] mx-auto flex flex-col items-center ${
                 isDesktopEmptyState ? "sm:flex-1 sm:justify-center" : ""
@@ -8367,16 +8369,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
-            <div
-              className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-none text-zinc-500 dark:text-zinc-400 tracking-normal ${
+            <p
+              className={`shrink-0 mt-2 mb-0 w-full text-center text-[11px] sm:text-xs leading-[1.4] text-zinc-500 dark:text-zinc-400 tracking-normal ${
                 isInputFocused
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
               }`}
             >
-              <span className="md:hidden block w-full text-center text-[11px] leading-none text-zinc-500">
-                Axioma dapat membuat kesalahan.
-              </span>
+              <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
               <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
               <span className="hidden md:inline text-border-strong">•</span>
               <span className="hidden md:inline-flex items-center gap-2">
@@ -8394,7 +8394,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   Ketentuan
                 </Link>
               </span>
-            </div>
+            </p>
           </div>
             </>
           )}
