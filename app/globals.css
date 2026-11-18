@@ -139,28 +139,38 @@ body {
   }
 }
 
-/* Edge-to-edge full physical viewport on iOS & Android Home Screen PWA (covers under Home Indicator) */
+/* Edge-to-edge full physical viewport on iOS & Android Home Screen PWA */
 @media all and (display-mode: standalone) {
   html,
   body {
-    min-height: 100vh;
-    min-height: 100lvh;
-    height: 100lvh;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
   }
 
   main.axioma-root-shell,
-  #axioma-viewport-lock {
+  #axioma-app-shell {
     top: 0;
     bottom: auto;
-    min-height: 100vh;
-    min-height: 100lvh;
-    height: 100lvh;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 0;
+  }
+
+  @supports (-webkit-touch-callout: none) {
+    html,
+    body,
+    main.axioma-root-shell,
+    #axioma-app-shell {
+      height: 100lvh;
+    }
   }
 }
 
-#axioma-viewport-lock {
+#axioma-app-shell {
   transition: none !important;
   animation: none !important;
+  min-height: 0 !important;
 }
 
 ::-webkit-scrollbar {

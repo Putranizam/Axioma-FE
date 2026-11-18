@@ -934,6 +934,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [greeting, setGreeting] = useState<string>("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
+  const [isVirtualKeyboardOpen, setIsVirtualKeyboardOpen] = useState<boolean>(false);
+  const focusScrollTimersRef = useRef<Array<ReturnType<typeof setTimeout>>>([]);
   const [activeMediaMode, setActiveMediaMode] = useState<"image" | "video" | null>(null);
   const activeMediaModeRef = useRef<"image" | "video" | null>(null);
 
@@ -1316,44 +1318,63 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   ]);
 
 
-  // Sinkronisasi Viewport iOS & Android (60fps requestAnimationFrame polling saat focusin/focusout + visualViewport)
+  // Sinkronisasi Viewport iOS & Android secara real-time saat keyboard virtual muncul/tutup
   useEffect(() => {
-    const vv = typeof window !== "undefined" ? window.visualViewport : null;
-    if (!vv) return;
+    if (typeof window === "undefined" || !window.visualViewport) return;
+    const vv = window.visualViewport;
+    let rafId = 0;
+    let lastWidth = window.innerWidth;
+    let maxTouchViewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight, vv.height);
 
-    let rafId: number;
     const syncViewport = () => {
-      const el = document.getElementById("axioma-viewport-lock");
-      if (!el) return;
-      const fullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
-      const keyboardDelta = fullHeight - vv.height;
+      const root = document.getElementById("axioma-app-shell");
+      if (!root) return;
+
+      const currentFullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+      if (Math.abs(window.innerWidth - lastWidth) > 20) {
+        lastWidth = window.innerWidth;
+        maxTouchViewportHeight = Math.max(currentFullHeight, vv.height);
+      } else if (currentFullHeight >= maxTouchViewportHeight) {
+        maxTouchViewportHeight = currentFullHeight;
+      }
+
+      const isCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
       const activeTag = document.activeElement?.tagName;
       const isTextFocused = activeTag === "TEXTAREA" || activeTag === "INPUT";
-      const isKeyboardOpen = keyboardDelta > 120 || (isTextFocused && keyboardDelta > 80);
+      const referenceHeight = isCoarsePointer ? maxTouchViewportHeight : currentFullHeight;
+      const keyboardDelta = referenceHeight - vv.height;
+      const keyboardOpen =
+        vv.height < window.innerHeight * 0.8 ||
+        (isCoarsePointer && keyboardDelta > 120) ||
+        (isTextFocused && keyboardDelta > 80);
 
-      if (isKeyboardOpen) {
-        // Kunci tinggi dan posisi top sesuai visualViewport saat keyboard virtual terbuka
-        el.style.height = `${Math.round(vv.height)}px`;
-        el.style.top = `${Math.max(0, Math.round(vv.offsetTop))}px`;
-        el.style.bottom = "auto";
+      setIsVirtualKeyboardOpen((prev) => (prev === keyboardOpen ? prev : keyboardOpen));
+
+      if (keyboardOpen) {
+        // Paksa tinggi & offsetTop kontainer utama mengikuti visualViewport tepat di atas keyboard
+        root.style.height = `${Math.round(vv.height)}px`;
+        root.style.minHeight = "0px";
+        root.style.bottom = "auto";
+        root.style.transform = `translateY(${Math.max(0, Math.round(vv.offsetTop))}px)`;
       } else {
-        // Bebaskan CSS fixed inset-0 h-full agar menempel penuh sampai ujung bawah iOS Standalone
-        el.style.height = "";
-        el.style.top = "";
-        el.style.bottom = "";
+        // Kembalikan ke layout penuh layar (termasuk 100lvh iOS Standalone) saat keyboard ditutup
+        root.style.height = "";
+        root.style.minHeight = "";
+        root.style.bottom = "";
+        root.style.transform = "";
       }
-      el.style.transform = "none";
+
       if (window.scrollY !== 0 || window.scrollX !== 0) {
         window.scrollTo(0, 0);
       }
     };
 
-    // Polling 60fps selama 450ms saat input focus/blur agar transisi keyboard iOS mulus seperti Gemini
+    // Polling 60fps selama 650ms saat input focus/blur agar transisi keyboard iOS mulus seperti Gemini Mobile
     const startSmoothSync = () => {
       const start = performance.now();
       const tick = (now: number) => {
         syncViewport();
-        if (now - start < 450) {
+        if (now - start < 650) {
           rafId = requestAnimationFrame(tick);
         }
       };
@@ -1371,6 +1392,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
     return () => {
       cancelAnimationFrame(rafId);
+      focusScrollTimersRef.current.forEach((timerId) => clearTimeout(timerId));
+      focusScrollTimersRef.current = [];
       vv.removeEventListener("resize", syncViewport);
       vv.removeEventListener("scroll", syncViewport);
       window.removeEventListener("resize", syncViewport);
@@ -5123,9 +5146,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           void handleFilesSelected(e.dataTransfer.files);
         }
       }}
-      id="axioma-viewport-lock"
+      id="axioma-app-shell"
       style={{ transition: "none" }}
-      className="fixed inset-0 w-full min-h-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,top]"
+      className="fixed top-0 left-0 right-0 bottom-0 w-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none will-change-[height,transform]"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -6379,7 +6402,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       </aside>
 
       {/* Main Workspace Column */}
-      <div className="relative z-10 flex-1 flex flex-col h-full min-w-0 overflow-hidden bg-transparent">
+      <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 overflow-hidden bg-transparent">
         {/* Header */}
         <header className="shrink-0 w-full flex items-center justify-between px-4 sm:px-6 pt-[max(0.75rem,env(safe-area-inset-top))] pb-2 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-transparent border-b-0">
           {isVoiceModeOpen ? (
@@ -7588,7 +7611,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Input Console (Anak 3) */}
           <div
             className={`relative z-20 w-full bg-transparent px-3 sm:px-6 pt-2 ${
-              isInputFocused ? "pb-2" : "pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)-8px))]"
+              isVirtualKeyboardOpen || isInputFocused
+                ? "pb-2"
+                : "pb-[max(0.75rem,calc(env(safe-area-inset-bottom,0px)-8px))]"
             } ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
@@ -7979,9 +8004,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onPaste={handlePaste}
                         onFocus={() => {
                           setIsInputFocused(true);
+                          if (typeof window !== "undefined") {
+                            window.scrollTo(0, 0);
+                            focusScrollTimersRef.current.forEach((timerId) => clearTimeout(timerId));
+                            focusScrollTimersRef.current = [
+                              setTimeout(() => window.scrollTo(0, 0), 50),
+                              setTimeout(() => window.scrollTo(0, 0), 150),
+                            ];
+                          }
                         }}
                         onBlur={() => {
                           setIsInputFocused(false);
+                          focusScrollTimersRef.current.forEach((timerId) => clearTimeout(timerId));
+                          focusScrollTimersRef.current = [];
                         }}
                         aria-label="Ketik pesan untuk Axioma"
                         placeholder={
@@ -8334,7 +8369,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* 4 Compact Monochrome Starter Capsules (Tablet 2x2 >= sm & Desktop 4-col >= lg, hidden on < 640px or when touch keyboard is open) */}
-                {isDesktopEmptyState && !(isInputFocused && isTouchOrMobile) && (
+                {isDesktopEmptyState && !(isTouchOrMobile && (isVirtualKeyboardOpen || isInputFocused)) && (
                   <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-[660px] lg:max-w-[720px] w-full mt-5 animate-fade-up">
                     {isChatAreaLoading
                       ? STARTER_PROMPTS.map((prompt) => (
@@ -8364,7 +8399,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
               className={`shrink-0 mt-2 mb-0 w-full text-center text-[11px] sm:text-xs leading-[1.4] text-zinc-500 dark:text-zinc-400 tracking-normal ${
-                isInputFocused
+                isVirtualKeyboardOpen || isInputFocused
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
               }`}
