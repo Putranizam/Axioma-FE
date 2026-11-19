@@ -1346,30 +1346,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }
 
       const isCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-      const isMobileViewport = window.innerWidth < 768;
-      const activeTag = document.activeElement?.tagName;
-      const isTextFocused = activeTag === "TEXTAREA" || activeTag === "INPUT";
-      const referenceHeight = isCoarsePointer ? maxTouchViewportHeight : currentFullHeight;
-      const keyboardDelta = referenceHeight - vv.height;
       const keyboardOpen =
-        vv.height < window.innerHeight * 0.82 ||
-        (isCoarsePointer && vv.height < referenceHeight * 0.82) ||
-        (isMobileViewport && isTextFocused && keyboardDelta > 80);
+        window.innerHeight - vv.height > 120 ||
+        (isCoarsePointer && maxTouchViewportHeight - vv.height > 120);
 
-      const isStandalonePwa =
-        window.matchMedia?.("(display-mode: standalone)").matches ||
-        (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
-      const isIOSWebKit =
-        typeof CSS !== "undefined" && CSS.supports("-webkit-touch-callout", "none");
-
-      const nextOffsetTop = Math.max(0, Math.round(vv.offsetTop));
-      if (isStandalonePwa && isIOSWebKit && !keyboardOpen) {
+      if (keyboardOpen) {
+        if (window.scrollY !== 0 || window.scrollX !== 0) {
+          window.scrollTo(0, 0);
+        }
+        if (vv.height > 0) {
+          shellEl.style.bottom = "auto";
+          shellEl.style.height = `${Math.round(vv.height)}px`;
+          shellEl.style.transform = `translate3d(0, ${Math.max(0, Math.round(vv.offsetTop))}px, 0)`;
+        }
+      } else {
         shellEl.style.height = "";
-      } else if (vv.height > 0) {
-        const nextHeight = Math.round(vv.height);
-        shellEl.style.height = `${nextHeight}px`;
+        shellEl.style.bottom = "";
+        shellEl.style.transform = "";
       }
-      shellEl.style.transform = `translate3d(0, ${nextOffsetTop}px, 0)`;
 
       setIsKeyboardOpen((prev) => (prev === keyboardOpen ? prev : keyboardOpen));
     };
@@ -5145,7 +5139,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-app-shell"
       style={{ transition: "none" }}
-      className="fixed left-0 right-0 top-0 w-full h-[100dvh] pb-0 flex flex-col justify-between md:flex-row bg-[#fafafa] dark:bg-[#0c0c0e] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed inset-0 w-full pb-0 flex flex-col justify-between md:flex-row bg-[#fafafa] dark:bg-[#0c0c0e] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -7556,9 +7550,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             className={`relative z-20 w-full bg-transparent px-4 min-[390px]:px-5 sm:px-6 ${
               isMobileKeyboardActive
                 ? "pt-1.5 pb-2"
-                : currentMessages.length > 0
-                ? "pt-2 pb-[calc(env(safe-area-inset-bottom,16px)+8px)] md:pb-3"
-                : "pt-2 pb-[calc(env(safe-area-inset-bottom,20px)+14px)] md:pb-3"
+                : "pt-2 pb-[max(14px,env(safe-area-inset-bottom))] md:pb-3"
             } ${
               isDesktopEmptyState
                 ? "shrink-0 md:shrink md:flex-1 md:min-h-0 md:overflow-y-auto overscroll-y-contain md:flex md:flex-col"
@@ -8172,7 +8164,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
-              className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
+              className={`shrink-0 mt-1.5 mb-0 py-0.5 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
                 isMobileKeyboardActive || currentMessages.length === 0
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"

@@ -88,8 +88,7 @@ body {
   position: fixed;
   inset: 0;
   width: 100%;
-  min-height: 100dvh;
-  height: 100dvh;
+  height: 100%;
   margin: 0;
   padding: 0;
   background-color: var(--bg-primary);
@@ -137,8 +136,7 @@ code {
     position: fixed;
     inset: 0;
     width: 100%;
-    min-height: 100dvh;
-    height: 100dvh;
+    height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
@@ -154,17 +152,12 @@ code {
   }
 }
 
-/* Edge-to-edge full physical viewport on iOS Home Screen PWA (prevents 47-59pt bottom gap from WebKit black-translucent innerHeight/vv.height deficit) */
+/* Edge-to-edge full physical viewport on iOS Home Screen PWA */
 @media all and (display-mode: standalone) {
-  @supports (-webkit-touch-callout: none) {
-    html,
-    body,
-    main.axioma-root-shell,
-    #axioma-app-shell {
-      bottom: auto;
-      min-height: 0;
-      height: 100lvh;
-    }
+  html,
+  body {
+    height: 100vh;
+    min-height: 100vh;
   }
 }
 

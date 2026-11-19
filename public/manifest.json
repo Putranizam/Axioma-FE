@@ -4,8 +4,8 @@
   "description": "Asisten AI cerdas berbahasa Indonesia untuk penalaran strategis, penulisan profesional, dan arsitektur perangkat lunak.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0D0D12",
-  "theme_color": "#0D0D12",
+  "background_color": "#0c0c0e",
+  "theme_color": "#0c0c0e",
   "lang": "id",
   "icons": [
     {

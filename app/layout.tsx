@@ -151,7 +151,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} ${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} fixed inset-0 w-full min-h-[100dvh] h-[100dvh] m-0 p-0 overflow-hidden overscroll-none bg-[#fafafa] dark:bg-[#0c0c0e] text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary`}
+        className={`${inter.className} ${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} fixed inset-0 w-full h-full m-0 p-0 overflow-hidden overscroll-none bg-[#fafafa] dark:bg-[#0c0c0e] text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary`}
         suppressHydrationWarning
       >
         {children}
