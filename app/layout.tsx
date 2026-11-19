@@ -1,20 +1,29 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const plusJakartaSans = Plus_Jakarta_Sans({
-  variable: "--font-sans",
+const plusJakarta = Plus_Jakarta_Sans({
+  variable: "--font-plus-jakarta",
   subsets: ["latin"],
   display: "swap",
   preload: true,
-  weight: ["400", "500", "600", "700"],
+  weight: ["500", "600", "700"],
 });
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const inter = Inter({
+  variable: "--font-inter",
   subsets: ["latin"],
   display: "swap",
   preload: true,
+  weight: ["400", "500", "600"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+  display: "swap",
+  preload: true,
+  weight: ["400", "500"],
 });
 
 export const metadata: Metadata = {
@@ -128,7 +137,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${plusJakartaSans.variable} ${geistMono.variable} dark`}
+      className={`${inter.className} ${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} dark antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -142,7 +151,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="w-full overflow-hidden bg-bg-primary text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary"
+        className={`${inter.className} ${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} w-full overflow-hidden bg-bg-primary text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary`}
         suppressHydrationWarning
       >
         {children}

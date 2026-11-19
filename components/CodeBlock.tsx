@@ -67,14 +67,14 @@ export const CodeBlock = memo(function CodeBlock({
       </div>
 
       {/* Code Body */}
-      <pre className="p-4 overflow-x-auto text-text-primary font-mono text-[13px] leading-relaxed m-0">
+      <pre className="p-4 overflow-x-auto text-text-primary font-mono text-[13px] leading-[1.55] m-0">
         {highlightedHtml ? (
           <code
-            className="hljs font-mono text-[13px] leading-relaxed block"
+            className="hljs font-mono text-[13px] leading-[1.55] block"
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (
-          <code className="font-mono text-[13px] leading-relaxed block whitespace-pre">
+          <code className="font-mono text-[13px] leading-[1.55] block whitespace-pre">
             {rawCode}
           </code>
         )}

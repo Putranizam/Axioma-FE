@@ -103,7 +103,7 @@ function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
 
       <h1
         id="settings-modal-title"
-        className="absolute left-1/2 -translate-x-1/2 text-[16px] font-semibold tracking-tight text-zinc-900 dark:text-white truncate max-w-[50%]"
+        className="font-heading absolute left-1/2 -translate-x-1/2 text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100 truncate max-w-[55%]"
       >
         {title}
       </h1>

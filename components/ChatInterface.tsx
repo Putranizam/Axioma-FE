@@ -5349,7 +5349,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <>
                 {/* Sticky Top Navigation Bar */}
                 <div className="shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#F8F8FA]/90 sm:bg-white/90 dark:bg-[#0a0a0c]/90 dark:sm:bg-[#101013]/90 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between">
-                  <h1 id="settings-modal-title" className="text-[18px] font-semibold tracking-tight text-zinc-900 dark:text-white">
+                  <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
                     Setelan
                   </h1>
                   <button
@@ -5366,7 +5366,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,0px)+56px)] sm:pb-6 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden">
                   {/* Grup 1: Akun */}
                   <div>
-                    <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
                       Akun
                     </div>
                     <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none">
@@ -5378,7 +5378,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       >
                         <div className="flex items-center min-w-0">
                           <User className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Kelola Akun</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Kelola Akun</span>
                         </div>
                         <ChevronRight
                           className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -5450,7 +5450,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       >
                         <div className="flex items-center min-w-0">
                           <Clock className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Batas penggunaan</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Batas penggunaan</span>
                         </div>
                         <ChevronRight
                           className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -5486,7 +5486,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Grup 2: Preferensi */}
                   <div>
-                    <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
                       Preferensi
                     </div>
                     <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none">
@@ -5494,7 +5494,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
                         <div className="flex items-center min-w-0">
                           <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Notifikasi</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Notifikasi</span>
                         </div>
                         <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
                       </div>
@@ -5507,10 +5507,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       >
                         <div className="flex items-center min-w-0">
                           <Cpu className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Model Default</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Model Default</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[14px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
+                          <span className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
                             {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
                           </span>
                           <ChevronRight
@@ -5562,9 +5562,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left">
                         <div className="flex items-center shrink-0">
                           <Database className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] whitespace-nowrap">Penyimpanan Riwayat</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 whitespace-nowrap">Penyimpanan Riwayat</span>
                         </div>
-                        <span className="text-[14px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap shrink-0 text-right">
+                        <span className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap shrink-0 text-right">
                           {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
                         </span>
                       </div>
@@ -5577,7 +5577,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       >
                         <div className="flex items-center min-w-0">
                           <Keyboard className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Pintasan Keyboard</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Pintasan Keyboard</span>
                         </div>
                         <ChevronRight
                           className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
@@ -5620,13 +5620,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left rounded-b-2xl">
                         <div className="flex items-center min-w-0">
                           <Moon className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Tema</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Tema</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <select
                             value={themeMode}
                             onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
-                            className="appearance-none bg-transparent text-[14px] font-normal text-zinc-600 dark:text-zinc-400 border-0 cursor-pointer focus:outline-none pr-1 text-right"
+                            className="appearance-none bg-transparent text-[13px] leading-relaxed font-normal text-zinc-500 dark:text-zinc-400 border-0 cursor-pointer focus:outline-none pr-1 text-right"
                           >
                             <option value="system" className="bg-white text-zinc-900 dark:bg-[#1e1f20] dark:text-white">Default sistem</option>
                             <option value="dark" className="bg-white text-zinc-900 dark:bg-[#1e1f20] dark:text-white">Gelap</option>
@@ -5640,7 +5640,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Grup 3: Bantuan & Informasi */}
                   <div>
-                    <div className="text-[12px] font-semibold uppercase tracking-[0.06em] text-zinc-500 px-1 mb-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
                       Bantuan &amp; Informasi
                     </div>
                     <div className="rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none overflow-hidden">
@@ -5652,10 +5652,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       >
                         <div className="flex items-center min-w-0">
                           <MessageSquarePlus className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Kirim Masukan</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Kirim Masukan</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[13px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">Saran &amp; Bug</span>
+                          <span className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">Saran &amp; Bug</span>
                           <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
@@ -5668,10 +5668,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       >
                         <div className="flex items-center min-w-0">
                           <Info className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15.5px] font-normal text-zinc-900 dark:text-[#e3e3e3] truncate">Tentang Axioma</span>
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Tentang Axioma</span>
                         </div>
                         <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[13px] text-zinc-500 dark:text-zinc-400 whitespace-nowrap">v2.5 Pro</span>
+                          <span className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">v2.5 Pro</span>
                           <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
@@ -5690,7 +5690,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     >
                       <div className="flex items-center min-w-0">
                         <Trash className="w-5 h-5 text-red-600 dark:text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
-                        <span className="text-[15.5px] font-normal text-red-600 dark:text-red-400 truncate">Hapus semua percakapan</span>
+                        <span className="text-[15px] font-medium leading-snug text-red-600 dark:text-red-400 truncate">Hapus semua percakapan</span>
                       </div>
                       <ChevronRight className="w-5 h-5 text-red-400/70 group-hover:text-red-600 dark:text-red-400/50 dark:group-hover:text-red-400 transition-colors shrink-0" />
                     </button>
@@ -5740,7 +5740,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <div className="flex items-center justify-between pb-3">
                 <div className="flex items-center gap-2">
                   <AxiomaLogoMark className="w-5 h-5 shrink-0" />
-                  <span className="text-[12px] font-semibold tracking-wider uppercase text-zinc-700 dark:text-zinc-300">
+                  <span className="font-heading text-[14px] font-bold tracking-[0.06em] uppercase text-zinc-900 dark:text-zinc-100">
                     Axioma
                   </span>
                 </div>
@@ -5790,7 +5790,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="text-[18px] font-semibold text-zinc-900 dark:text-white truncate">
                       {displayName ? toTitleCase(displayName) : (authUser ? "Pengguna" : "Mode Tamu")}
                     </div>
-                    <div className="text-[14px] text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                    <div className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
                       {authUser?.email || "Mode Tamu (Lokal)"}
                     </div>
                   </div>
@@ -5822,7 +5822,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       openSettingsModal("main", "account");
                     }
                   }}
-                  className="w-full bg-white hover:bg-zinc-50 dark:bg-[#16161a] dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-zinc-900 dark:text-white transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
+                  className="w-full bg-white hover:bg-zinc-50 dark:bg-[#16161a] dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
                 >
                   <div className="flex items-center gap-3.5 min-w-0">
                     <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -5831,7 +5831,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                     </svg>
-                    <span className="text-[16px] font-medium text-zinc-900 dark:text-white truncate">
+                    <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">
                       {authUser ? "Kelola Akun Google Anda" : "Masuk dengan Google"}
                     </span>
                   </div>
@@ -5844,11 +5844,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     setIsProfileDropdownOpen(false);
                     openSettingsModal("main");
                   }}
-                  className="w-full bg-white hover:bg-zinc-50 dark:bg-[#16161a] dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[16px] font-medium text-zinc-900 dark:text-white transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
+                  className="w-full bg-white hover:bg-zinc-50 dark:bg-[#16161a] dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
                 >
                   <div className="flex items-center gap-3.5">
                     <Settings className="w-5 h-5 text-zinc-600 dark:text-zinc-300 shrink-0" strokeWidth={1.75} />
-                    <span className="text-[16px] font-medium text-zinc-900 dark:text-white">Setelan</span>
+                    <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">Setelan</span>
                   </div>
                 </button>
 
@@ -5868,7 +5868,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       showToastNotice("Berhasil keluar dari akun.");
                       void refreshChatHistory();
                     }}
-                    className="w-full bg-white hover:bg-red-50 dark:bg-[#16161a] dark:hover:bg-red-950/30 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[16px] font-medium text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
+                    className="w-full bg-white hover:bg-red-50 dark:bg-[#16161a] dark:hover:bg-red-950/30 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[15px] font-medium leading-snug text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
                   >
                     <LogOut className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" strokeWidth={1.75} />
                     <span>Keluar dari Akun</span>
@@ -5930,7 +5930,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <div className="h-14 flex items-center justify-between px-4 shrink-0">
           <div className="flex items-center gap-2.5">
             <AxiomaLogoMark className="h-6 w-auto object-contain shrink-0" />
-            <span className="font-semibold text-xs tracking-tight uppercase text-zinc-900 dark:text-text-primary">
+            <span className="font-heading text-[14px] font-bold tracking-[0.06em] uppercase text-zinc-900 dark:text-zinc-100">
               Axioma
             </span>
           </div>
@@ -5954,7 +5954,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 handleCreateNewChat();
                 if (isTouchOrMobile) setIsMobileSidebarOpen(false);
               }}
-              className="w-full flex items-center justify-between bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] rounded-xl h-10 px-3.5 text-[13.5px] font-medium dark:h-auto dark:rounded-full dark:bg-[#1e1f20] dark:hover:bg-[#282a2c] dark:border-0 dark:px-4 dark:py-3 dark:text-[14.5px] dark:text-[#e3e3e3] dark:shadow-xs transition-colors cursor-pointer active:scale-[0.98]"
+              className="w-full flex items-center justify-between bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] rounded-xl h-10 px-3.5 text-[15px] font-medium leading-snug dark:h-auto dark:rounded-full dark:bg-[#1e1f20] dark:hover:bg-[#282a2c] dark:border-0 dark:px-4 dark:py-3 dark:text-[15px] dark:text-zinc-100 dark:shadow-xs transition-colors cursor-pointer active:scale-[0.98]"
             >
               <span className="flex items-center gap-2.5">
                 <Plus className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
@@ -5967,10 +5967,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <div className="flex items-start gap-2.5">
                 <Cloud className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0 mt-0.5" strokeWidth={1.75} />
                 <div className="min-w-0">
-                  <span className="text-[13.5px] dark:text-[14.5px] font-semibold dark:font-medium text-zinc-900 dark:text-white block mb-1 tracking-normal">
+                  <span className="text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100 block mb-1 tracking-normal">
                     Cadangkan Percakapan
                   </span>
-                  <p className="tracking-normal leading-relaxed dark:leading-[1.5] text-[12px] dark:text-[13px] text-zinc-500 dark:text-zinc-400">
+                  <p className="tracking-normal text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
                     Hubungkan akun untuk menyimpan riwayat chat agar bisa diakses dari perangkat lain.
                   </p>
                 </div>
@@ -5981,7 +5981,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsMobileSidebarOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full h-9 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white font-medium text-[13px] transition dark:h-auto dark:rounded-full dark:py-2.5 dark:text-[14px] dark:bg-white dark:text-black dark:hover:bg-zinc-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                className="w-full h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white text-[15px] font-medium leading-snug transition dark:h-auto dark:rounded-full dark:py-2.5 dark:text-[15px] dark:bg-white dark:text-black dark:hover:bg-zinc-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <span>Hubungkan Akun</span>
               </button>
@@ -5996,7 +5996,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 handleCreateNewChat();
                 if (isTouchOrMobile) setIsMobileSidebarOpen(false);
               }}
-              className="w-full flex items-center justify-between bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] rounded-xl h-10 px-3.5 text-[13.5px] font-medium dark:h-auto dark:rounded-full dark:bg-[#1e1f20] dark:hover:bg-[#282a2c] dark:border-0 dark:px-4 dark:py-3 dark:text-[14.5px] dark:text-[#e3e3e3] dark:shadow-xs transition-colors cursor-pointer active:scale-[0.98]"
+              className="w-full flex items-center justify-between bg-white hover:bg-zinc-50 text-zinc-900 border border-zinc-200/90 shadow-[0_1px_2px_rgba(0,0,0,0.03)] rounded-xl h-10 px-3.5 text-[15px] font-medium leading-snug dark:h-auto dark:rounded-full dark:bg-[#1e1f20] dark:hover:bg-[#282a2c] dark:border-0 dark:px-4 dark:py-3 dark:text-[15px] dark:text-zinc-100 dark:shadow-xs transition-colors cursor-pointer active:scale-[0.98]"
             >
               <span className="flex items-center gap-2.5">
                 <Plus className="w-4 h-4 text-zinc-600 dark:text-zinc-300" />
@@ -6241,10 +6241,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               )}
             </div>
             <div className="min-w-0">
-              <div className="text-xs font-medium tracking-tight text-text-primary truncate">
+              <div className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">
                 {authUser ? userName : "Mode Tamu"}
               </div>
-              <div className="text-xs text-text-muted truncate">
+              <div className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 truncate">
                 {authUser
                   ? (authUser?.email || "Akun terhubung")
                   : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} pesan tamu tersisa`}
@@ -6607,10 +6607,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       toggleHeaderAgentMenu();
                     }}
                     aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
-                    className="inline-flex items-center gap-1.5 h-10 px-2 rounded-full text-[16px] font-medium leading-none tracking-tight whitespace-nowrap text-zinc-900 dark:text-zinc-100 active:bg-zinc-200/70 dark:active:bg-white/[0.08] transition cursor-pointer focus:outline-none"
+                    className="inline-flex items-center gap-1.5 h-10 px-2 rounded-full leading-none whitespace-nowrap active:bg-zinc-200/70 dark:active:bg-white/[0.08] transition cursor-pointer focus:outline-none"
                   >
-                    <span>Axioma</span>
-                    <span className="text-zinc-500 dark:text-zinc-300 font-normal">
+                    <span className="text-[16px] font-semibold tracking-[-0.01em] text-zinc-900 dark:text-zinc-100">
+                      Axioma
+                    </span>
+                    <span className="text-[15px] font-normal text-zinc-500 dark:text-zinc-400">
                       {selectedAgent.shortName}
                     </span>
                     <ChevronDown
@@ -6948,7 +6950,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </div>
 
                       {/* Sapaan adaptif dengan tipografi bersih & proporsional */}
-                      <h1 className="text-[23px] min-[390px]:text-[25px] font-medium dark:font-normal leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-[#ececec] px-6 text-center max-w-[360px] mx-auto text-balance whitespace-pre-line animate-fade-in">
+                      <h1 className="font-heading text-[24px] min-[390px]:text-[26px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 px-6 text-center max-w-[360px] mx-auto text-balance whitespace-pre-line animate-fade-in">
                         {mobileGreeting}
                       </h1>
                     </div>
@@ -7108,7 +7110,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Text bubble */}
                       {message.content && message.content !== "(Lampiran)" && (
-                        <div className="relative px-4 py-2.5 rounded-[22px] rounded-br-[6px] bg-zinc-100 dark:bg-[#242628] text-zinc-900 dark:text-[#ececec] text-[15.5px] leading-relaxed tracking-normal shadow-xs border border-zinc-200/80 dark:border-white/[0.04] whitespace-pre-wrap break-words">
+                        <div className="relative px-4 py-2.5 rounded-[22px] rounded-br-[6px] bg-zinc-100 dark:bg-[#242628] text-zinc-800 dark:text-zinc-100 text-[15.5px] leading-[1.6] tracking-[-0.005em] shadow-xs border border-zinc-200/80 dark:border-white/[0.04] whitespace-pre-wrap break-words">
                           {message.content}
                         </div>
                       )}
@@ -7211,7 +7213,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
 
                     <div
-                      className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 text-text-secondary text-[15px] leading-[1.7] tracking-normal break-words transition-opacity duration-200 ${
+                      className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 text-zinc-800 dark:text-zinc-100 text-[15.5px] leading-[1.6] tracking-[-0.005em] break-words transition-opacity duration-200 ${
                         isStreamingThisMessage ? "streaming-prose" : ""
                       }`}
                     >
@@ -7238,7 +7240,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   if (!isBlockCode) {
                                     return (
                                       <code
-                                        className="px-1.5 py-0.5 mx-0.5 rounded-md bg-bg-surface border border-border-subtle text-text-primary font-mono text-[13px]"
+                                        className="px-1.5 py-0.5 mx-0.5 rounded-md bg-bg-surface border border-border-subtle text-text-primary font-mono text-[13px] leading-[1.55]"
                                         {...props}
                                       >
                                         {children}
@@ -7619,7 +7621,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <div className="h-9 w-80 sm:w-[440px] rounded-xl bg-border-subtle animate-pulse" />
                       </div>
                     ) : (
-                      <h1 className="text-[clamp(24px,4.5vw,32px)] font-medium dark:font-normal leading-[1.28] tracking-[-0.025em] dark:tracking-[-0.02em] text-zinc-900 dark:text-[#ececec] text-center max-w-[320px] sm:max-w-[540px] md:max-w-[560px] mb-7 text-balance animate-fade-in">
+                      <h1 className="font-heading text-[clamp(24px,4.5vw,32px)] font-medium dark:font-normal leading-[1.28] tracking-[-0.025em] dark:tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 text-center max-w-[320px] sm:max-w-[540px] md:max-w-[560px] mb-7 text-balance animate-fade-in">
                         {dynamicGreeting || greeting || defaultFallbackGreeting}
                       </h1>
                     )}
@@ -7995,7 +7997,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           : "Minta Axioma..."
                       }
                       style={{ height: "40px" }}
-                      className="flex-1 min-w-0 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-text-primary dark:text-white placeholder:text-zinc-500 text-[16px] md:text-[15px] lg:text-[16px] leading-[24px] py-[8px] px-1 sm:px-1.5 my-auto min-h-[40px] max-h-[140px] overflow-y-auto font-normal tracking-normal transition-colors duration-150 ease-out touch-manipulation"
+                      className="flex-1 min-w-0 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[16px] leading-[1.45] font-normal py-[8px] px-1 sm:px-1.5 my-auto min-h-[40px] max-h-[140px] overflow-y-auto tracking-normal transition-colors duration-150 ease-out touch-manipulation"
                     />
                   )}
 
@@ -8365,7 +8367,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
-              className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500/80 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
+              className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
                 isVirtualKeyboardOpen || isInputFocused
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
