@@ -132,7 +132,7 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
     <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85vh] animate-fade-in">
       <SubViewHeader title="Tentang Axioma" onBack={onBack} onClose={onClose} />
 
-      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,20px)+28px)] sm:pb-6 space-y-4 scrollbar-none [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,24px)+32px)] sm:pb-6 space-y-4 scrollbar-none [&::-webkit-scrollbar]:hidden">
         {/* a) Hero Banner */}
         <div className="relative overflow-hidden rounded-2xl bg-zinc-50/90 dark:bg-[#141416] border border-zinc-200/80 dark:border-zinc-800/80 p-5 text-center">
 
@@ -375,7 +375,7 @@ export function FeedbackSettingsView({
     <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85vh] animate-fade-in">
       <SubViewHeader title="Kirim Masukan" onBack={onBack} onClose={onClose} />
 
-      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,20px)+28px)] sm:pb-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,24px)+32px)] sm:pb-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
         <p className="text-[13.5px] text-zinc-600 dark:text-zinc-400 leading-relaxed mb-5">
           Bagikan ide fitur baru, masukan desain, atau kendala yang Anda temui agar
           Axioma terus berkembang lebih baik.

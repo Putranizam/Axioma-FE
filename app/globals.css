@@ -156,8 +156,9 @@ code {
 @media all and (display-mode: standalone) {
   html,
   body {
-    height: 100vh;
-    min-height: 100vh;
+    bottom: auto;
+    height: 100lvh !important;
+    min-height: 100lvh !important;
   }
 }
 

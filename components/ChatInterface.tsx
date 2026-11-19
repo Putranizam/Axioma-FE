@@ -5334,7 +5334,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className={`fixed inset-0 w-full h-full z-50 flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed top-0 left-0 right-0 bottom-0 w-full h-[100lvh] min-h-[100lvh] z-50 flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isSettingsEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5344,7 +5344,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-0 z-50 w-full h-full rounded-none bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100vw-3rem)] sm:max-w-[540px] sm:h-auto sm:max-h-[85vh] sm:rounded-2xl sm:border sm:border-zinc-200 dark:sm:border-zinc-800 sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed top-0 left-0 right-0 bottom-0 z-50 w-full h-[100lvh] min-h-[100lvh] rounded-none bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100vw-3rem)] sm:max-w-[540px] sm:h-auto sm:min-h-0 sm:max-h-[85vh] sm:rounded-2xl sm:border sm:border-zinc-200 dark:sm:border-zinc-800 sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5380,7 +5380,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* Scrollable Body Area */}
-                <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,20px)+28px)] sm:pb-6 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden">
+                <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,24px)+32px)] sm:pb-6 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden">
                   {/* Grup 1: Akun */}
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
@@ -5732,7 +5732,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <div
           role="dialog"
           aria-modal="true"
-          className={`fixed inset-0 w-full h-full z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed top-0 left-0 right-0 bottom-0 w-full h-[100lvh] min-h-[100lvh] z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isProfileEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5741,10 +5741,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             }
           }}
         >
-          {/* Popup Container (Bottom-sheet on mobile, centered modal on sm+) */}
+          {/* Popup Container (Bottom-sheet on mobile anchored inside h-[100lvh] wrapper, centered modal on sm+) */}
           <div
             ref={profileDropdownRef}
-            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[90vw] sm:max-w-[480px] h-auto max-h-[90vh] sm:max-h-[85vh] rounded-t-[28px] sm:rounded-[28px] bg-[#F8F8FA] sm:bg-white dark:bg-[#111114] px-5 pt-3 pb-[max(20px,env(safe-area-inset-bottom))] sm:p-6 flex flex-col shadow-2xl border-t sm:border border-zinc-200/80 dark:border-white/[0.08] overflow-y-auto overscroll-contain touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[90vw] sm:max-w-[480px] h-auto max-h-[90vh] sm:max-h-[85vh] rounded-t-[28px] sm:rounded-[28px] bg-[#F8F8FA] sm:bg-white dark:bg-[#111114] px-5 pt-3 pb-[calc(env(safe-area-inset-bottom,20px)+16px)] sm:p-6 flex flex-col shadow-2xl border-t sm:border border-zinc-200/80 dark:border-white/[0.08] overflow-y-auto overscroll-contain touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isProfileEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5927,7 +5927,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               setIsMobileSidebarOpen(false);
             }
           }}
-          className={`fixed inset-0 w-full h-full z-40 bg-black/70 md:hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed top-0 left-0 right-0 bottom-0 w-full h-[100lvh] min-h-[100lvh] z-40 bg-black/70 md:hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isSidebarBackdropEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           aria-label="Tutup latar bilah sisi"
@@ -5937,7 +5937,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar (Mobile Drawer < 768px | Desktop Full 260px / Mini Rail 64px >= 768px) */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed inset-y-0 left-0 h-full z-40 w-[82vw] max-w-[300px] md:max-w-none pt-0 pb-0 bg-white dark:bg-[#0d0d10] md:bg-[#f4f4f5] md:dark:bg-[#09090b] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-zinc-800/80 flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform md:static ${
+        className={`fixed top-0 bottom-0 left-0 h-[100lvh] min-h-[100lvh] md:static md:h-full md:min-h-0 z-40 w-[82vw] max-w-[300px] md:max-w-none pt-0 pb-0 bg-white dark:bg-[#0d0d10] md:bg-[#f4f4f5] md:dark:bg-[#09090b] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-zinc-800/80 flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
           isDesktopSidebarCollapsed
             ? "md:w-[64px] md:opacity-100 md:visible md:translate-x-0"
             : "md:w-[260px] md:opacity-100 md:visible md:translate-x-0"
@@ -6253,7 +6253,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         {/* User Profile & Settings Menu (Item 4 & Item 7) */}
         <div
-          className={`px-2 pt-2 pb-[max(16px,env(safe-area-inset-bottom))] md:pb-2 border-t border-zinc-200/80 dark:border-white/[0.07] shrink-0 relative flex items-center gap-1 ${
+          className={`px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,20px)+12px)] md:pb-2 border-t border-zinc-200/80 dark:border-white/[0.07] shrink-0 relative flex items-center gap-1 ${
             isDesktopSidebarCollapsed
               ? "justify-between md:flex-col md:justify-center md:px-1.5 md:gap-1.5"
               : "justify-between"
