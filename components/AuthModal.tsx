@@ -186,24 +186,24 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-4 bg-black/60 backdrop-blur-sm animate-backdrop transition-all"
+      className="fixed inset-0 z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-black/60 sm:dark:bg-black/60 overflow-y-auto overscroll-contain animate-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="fixed inset-0 h-[100dvh] w-full rounded-none sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:w-[90vw] sm:max-w-[480px] sm:h-auto sm:max-h-[85dvh] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] sm:border border-border-subtle dark:border-white/[0.08] shadow-2xl overflow-hidden flex flex-col focus:outline-none animate-modal-pop will-change-transform text-text-primary"
+        className="relative w-full min-h-[100dvh] sm:min-h-0 sm:h-auto overflow-y-auto overscroll-contain sm:overflow-visible bg-[#fafafa] dark:bg-[#0c0c0e] sm:max-w-[420px] sm:mx-auto sm:my-auto sm:rounded-2xl sm:bg-white sm:dark:bg-[#141416] sm:border sm:border-zinc-200 sm:dark:border-zinc-800 sm:shadow-2xl sm:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
       >
-        {/* Sticky Top Header */}
-        <div className="shrink-0 flex items-start justify-between gap-3 pt-[max(0.85rem,env(safe-area-inset-top))] pb-4 px-5 sm:px-6 sm:pt-6 border-b border-border-subtle dark:border-white/[0.06] bg-bg-elevated/95 dark:bg-[#111114]/95 backdrop-blur-xl">
+        {/* Header (solid, tanpa backdrop-blur, aman di bawah notch / punch-hole) */}
+        <div className="shrink-0 flex items-start justify-between gap-3 pt-[calc(env(safe-area-inset-top,20px)+20px)] pb-4 px-4 min-[390px]:px-5 sm:p-0 sm:pb-5 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-transparent sm:dark:bg-transparent border-b border-zinc-200/70 dark:border-zinc-800/70 sm:border-b-0">
           <div className="flex items-center gap-3 min-w-0">
             <AxiomaLogoMark className="w-8 h-8 shrink-0" />
             <div className="min-w-0">
-              <h2 id="auth-modal-title" className="text-[18px] font-semibold text-text-primary tracking-tight leading-snug">
+              <h2 id="auth-modal-title" className="font-heading text-[18px] font-semibold text-zinc-900 dark:text-zinc-100 tracking-[-0.015em] leading-snug">
                 {tab === "signin" ? "Masuk ke Axioma" : tab === "signup" ? "Buat Akun Axioma" : "Masuk Tanpa Sandi"}
               </h2>
-              <p className="text-xs text-text-muted mt-0.5 leading-relaxed">
+              <p className="text-[13px] text-zinc-500 dark:text-zinc-400 mt-0.5 leading-relaxed">
                 Simpan riwayat percakapan di cloud dengan aman
               </p>
             </div>
@@ -213,14 +213,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
             onClick={onClose}
             disabled={isLoading}
             aria-label="Tutup modal masuk"
-            className="w-10 h-10 min-w-[40px] min-h-[40px] sm:w-8 sm:h-8 sm:min-w-0 sm:min-h-0 rounded-full flex items-center justify-center text-text-muted hover:text-text-primary hover:bg-bg-surface dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-50 shrink-0 -mt-0.5 -mr-0.5"
+            className="w-9 h-9 rounded-xl flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
           >
             <X className="w-4 h-4" />
           </button>
         </div>
 
-        {/* Scrollable Content + Footer Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-4">
+        {/* Content + Footer Body */}
+        <div className="flex-1 px-4 min-[390px]:px-5 sm:px-0 pt-5 pb-[calc(env(safe-area-inset-bottom,16px)+20px)] sm:pb-0 space-y-4">
           <div className="space-y-4">
           {!configured && (
             <div
@@ -352,7 +352,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Nama Anda"
                     disabled={isLoading}
-                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] md:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>
@@ -371,7 +371,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                   placeholder="nama@email.com"
                   disabled={isLoading}
                   autoComplete="email"
-                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] md:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                 />
               </div>
             </div>
@@ -401,7 +401,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     disabled={isLoading}
                     minLength={6}
                     autoComplete={tab === "signup" ? "new-password" : "current-password"}
-                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] md:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>

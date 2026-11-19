@@ -1413,9 +1413,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   useEffect(() => {
     setClientNow(new Date());
 
-    // Load saved sidebar state
+    // Load saved sidebar state (default ringkas/mini rail 64px di Tablet/iPad Portrait 768–1023px)
     const savedCollapsed = safeGetLocalStorage(STORAGE_KEYS.SIDEBAR_COLLAPSED);
     if (savedCollapsed === "true") {
+      setIsDesktopSidebarCollapsed(true);
+    } else if (
+      savedCollapsed === null &&
+      typeof window !== "undefined" &&
+      window.innerWidth >= 768 &&
+      window.innerWidth < 1024
+    ) {
       setIsDesktopSidebarCollapsed(true);
     }
 
@@ -5333,7 +5340,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className={`absolute inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`absolute inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/60 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isSettingsEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5343,7 +5350,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`absolute inset-0 z-50 w-full h-full rounded-none bg-[#f8f9fa] sm:bg-white dark:bg-[#0d0d10] dark:sm:bg-[#101013] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[90vw] sm:max-w-[520px] sm:h-auto sm:max-h-[85dvh] sm:rounded-[28px] sm:border sm:border-zinc-200/80 dark:sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`absolute inset-0 z-50 w-full h-full rounded-none bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100vw-3rem)] sm:max-w-[540px] sm:h-auto sm:max-h-[85dvh] sm:rounded-2xl sm:border sm:border-zinc-200 dark:sm:border-zinc-800 sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5364,7 +5371,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) : (
               <>
                 {/* Sticky Top Navigation Bar */}
-                <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#101013] border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
+                <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
                   <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
                     Setelan
                   </h1>
@@ -6425,7 +6432,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-[#fafafa] dark:bg-[#0c0c0e]">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between pt-[calc(env(safe-area-inset-top,16px)+10px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-30 bg-[#fafafa] dark:bg-[#0c0c0e] border-b border-zinc-200/70 dark:border-zinc-800/70">
+        <header className="shrink-0 w-full flex items-center justify-between pt-[calc(env(safe-area-inset-top,16px)+10px)] pb-3 px-4 min-[390px]:px-5 md:py-0 md:h-14 md:px-5 z-30 bg-[#fafafa] dark:bg-[#0c0c0e] border-b border-zinc-200/70 dark:border-zinc-800/70">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -7546,7 +7553,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className={`relative z-20 w-full bg-transparent px-4 sm:px-6 ${
+            className={`relative z-20 w-full bg-transparent px-4 min-[390px]:px-5 sm:px-6 ${
               isMobileKeyboardActive
                 ? "pt-1.5 pb-2"
                 : currentMessages.length > 0
@@ -7559,7 +7566,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             }`}
           >
             <div
-              className={`w-full max-w-[720px] mx-auto flex flex-col items-center ${
+              className={`w-full max-w-[680px] lg:max-w-[720px] mx-auto flex flex-col items-center ${
                 isDesktopEmptyState ? "md:flex-1 md:justify-center" : ""
               }`}
             >
@@ -7709,7 +7716,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Axioma Minimalist Command Deck Input Box (rounded-2xl, 2-Row) */}
                 <div
-                  className="max-w-[720px] mx-auto w-full rounded-2xl bg-white dark:bg-[#141416] border border-zinc-200 dark:border-zinc-800 focus-within:border-zinc-300 dark:focus-within:border-zinc-700 px-3.5 pt-2.5 pb-2 flex flex-col gap-1.5 transition-colors"
+                  className="max-w-[680px] lg:max-w-[720px] mx-auto w-full rounded-2xl bg-white dark:bg-[#141416] border border-zinc-200 dark:border-zinc-800 focus-within:border-zinc-300 dark:focus-within:border-zinc-700 px-3.5 pt-2.5 pb-2 flex flex-col gap-1.5 transition-colors"
                 >
                   {/* Baris Atas: Textarea Auto-Expand / Recording Waveform / Transcribing */}
                   <div className="w-full min-w-0 flex items-center">
