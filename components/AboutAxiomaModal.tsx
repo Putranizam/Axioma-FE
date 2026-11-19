@@ -91,7 +91,7 @@ interface SettingsHeaderProps {
 
 function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
   return (
-    <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#f8f9fa] sm:bg-white dark:bg-[#0d0d10] dark:sm:bg-[#101013] border-b border-zinc-200/70 dark:border-white/[0.06]">
+    <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#101013] border-b border-zinc-200/70 dark:border-zinc-800/70">
       <div className="relative flex items-center justify-between w-full min-h-[36px]">
         <button
           type="button"
@@ -134,15 +134,7 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
 
       <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,0px)+56px)] sm:pb-6 space-y-4 scrollbar-none [&::-webkit-scrollbar]:hidden">
         {/* a) Hero Banner */}
-        <div className="relative overflow-hidden rounded-2xl bg-zinc-50/90 dark:bg-gradient-to-b dark:from-[#17171b] dark:to-[#121215] border border-zinc-200/80 dark:border-white/[0.07] p-5 text-center">
-          <div
-            aria-hidden="true"
-            className="hidden dark:block pointer-events-none absolute -top-12 inset-x-0 mx-auto w-56 h-56 rounded-full"
-            style={{
-              background:
-                "radial-gradient(circle, rgba(59,130,246,0.14) 0%, transparent 70%)",
-            }}
-          />
+        <div className="relative overflow-hidden rounded-2xl bg-zinc-50/90 dark:bg-[#141416] border border-zinc-200/80 dark:border-zinc-800/80 p-5 text-center">
 
           <div className="relative flex items-center justify-center mx-auto mb-3">
             <AxiomaLogoMark className="w-12 h-12" />

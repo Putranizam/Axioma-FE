@@ -438,30 +438,32 @@ interface StarterPrompt {
 
 const STARTER_PROMPTS: StarterPrompt[] = [
   {
-    id: "create-image",
-    label: "Buat visual kota futuristik",
+    id: "summarize-notes",
+    label: "Rangkum catatan",
     mode: "prefill",
-    prefillText: "Buatkan gambar: pemandangan kota futuristik Jakarta dengan pencahayaan neon sinematik, 8k",
-    icon: "image",
+    prefillText: "Tolong rangkum catatan berikut secara ringkas dan terstruktur:\n",
+    icon: "table",
   },
   {
-    id: "explain-simple",
-    label: "Jelaskan cara kerja blockchain",
-    mode: "send",
-    icon: "lightbulb",
+    id: "fix-code",
+    label: "Bantu perbaiki kode",
+    mode: "prefill",
+    prefillText: "Bantu periksa dan perbaiki bug pada kode berikut:\n",
+    icon: "code",
   },
   {
-    id: "professional-email",
-    label: "Tulis email profesional",
-    mode: "send",
+    id: "draft-email",
+    label: "Susun draf email",
+    mode: "prefill",
+    prefillText: "Tolong susun draf email profesional untuk: ",
     icon: "mail",
   },
   {
-    id: "write-code",
-    label: "Buat struktur kode aplikasi",
+    id: "explain-concept",
+    label: "Jelaskan konsep",
     mode: "prefill",
-    prefillText: "Buat struktur kode aplikasi untuk: ",
-    icon: "code",
+    prefillText: "Jelaskan konsep ini secara sederhana dan jelas: ",
+    icon: "lightbulb",
   },
 ];
 
@@ -5136,7 +5138,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-app-shell"
       style={{ transition: "none" }}
-      className="fixed left-0 right-0 top-0 w-full h-[100dvh] pb-0 flex flex-col justify-between md:flex-row bg-[#f8f9fa] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed left-0 right-0 top-0 w-full h-[100dvh] pb-0 flex flex-col justify-between md:flex-row bg-[#fafafa] dark:bg-[#0c0c0e] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5362,7 +5364,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) : (
               <>
                 {/* Sticky Top Navigation Bar */}
-                <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#f8f9fa] sm:bg-white dark:bg-[#0d0d10] dark:sm:bg-[#101013] border-b border-zinc-200/70 dark:border-white/[0.06] flex items-center justify-between">
+                <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#101013] border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
                   <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
                     Setelan
                   </h1>
@@ -5931,13 +5933,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         />
       )}
 
-      {/* Responsive Sidebar (Mobile Drawer < 768px | Desktop Full 268px / Mini Rail 64px >= 768px) */}
+      {/* Responsive Sidebar (Mobile Drawer < 768px | Desktop Full 260px / Mini Rail 64px >= 768px) */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`absolute inset-y-0 left-0 h-full z-40 w-[82vw] max-w-[300px] md:max-w-none pt-0 pb-0 bg-white dark:bg-[#0d0d10] md:bg-[#f4f5f7] md:dark:bg-[#0c0c0f] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-white/[0.07] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform md:static ${
+        className={`absolute inset-y-0 left-0 h-full z-40 w-[82vw] max-w-[300px] md:max-w-none pt-0 pb-0 bg-white dark:bg-[#0d0d10] md:bg-[#f4f4f5] md:dark:bg-[#09090b] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-zinc-800/80 flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform md:static ${
           isDesktopSidebarCollapsed
             ? "md:w-[64px] md:opacity-100 md:visible md:translate-x-0"
-            : "md:w-[268px] md:opacity-100 md:visible md:translate-x-0"
+            : "md:w-[260px] md:opacity-100 md:visible md:translate-x-0"
         } ${isMobileSidebarOpen ? "translate-x-0 visible" : "-translate-x-full invisible md:visible"}`}
       >
         {/* Brand Header */}
@@ -5947,9 +5949,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }`}
         >
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center shrink-0">
-              <AxiomaLogoMark className="w-5 h-5 object-contain shrink-0" />
-            </div>
+            <AxiomaLogoMark className="w-6 h-6 object-contain shrink-0" />
             <span
               className={`font-heading text-[14px] font-bold tracking-[0.06em] uppercase text-zinc-900 dark:text-zinc-100 ${
                 isDesktopSidebarCollapsed ? "md:hidden" : ""
@@ -5980,7 +5980,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               }}
               title="Sesi Baru"
               aria-label="Sesi Baru"
-              className={`w-full flex items-center rounded-xl bg-indigo-500/10 hover:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 h-10 px-3.5 text-[14px] font-semibold leading-snug transition-colors cursor-pointer active:scale-[0.98] ${
+              className={`w-full flex items-center rounded-xl bg-zinc-200/80 hover:bg-zinc-300/70 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200/80 dark:border-zinc-700/60 h-10 px-3.5 text-[14px] font-medium leading-snug transition-colors cursor-pointer active:scale-[0.98] ${
                 isDesktopSidebarCollapsed ? "justify-start md:w-10 md:px-0 md:mx-auto md:justify-center" : "justify-between"
               }`}
             >
@@ -5992,12 +5992,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Guest Mode Cloud Sync Prompt Banner */}
             <div
-              className={`bg-white dark:bg-[#161718] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl p-4 shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:shadow-none flex flex-col gap-3 shrink-0 ${
+              className={`bg-white dark:bg-[#141416] border border-zinc-200/80 dark:border-zinc-800/80 rounded-2xl p-4 shadow-[0_1px_4px_rgba(0,0,0,0.02)] dark:shadow-none flex flex-col gap-3 shrink-0 ${
                 isDesktopSidebarCollapsed ? "md:hidden" : ""
               }`}
             >
               <div className="flex items-start gap-2.5">
-                <Cloud className="w-4 h-4 text-indigo-500 dark:text-indigo-400 shrink-0 mt-0.5" strokeWidth={1.75} />
+                <Cloud className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0 mt-0.5" strokeWidth={1.75} />
                 <div className="min-w-0">
                   <span className="text-[15px] font-semibold leading-snug text-zinc-900 dark:text-zinc-100 block mb-1 tracking-normal">
                     Cadangkan Percakapan
@@ -6013,7 +6013,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsMobileSidebarOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full h-10 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-[14px] font-semibold leading-snug transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
+                className="w-full h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 text-[14px] font-medium leading-snug transition shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-95"
               >
                 <span>Hubungkan Akun</span>
               </button>
@@ -6030,7 +6030,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               }}
               title="Sesi Baru"
               aria-label="Sesi Baru"
-              className={`w-full flex items-center rounded-xl bg-indigo-500/10 hover:bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 h-10 px-3.5 text-[14px] font-semibold leading-snug transition-colors cursor-pointer active:scale-[0.98] ${
+              className={`w-full flex items-center rounded-xl bg-zinc-200/80 hover:bg-zinc-300/70 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 text-zinc-900 dark:text-zinc-100 border border-zinc-200/80 dark:border-zinc-700/60 h-10 px-3.5 text-[14px] font-medium leading-snug transition-colors cursor-pointer active:scale-[0.98] ${
                 isDesktopSidebarCollapsed ? "justify-start md:w-10 md:px-0 md:mx-auto md:justify-center" : "justify-between"
               }`}
             >
@@ -6052,7 +6052,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 aria-label="Cari percakapan"
                 disabled={!isMobileSidebarOpen && (isTouchOrMobile || (typeof window !== "undefined" && window.innerWidth < 768))}
                 tabIndex={isMobileSidebarOpen || (!isTouchOrMobile && (typeof window === "undefined" || window.innerWidth >= 768)) ? 0 : -1}
-                className="w-full pl-8 pr-7 py-2 min-h-[40px] md:min-h-0 md:py-1.5 rounded-xl bg-white dark:bg-white/[0.04] border border-zinc-200/80 dark:border-white/[0.08] text-[16px] md:text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-indigo-500/40 transition-colors"
+                className="w-full pl-8 pr-7 py-2 min-h-[40px] md:min-h-0 md:py-1.5 rounded-xl bg-white dark:bg-[#141416] border border-zinc-200/80 dark:border-zinc-800 text-[16px] md:text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors"
               />
               {searchQuery && (
                 <button
@@ -6110,10 +6110,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   return (
                     <div
                       key={chat.id}
-                      className={`group relative flex items-center min-h-11 md:min-h-0 transition-colors border-l-2 ${
+                      className={`group relative flex items-center min-h-11 md:min-h-0 rounded-lg transition-colors ${
                         isActive
-                          ? "border-indigo-500 bg-indigo-500/[0.08] dark:bg-indigo-500/[0.12] text-zinc-900 dark:text-zinc-100 font-semibold rounded-r-lg rounded-l-none"
-                          : "border-transparent text-text-secondary hover:text-text-primary hover:bg-zinc-200/50 dark:hover:bg-white/[0.04] rounded-lg"
+                          ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100 font-semibold"
+                          : "text-text-secondary hover:text-text-primary hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
                       }`}
                     >
                       {isEditing ? (
@@ -6423,9 +6423,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       </aside>
 
       {/* Main Workspace Column */}
-      <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.09),_transparent_55%)] dark:bg-[radial-gradient(ellipse_at_top,_rgba(99,102,241,0.14),_transparent_55%)]">
+      <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-[#fafafa] dark:bg-[#0c0c0e]">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between pt-[calc(env(safe-area-inset-top,16px)+10px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-20 bg-[#f8f9fa] dark:bg-[#09090b] border-b border-zinc-200/70 dark:border-white/[0.06]">
+        <header className="shrink-0 w-full flex items-center justify-between pt-[calc(env(safe-area-inset-top,16px)+10px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-30 bg-[#fafafa] dark:bg-[#0c0c0e] border-b border-zinc-200/70 dark:border-zinc-800/70">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -6626,87 +6626,27 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
           ) : (
             <>
-              {/* Mobile Header (< md) - Axioma Command Workspace Top Bar */}
-              <div className="min-h-[40px] w-full flex md:hidden items-center justify-between gap-2.5">
-                {/* Sisi Kiri: Tombol Sidebar (rounded-xl) + Badge Pemilih Model */}
+              {/* Unified Minimalist Top Bar (Mobile & Desktop) */}
+              <div className="min-h-[36px] w-full flex items-center justify-between gap-2.5">
+                {/* Sisi Kiri: Tombol Sidebar (rounded-xl) + Pemilih Model (relative + dropdown rata kiri) */}
                 <div className="flex items-center gap-2.5 min-w-0">
+                  {/* Mobile Drawer Trigger (< md) */}
                   <button
                     type="button"
                     onClick={() => setIsMobileSidebarOpen(true)}
-                    className="w-9 h-9 shrink-0 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 dark:bg-white/[0.05] dark:hover:bg-white/[0.09] border border-zinc-200/80 dark:border-white/[0.08] text-zinc-700 dark:text-zinc-200 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                    className="md:hidden w-9 h-9 shrink-0 rounded-xl bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                     aria-label="Buka bilah sisi"
                   >
                     <Menu className="w-[17px] h-[17px]" />
                   </button>
 
-                  <button
-                    ref={headerAgentTriggerRef}
-                    type="button"
-                    aria-haspopup="menu"
-                    aria-expanded={isHeaderAgentMenuOpen}
-                    onMouseDown={(e) => {
-                      e.preventDefault();
-                    }}
-                    onClick={() => {
-                      if (typeof window !== "undefined" && window.innerWidth < 768) {
-                        textareaRef.current?.blur();
-                      }
-                      toggleHeaderAgentMenu();
-                    }}
-                    aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
-                    className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/70 dark:bg-white/[0.05] dark:hover:bg-white/[0.08] border border-zinc-200/80 dark:border-white/[0.08] leading-none whitespace-nowrap active:scale-[0.98] transition cursor-pointer focus:outline-none"
-                  >
-                    <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" aria-hidden="true" />
-                    <span className="text-[14px] font-semibold tracking-[-0.01em] text-zinc-900 dark:text-zinc-100">
-                      Axioma
-                    </span>
-                    <span className="text-[13px] font-semibold text-indigo-600 dark:text-indigo-400">
-                      {selectedAgent.shortName}
-                    </span>
-                    <ChevronDown
-                      className={`w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 shrink-0 transition-transform duration-200 ${
-                        isHeaderAgentMenuOpen ? "rotate-180" : ""
-                      }`}
-                    />
-                  </button>
-                </div>
-
-                {/* Sisi Kanan: Tombol Avatar / Profil Pengguna (rounded-xl) */}
-                <div className="flex items-center shrink-0">
-                  <div className="relative">
-                    <button
-                      type="button"
-                      onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
-                      aria-label="Buka menu profil dan akun"
-                      title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                      className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
-                        authUser
-                          ? "bg-indigo-600 text-white border border-indigo-500/30"
-                          : "bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-white/[0.05] dark:hover:bg-white/[0.09] dark:text-zinc-200 dark:border-white/[0.08]"
-                      }`}
-                    >
-                      {authUser ? (
-                        <span className="uppercase font-semibold select-none text-white text-[14px]">
-                          {(userName || "N").trim().charAt(0).toUpperCase()}
-                        </span>
-                      ) : (
-                        <User className="w-4 h-4 text-current" />
-                      )}
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Desktop & Tablet Header (>= md) - Axioma Command Workspace Top Bar */}
-              <div className="hidden md:flex items-center justify-between w-full">
-                <div className="flex items-center gap-2.5">
-                  {/* Desktop Sidebar Toggle Button (rounded-xl) */}
+                  {/* Desktop Sidebar Toggle (>= md) */}
                   <button
                     type="button"
                     onClick={toggleDesktopSidebar}
                     title={isDesktopSidebarCollapsed ? "Perluas bilah sisi" : "Ciutkan bilah sisi"}
                     aria-label={isDesktopSidebarCollapsed ? "Perluas bilah sisi" : "Ciutkan bilah sisi"}
-                    className="w-9 h-9 rounded-xl bg-zinc-100 hover:bg-zinc-200/80 dark:bg-white/[0.05] dark:hover:bg-white/[0.09] border border-zinc-200/80 dark:border-white/[0.08] text-zinc-700 dark:text-zinc-200 flex items-center justify-center active:scale-95 transition-all cursor-pointer"
+                    className="hidden md:flex w-9 h-9 shrink-0 rounded-xl bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 transition-all items-center justify-center cursor-pointer"
                   >
                     {isDesktopSidebarCollapsed ? (
                       <PanelLeft className="w-4 h-4" />
@@ -6715,22 +6655,29 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     )}
                   </button>
 
-                  {/* Unified Model Selector Badge Pill */}
+                  {/* Model Selector Trigger + Anchored Left-Aligned Dropdown */}
                   <div className="relative">
                     <button
-                      ref={tabletAgentTriggerRef}
+                      ref={headerAgentTriggerRef}
                       type="button"
                       aria-haspopup="menu"
                       aria-expanded={isHeaderAgentMenuOpen}
-                      onClick={toggleHeaderAgentMenu}
-                      className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-zinc-100 hover:bg-zinc-200/70 dark:bg-white/[0.05] dark:hover:bg-white/[0.08] border border-zinc-200/80 dark:border-white/[0.08] leading-none whitespace-nowrap active:scale-[0.98] transition cursor-pointer focus:outline-none"
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                      }}
+                      onClick={() => {
+                        if (typeof window !== "undefined" && window.innerWidth < 768) {
+                          textareaRef.current?.blur();
+                        }
+                        toggleHeaderAgentMenu();
+                      }}
                       aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
+                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-zinc-100/80 hover:bg-zinc-200/70 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 leading-none whitespace-nowrap active:scale-[0.98] transition cursor-pointer focus:outline-none"
                     >
-                      <span className="w-2 h-2 rounded-full bg-indigo-500 shrink-0" aria-hidden="true" />
                       <span className="text-[14px] font-semibold tracking-[-0.01em] text-zinc-900 dark:text-zinc-100">
                         Axioma
                       </span>
-                      <span className="text-[13px] font-semibold text-indigo-600 dark:text-indigo-400">
+                      <span className="text-[13.5px] font-medium text-zinc-500 dark:text-zinc-400">
                         {selectedAgent.shortName}
                       </span>
                       <ChevronDown
@@ -6739,24 +6686,95 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         }`}
                       />
                     </button>
+
+                    {shouldRenderHeaderAgentMenu && (
+                      <>
+                        {/* Transparent click-outside backdrop (tanpa blur kabur) */}
+                        <div
+                          className={`fixed inset-0 z-40 ${
+                            isHeaderAgentMenuEntered ? "pointer-events-auto" : "pointer-events-none"
+                          }`}
+                          onClick={() => closeHeaderAgentMenu(false)}
+                          aria-hidden="true"
+                        />
+
+                        {/* Left-aligned solid dropdown menu */}
+                        <div
+                          ref={headerAgentMenuRef}
+                          role="menu"
+                          aria-label="Pilih model AI"
+                          onKeyDown={(e) =>
+                            handleMenuArrowKeyDown(e, headerAgentItemRefs.current, () =>
+                              closeHeaderAgentMenu(true)
+                            )
+                          }
+                          className={`absolute left-0 top-full mt-2 w-[280px] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[70dvh] overflow-y-auto overscroll-y-contain bg-white dark:bg-[#161618] border border-zinc-200 dark:border-zinc-800 shadow-lg rounded-xl p-1.5 space-y-1 focus:outline-none origin-top-left transition-all duration-150 ease-out ${
+                            isHeaderAgentMenuEntered
+                              ? "scale-100 opacity-100 translate-y-0"
+                              : "scale-95 opacity-0 -translate-y-1 pointer-events-none"
+                          }`}
+                        >
+                          {AVAILABLE_AGENTS.map((agent, idx) => {
+                            const isSelected = agent.id === selectedAgent.id;
+                            return (
+                              <button
+                                ref={(el) => {
+                                  headerAgentItemRefs.current[idx] = el;
+                                }}
+                                type="button"
+                                role="menuitemradio"
+                                aria-checked={isSelected}
+                                key={agent.id}
+                                onClick={() => {
+                                  handleSelectAgent(agent);
+                                  closeHeaderAgentMenu(true);
+                                }}
+                                className={`w-full text-left p-2.5 rounded-lg text-xs tracking-tight active:scale-[0.99] transition-colors flex flex-col gap-1 focus:outline-none cursor-pointer border ${
+                                  isSelected
+                                    ? "bg-zinc-100 dark:bg-zinc-800/80 border-zinc-200/80 dark:border-zinc-700/70 text-zinc-900 dark:text-zinc-100"
+                                    : "border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/70 dark:hover:bg-zinc-800/50"
+                                }`}
+                              >
+                                <div className="flex items-center justify-between gap-2 w-full">
+                                  <div className="flex items-center gap-1.5 min-w-0">
+                                    <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-[13.5px] tracking-tight truncate">
+                                      {agent.name}
+                                    </span>
+                                    {isSelected && (
+                                      <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" />
+                                    )}
+                                  </div>
+                                  <span className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-200/70 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium shrink-0 whitespace-nowrap">
+                                    {agent.tag}
+                                  </span>
+                                </div>
+                                <p className="text-[12.5px] text-zinc-500 dark:text-zinc-400 leading-snug break-words">
+                                  {agent.description}
+                                </p>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* Desktop Right Action: Rounded-Square Profile Button */}
-                <div className="flex items-center gap-2">
+                {/* Sisi Kanan: Tombol Profil / Akun (w-9 h-9 rounded-xl netral) */}
+                <div className="flex items-center shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                     aria-label="Buka menu profil dan akun"
                     title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                    className={`w-9 h-9 rounded-xl flex items-center justify-center cursor-pointer shadow-xs select-none overflow-hidden active:scale-95 transition-all ${
+                    className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
                       authUser
-                        ? "bg-indigo-600 border border-indigo-500/30 text-white font-semibold text-xs uppercase"
-                        : "bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-white/[0.05] dark:border-white/[0.08] dark:text-zinc-200 dark:hover:text-white dark:hover:bg-white/[0.09]"
+                        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border border-zinc-800 dark:border-zinc-200"
+                        : "bg-zinc-100 hover:bg-zinc-200/70 text-zinc-700 border border-zinc-200/80 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-800"
                     }`}
                   >
                     {authUser ? (
-                      <span className="uppercase font-semibold select-none text-white text-sm">
+                      <span className="uppercase font-semibold select-none text-[13.5px]">
                         {(userName || "N").trim().charAt(0).toUpperCase()}
                       </span>
                     ) : (
@@ -6764,82 +6782,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     )}
                   </button>
                 </div>
-              </div>
-            </>
-          )}
-
-          {/* Shared Header Agent Menu Dropdown (Smooth Enter & Exit Two-Way Animation) */}
-          {shouldRenderHeaderAgentMenu && (
-            <>
-              {/* Backdrop */}
-              <div
-                className={`fixed inset-0 z-40 bg-black/40 backdrop-blur-xs transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                  isHeaderAgentMenuEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                }`}
-                onClick={() => closeHeaderAgentMenu(false)}
-                aria-hidden="true"
-              />
-
-              {/* Mobile / Tablet Fixed Model Menu */}
-              <div
-                ref={headerAgentMenuRef}
-                role="menu"
-                aria-label="Pilih model AI"
-                onKeyDown={(e) =>
-                  handleMenuArrowKeyDown(e, headerAgentItemRefs.current, () =>
-                    closeHeaderAgentMenu(true)
-                  )
-                }
-                style={headerMenuTop ? { top: `${headerMenuTop}px` } : undefined}
-                className={`fixed left-4 right-4 sm:left-6 sm:right-auto sm:w-80 top-[calc(env(safe-area-inset-top,0px)+74px)] z-50 max-w-md sm:max-w-[calc(100vw-2rem)] mx-auto sm:mx-0 max-h-[70dvh] overflow-y-auto overscroll-y-contain rounded-2xl bg-bg-elevated border border-border-strong p-2 shadow-2xl space-y-1.5 focus:outline-none origin-top sm:origin-top-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
-                  isHeaderAgentMenuEntered
-                    ? "scale-100 opacity-100 translate-y-0"
-                    : "scale-95 opacity-0 -translate-y-2 pointer-events-none"
-                }`}
-              >
-                {AVAILABLE_AGENTS.map((agent, idx) => {
-                  const isSelected = agent.id === selectedAgent.id;
-                  return (
-                    <button
-                      ref={(el) => {
-                        headerAgentItemRefs.current[idx] = el;
-                      }}
-                      type="button"
-                      role="menuitemradio"
-                      aria-checked={isSelected}
-                      key={agent.id}
-                      onClick={() => {
-                        handleSelectAgent(agent);
-                        closeHeaderAgentMenu(true);
-                      }}
-                      className={`w-full text-left p-3 rounded-lg text-xs tracking-tight active:scale-[0.98] transition-all duration-150 flex flex-col gap-1.5 focus:outline-none focus:ring-1 focus:ring-border-strong cursor-pointer border ${
-                        isSelected
-                          ? "bg-bg-surface border-border-subtle text-text-primary font-medium"
-                          : "border-transparent text-text-secondary hover:text-text-primary hover:bg-bg-surface/50"
-                      }`}
-                    >
-                      {/* Baris atas: nama model (kiri) & badge (kanan) */}
-                      <div className="flex items-start justify-between gap-2 w-full">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <span className="font-semibold text-text-primary text-sm tracking-tight truncate">
-                            {agent.name}
-                          </span>
-                          {isSelected && (
-                            <Check className="w-4 h-4 text-text-primary shrink-0" />
-                          )}
-                        </div>
-                        <span className="text-[11px] px-2 py-0.5 rounded bg-bg-surface text-text-secondary font-medium border border-border-subtle shrink-0 whitespace-nowrap">
-                          {agent.tag}
-                        </span>
-                      </div>
-
-                      {/* Baris bawah: deskripsi selebar penuh */}
-                      <p className="text-sm text-text-muted leading-snug break-words">
-                        {agent.description}
-                      </p>
-                    </button>
-                  );
-                })}
               </div>
             </>
           )}
@@ -6957,42 +6899,20 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                 ) && (
                   <div
-                    className={`md:hidden flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain flex flex-col items-center justify-center px-4 py-4 text-center scrollbar-none [&::-webkit-scrollbar]:hidden ${
+                    className={`md:hidden flex-1 min-h-0 w-full overflow-hidden flex flex-col items-center justify-center px-6 text-center pointer-events-none ${
                       isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                     }`}
                   >
-                    <div className="w-full max-w-md mx-auto flex flex-col items-center">
-                      {/* Squircle Brand Logo */}
-                      <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center mb-4 shrink-0">
-                        <AxiomaLogoMark className="w-7 h-7" />
+                    <div className="w-full max-w-[360px] mx-auto flex flex-col items-center">
+                      {/* Clean Brand Logo (tanpa kotak squircle ungu) */}
+                      <div className="mb-3.5 flex items-center justify-center">
+                        <AxiomaLogoMark className="w-10 h-10" />
                       </div>
 
-                      {/* Sapaan Utama & Subjudul */}
-                      <h1 className="font-heading text-[22px] min-[390px]:text-[24px] font-semibold leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 px-2 text-center text-balance animate-fade-in">
-                        Ada yang bisa Axioma bantu?
+                      {/* Sapaan Personal Minimalis */}
+                      <h1 className="font-heading text-[22px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 text-center text-balance animate-fade-in">
+                        Halo, mau bahas apa hari ini?
                       </h1>
-                      <p className="mt-2 text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 px-2 max-w-[320px] mx-auto">
-                        Eksplorasi ide, bedah dokumen, atau susun kode lebih terstruktur.
-                      </p>
-
-                      {/* Mobile 2x2 Prompt Starter Cards (hidden when keyboard is open) */}
-                      {!isMobileKeyboardActive && (
-                        <div className="grid grid-cols-2 gap-2.5 w-full max-w-md mt-6 animate-fade-up">
-                          {STARTER_PROMPTS.map((prompt) => (
-                            <button
-                              key={prompt.id}
-                              type="button"
-                              onClick={() => handleStarterPromptClick(prompt)}
-                              className="text-left p-3.5 rounded-2xl bg-white dark:bg-white/[0.03] hover:bg-zinc-50 dark:hover:bg-white/[0.05] border border-zinc-200/80 dark:border-white/[0.07] transition-all duration-150 cursor-pointer active:scale-[0.98] flex flex-col items-start justify-between gap-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none"
-                            >
-                              {renderStarterIcon(prompt.icon)}
-                              <span className="text-[13px] leading-snug font-medium text-zinc-800 dark:text-zinc-200 line-clamp-2">
-                                {prompt.label}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -7639,7 +7559,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             }`}
           >
             <div
-              className={`w-full max-w-[780px] mx-auto flex flex-col items-center ${
+              className={`w-full max-w-[720px] mx-auto flex flex-col items-center ${
                 isDesktopEmptyState ? "md:flex-1 md:justify-center" : ""
               }`}
             >
@@ -7650,9 +7570,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               >
                 {/* Desktop Empty State Hero (>= md) */}
                 {isDesktopEmptyState && (
-                  <div className="hidden md:flex flex-col items-center text-center pointer-events-none select-none w-full mb-7">
-                    <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center mb-4">
-                      <AxiomaLogoMark className="w-7 h-7" />
+                  <div className="hidden md:flex flex-col items-center text-center pointer-events-none select-none w-full mb-6">
+                    <div className="mb-3.5 flex items-center justify-center">
+                      <AxiomaLogoMark className="w-10 h-10" />
                     </div>
                     {isChatAreaLoading ? (
                       <div
@@ -7660,17 +7580,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         aria-label="Memuat ruang kerja"
                         className="flex flex-col items-center"
                       >
-                        <div className="h-9 w-[380px] rounded-xl bg-border-subtle animate-pulse" />
+                        <div className="h-8 w-[320px] rounded-xl bg-border-subtle animate-pulse" />
                       </div>
                     ) : (
-                      <>
-                        <h1 className="font-heading text-[28px] font-semibold leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 text-center text-balance animate-fade-in">
-                          Ada yang bisa Axioma bantu?
-                        </h1>
-                        <p className="mt-2 text-[15px] leading-relaxed text-zinc-500 dark:text-zinc-400 max-w-lg mx-auto">
-                          Eksplorasi ide, bedah dokumen, atau susun kode lebih terstruktur.
-                        </p>
-                      </>
+                      <h1 className="font-heading text-[26px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 text-center text-balance animate-fade-in">
+                        Halo, mau bahas apa hari ini?
+                      </h1>
                     )}
                   </div>
                 )}
@@ -7792,9 +7707,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Axioma Command Deck Input Box (rounded-2xl, 2-Row Workspace Layout) */}
+                {/* Axioma Minimalist Command Deck Input Box (rounded-2xl, 2-Row) */}
                 <div
-                  className="max-w-[780px] mx-auto w-full rounded-2xl bg-white dark:bg-[#141418] border border-zinc-200/90 dark:border-white/[0.10] focus-within:border-indigo-500/40 dark:focus-within:border-indigo-400/40 shadow-sm px-3.5 pt-2.5 pb-2 flex flex-col gap-1.5 transition-colors"
+                  className="max-w-[720px] mx-auto w-full rounded-2xl bg-white dark:bg-[#141416] border border-zinc-200 dark:border-zinc-800 focus-within:border-zinc-300 dark:focus-within:border-zinc-700 px-3.5 pt-2.5 pb-2 flex flex-col gap-1.5 transition-colors"
                 >
                   {/* Baris Atas: Textarea Auto-Expand / Recording Waveform / Transcribing */}
                   <div className="w-full min-w-0 flex items-center">
@@ -8132,14 +8047,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={() => stopVoiceRecording("send")}
                             aria-label="Kirim rekaman"
                             title="Kirim rekaman langsung"
-                            className="w-8 h-8 rounded-xl bg-indigo-600 hover:bg-indigo-500 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-white shadow-sm shadow-indigo-500/25"
+                            className="w-8 h-8 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-white dark:text-zinc-900"
                           >
                             <ArrowUp className="w-4 h-4 stroke-[2.5]" />
                           </button>
                         </>
                       ) : isTranscribingVoice ? (
-                        <div className="w-8 h-8 rounded-xl bg-indigo-500/10 flex items-center justify-center">
-                          <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                        <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                          <Loader2 className="w-4 h-4 animate-spin text-zinc-500 dark:text-zinc-400" />
                         </div>
                       ) : isGenerating ? (
                         <button
@@ -8150,7 +8065,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onClick={handleStopGeneration}
                           title="Hentikan respons"
                           aria-label="Hentikan respons"
-                          className="w-8 h-8 rounded-xl flex items-center justify-center bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 active:scale-95 transition-all shadow-sm cursor-pointer"
+                          className="w-8 h-8 rounded-xl flex items-center justify-center bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer"
                         >
                           <Square className="w-3.5 h-3.5 fill-current" />
                         </button>
@@ -8193,10 +8108,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
                               className={`w-8 h-8 rounded-xl flex items-center justify-center transition-all duration-150 select-none touch-manipulation ${
                                 !isSendDisabled
-                                  ? `bg-indigo-600 hover:bg-indigo-500 text-white shadow-sm shadow-indigo-500/25 active:scale-95 cursor-pointer ${
+                                  ? `bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 active:scale-95 cursor-pointer ${
                                       isSendPressed ? "scale-[0.94]" : "scale-100"
                                     }`
-                                  : "bg-zinc-200 dark:bg-white/[0.06] text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                                  : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
                               }`}
                             >
                               {isUploadingAttachment ? (
@@ -8220,7 +8135,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }}
                             title="Mode Suara (Percakapan langsung)"
                             aria-label="Mode Suara (Percakapan langsung)"
-                            className="w-8 h-8 rounded-xl flex items-center justify-center bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-600 dark:text-indigo-400 border border-indigo-500/20 active:scale-95 transition-all cursor-pointer"
+                            className="w-8 h-8 rounded-xl flex items-center justify-center bg-zinc-100 hover:bg-zinc-200/80 text-zinc-600 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/80 dark:border-zinc-700/60 active:scale-95 transition-all cursor-pointer"
                           >
                             <AudioLines className="w-4 h-4" />
                           </button>
@@ -8230,29 +8145,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 </div>
 
-                {/* Desktop 3-Column Bento Prompt Starter Cards (>= md) */}
-                {isDesktopEmptyState && !(isTouchOrMobile && isMobileKeyboardActive) && (
-                  <div className="hidden md:grid grid-cols-3 gap-3 w-full max-w-[780px] mt-8 animate-fade-up">
-                    {isChatAreaLoading
-                      ? STARTER_PROMPTS.slice(0, 3).map((prompt) => (
-                          <div
-                            key={prompt.id}
-                            className="h-[92px] rounded-2xl bg-white dark:bg-white/[0.03] border border-zinc-200/80 dark:border-white/[0.07] animate-pulse"
-                          />
-                        ))
-                      : STARTER_PROMPTS.slice(0, 3).map((prompt) => (
-                          <button
-                            key={prompt.id}
-                            type="button"
-                            onClick={() => handleStarterPromptClick(prompt)}
-                            className="text-left p-3.5 rounded-2xl bg-white dark:bg-white/[0.03] hover:bg-zinc-50 dark:hover:bg-white/[0.05] border border-zinc-200/80 dark:border-white/[0.07] transition-all duration-150 group cursor-pointer active:scale-[0.98] flex flex-col items-start justify-between gap-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none"
-                          >
-                            {renderStarterIcon(prompt.icon)}
-                            <span className="text-[13.5px] leading-snug font-medium text-zinc-800 group-hover:text-zinc-950 dark:text-zinc-200 dark:group-hover:text-white line-clamp-2">
-                              {prompt.label}
-                            </span>
-                          </button>
-                        ))}
+                {/* Plain Text Suggestion Pill Chips (Mobile & Desktop Empty State, hidden when mobile keyboard is open) */}
+                {isDesktopEmptyState && !isMobileKeyboardActive && (
+                  <div className="flex flex-wrap items-center justify-center gap-2 mt-3.5 px-4 max-w-[680px] mx-auto animate-fade-up">
+                    {STARTER_PROMPTS.map((prompt) => (
+                      <button
+                        key={prompt.id}
+                        type="button"
+                        onClick={() => handleStarterPromptClick(prompt)}
+                        className="px-3.5 py-1.5 rounded-full text-[13px] text-zinc-600 dark:text-zinc-400 bg-transparent hover:bg-zinc-200/60 dark:hover:bg-zinc-800/70 border border-zinc-200 dark:border-zinc-800 transition-colors cursor-pointer active:scale-[0.98]"
+                      >
+                        {prompt.label}
+                      </button>
+                    ))}
                   </div>
                 )}
               </div>

@@ -6,26 +6,26 @@
 @source "../components/**/*.{js,ts,jsx,tsx}";
 
 :root {
-  --background: #09090b;
+  --background: #0c0c0e;
   --foreground: #f4f4f5;
-  --bg-primary: #09090b;
-  --bg-elevated: #121214;
+  --bg-primary: #0c0c0e;
+  --bg-elevated: #141416;
   --bg-surface: #18181b;
   --bg-subtle: #27272a;
-  --text-primary: #f4f4f5; /* ~17.4:1 vs #09090b (WCAG AAA) */
-  --text-secondary: #d4d4d8; /* ~12.6:1 vs #09090b (WCAG AAA) */
-  --text-muted: #a1a1aa; /* ~7.4:1 vs #09090b (WCAG AA >= 4.5:1) */
-  --icon-muted: #a1a1aa; /* ~7.4:1 vs #09090b (WCAG AA >= 3:1) */
+  --text-primary: #f4f4f5; /* ~17.4:1 vs #0c0c0e (WCAG AAA) */
+  --text-secondary: #d4d4d8; /* ~12.6:1 vs #0c0c0e (WCAG AAA) */
+  --text-muted: #a1a1aa; /* ~7.4:1 vs #0c0c0e (WCAG AA >= 4.5:1) */
+  --icon-muted: #a1a1aa; /* ~7.4:1 vs #0c0c0e (WCAG AA >= 3:1) */
   --border-subtle: #27272a;
   --border-strong: #3f3f46;
 }
 
 html.light {
-  --background: #f8f9fa;
+  --background: #fafafa;
   --foreground: #09090b;
-  --bg-primary: #f8f9fa;
+  --bg-primary: #fafafa;
   --bg-elevated: #ffffff;
-  --bg-surface: #f1f3f5;
+  --bg-surface: #f4f4f5;
   --bg-subtle: #e4e4e7;
   --text-primary: #09090b;
   --text-secondary: #27272a;
@@ -37,12 +37,12 @@ html.light {
 
 html.light,
 html.light body {
-  background-color: #f8f9fa !important;
+  background-color: #fafafa !important;
 }
 
 html.dark,
 html.dark body {
-  background-color: #09090b !important;
+  background-color: #0c0c0e !important;
 }
 
 @theme inline {
