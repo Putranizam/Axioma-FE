@@ -7601,12 +7601,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className={`relative z-20 w-full bg-transparent px-3 sm:px-6 ${
+            className={`relative z-20 w-full bg-transparent px-4 sm:px-6 ${
               isMobileKeyboardActive
                 ? "pt-1.5 pb-2"
                 : currentMessages.length > 0
-                ? "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+6px)] md:pb-3"
-                : "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] md:pb-3"
+                ? "pt-2 pb-[calc(env(safe-area-inset-bottom,16px)+8px)] md:pb-3"
+                : "pt-2 pb-[calc(env(safe-area-inset-bottom,20px)+14px)] md:pb-3"
             } ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
@@ -7764,7 +7764,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Polished Input Box */}
                 <div
-                  className="max-w-[660px] lg:max-w-[720px] w-full bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/[0.07] focus-within:border-zinc-300 dark:focus-within:border-white/[0.15] rounded-[26px] sm:rounded-[28px] min-h-[52px] sm:min-h-[56px] px-3.5 py-2 sm:px-4 flex items-center shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-2xl gap-2 sm:gap-2.5 transition-colors"
+                  className="max-w-[660px] lg:max-w-[720px] w-full bg-white dark:bg-[#18181b] border border-zinc-200/90 dark:border-white/[0.07] focus-within:border-zinc-300 dark:focus-within:border-white/[0.15] rounded-[28px] min-h-[54px] sm:min-h-[56px] px-3.5 py-2 sm:px-4 flex items-center shadow-[0_4px_20px_-2px_rgba(0,0,0,0.05)] dark:shadow-2xl gap-2 sm:gap-2.5 transition-colors"
                 >
                   {/* Active Attachment Button & Popover Menu */}
                   {(() => {
