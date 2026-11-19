@@ -74,14 +74,11 @@ export async function POST(req: NextRequest) {
       smtpUser ||
       "nizamputrarasya07@gmail.com"
     ).trim();
-    const toRecipients = Array.from(
-      new Set([receiverEmail, "nizamputrarasya07+axioma@gmail.com"].filter(Boolean))
-    );
 
     const timestamp = formatWibString();
     const replyToAddress =
       cleanEmail && cleanEmail.includes("@") ? cleanEmail : smtpUser || receiverEmail;
-    const subject = `🔔 [Axioma ${cleanCategory}] Masukan dari ${cleanName || "Pengguna"} — ${timestamp}`;
+    const subject = `[Axioma ${cleanCategory}] Masukan dari ${cleanName || "Pengguna"} — ${timestamp}`;
 
     const htmlBody = `
       <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; background: #0d0d10; color: #f4f4f5; border-radius: 20px; border: 1px solid #27272a; padding: 28px;">
@@ -104,112 +101,48 @@ export async function POST(req: NextRequest) {
     `;
 
     let smtpOk = false;
-    let formsubmitOk = false;
 
-    try {
-      const smtpConfigured = Boolean(smtpUser && smtpPass);
-      const smtpPromise = smtpConfigured
-        ? nodemailer
-            .createTransport({
-              host: "smtp.gmail.com",
-              port: 465,
-              secure: true,
-              auth: { user: smtpUser, pass: smtpPass },
-            })
-            .sendMail({
-              from: `"Axioma Feedback Center" <${smtpUser}>`,
-              to: toRecipients,
-              replyTo: replyToAddress,
-              subject,
-              priority: "high",
-              headers: {
-                "X-Priority": "1 (Highest)",
-                "X-MSMail-Priority": "High",
-                Importance: "High",
-              },
-              text: [
-                `Kategori: ${cleanCategory}`,
-                `Pengirim: ${cleanName}`,
-                `Email: ${cleanEmail || "Tidak dicantumkan"}`,
-                `Waktu: ${timestamp} WIB`,
-                `Perangkat: ${cleanDevice}`,
-                "",
-                "Pesan Masukan:",
-                cleanMessage,
-              ].join("\n"),
-              html: htmlBody,
-            })
-        : Promise.resolve().then(() => {
-            console.warn(
-              "[/api/feedback] SMTP credentials not configured; skipping SMTP email delivery."
-            );
-          });
+    if (smtpUser && smtpPass) {
+      try {
+        const transporter = nodemailer.createTransport({
+          host: "smtp.gmail.com",
+          port: 465,
+          secure: true,
+          auth: { user: smtpUser, pass: smtpPass },
+        });
 
-      const formsubmitPromise = fetch(
-        `https://formsubmit.co/ajax/${encodeURIComponent(receiverEmail)}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json",
-          },
-          body: JSON.stringify({
-            _subject: subject,
-            category: cleanCategory,
-            name: cleanName,
-            email: replyToAddress,
-            message: cleanMessage,
-            sent_at: `${timestamp} WIB`,
-            device: cleanDevice,
-          }),
-        }
-      ).then(async (res) => {
-        const json = (await res.json().catch(() => null)) as {
-          success?: boolean | string;
-          message?: string;
-        } | null;
-        const accepted =
-          res.ok && json?.success !== false && json?.success !== "false";
-        if (!accepted) {
-          throw new Error(
-            json?.message || `FormSubmit HTTP ${res.status}`
-          );
-        }
-        return json;
-      });
+        await transporter.sendMail({
+          from: `"Axioma Feedback Center" <${smtpUser}>`,
+          to: receiverEmail,
+          replyTo: replyToAddress,
+          subject,
+          text: [
+            `Kategori: ${cleanCategory}`,
+            `Pengirim: ${cleanName}`,
+            `Email: ${cleanEmail || "Tidak dicantumkan"}`,
+            `Waktu: ${timestamp} WIB`,
+            `Perangkat: ${cleanDevice}`,
+            "",
+            "Pesan Masukan:",
+            cleanMessage,
+          ].join("\n"),
+          html: htmlBody,
+        });
 
-      const [smtpResult, formsubmitResult] = await Promise.allSettled([
-        smtpPromise,
-        formsubmitPromise,
-      ]);
-
-      smtpOk = smtpConfigured && smtpResult.status === "fulfilled";
-      formsubmitOk = formsubmitResult.status === "fulfilled";
-
-      if (smtpConfigured && smtpResult.status === "rejected") {
-        console.error("[/api/feedback] SMTP delivery failed:", smtpResult.reason);
+        smtpOk = true;
+      } catch (mailErr) {
+        console.error("[/api/feedback] SMTP delivery failed:", mailErr);
       }
-      if (!formsubmitOk && formsubmitResult.status === "rejected") {
-        console.warn(
-          "[/api/feedback] FormSubmit delivery failed:",
-          formsubmitResult.reason
-        );
-      }
-    } catch (mailErr) {
-      console.error("[/api/feedback] Email notification error:", mailErr);
+    } else {
+      console.warn(
+        "[/api/feedback] SMTP credentials not configured; skipping SMTP email delivery."
+      );
     }
 
     return NextResponse.json({
       success: true,
-      emailDelivered: smtpOk || formsubmitOk,
-      delivery:
-        smtpOk && formsubmitOk
-          ? "smtp+formsubmit"
-          : smtpOk
-          ? "smtp"
-          : formsubmitOk
-          ? "formsubmit"
-          : "stored-only",
+      emailDelivered: smtpOk,
+      delivery: smtpOk ? "smtp" : "stored-only",
       message: "Terima kasih! Masukan Anda telah diterima.",
     });
   } catch (err) {

@@ -21,11 +21,11 @@
 }
 
 html.light {
-  --background: #ffffff;
+  --background: #f8f9fa;
   --foreground: #09090b;
-  --bg-primary: #ffffff;
+  --bg-primary: #f8f9fa;
   --bg-elevated: #ffffff;
-  --bg-surface: #f4f4f5;
+  --bg-surface: #f1f3f5;
   --bg-subtle: #e4e4e7;
   --text-primary: #09090b;
   --text-secondary: #27272a;
@@ -37,7 +37,7 @@ html.light {
 
 html.light,
 html.light body {
-  background-color: #ffffff !important;
+  background-color: #f8f9fa !important;
 }
 
 html.dark,
