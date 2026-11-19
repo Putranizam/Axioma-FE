@@ -91,7 +91,7 @@ interface SettingsHeaderProps {
 
 function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
   return (
-    <div className="relative shrink-0 pt-[max(0.85rem,env(safe-area-inset-top))] pb-3.5 px-5 sm:px-6 bg-[#F8F8FA]/90 sm:bg-white/90 dark:bg-[#0a0a0c]/90 dark:sm:bg-[#101013]/90 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between">
+    <div className="relative shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#F8F8FA]/90 sm:bg-white/90 dark:bg-[#0a0a0c]/90 dark:sm:bg-[#101013]/90 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between">
       <button
         type="button"
         onClick={onBack}
@@ -130,7 +130,7 @@ export function AboutSettingsView({ onBack, onClose }: AboutSettingsViewProps) {
     <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85dvh] animate-fade-in">
       <SubViewHeader title="Tentang Axioma" onBack={onBack} onClose={onClose} />
 
-      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] space-y-4 [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
+      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,0px)+56px)] sm:pb-6 space-y-4 scrollbar-none [&::-webkit-scrollbar]:hidden">
         {/* a) Hero Banner */}
         <div className="relative overflow-hidden rounded-2xl bg-zinc-50/90 dark:bg-gradient-to-b dark:from-[#17171b] dark:to-[#121215] border border-zinc-200/80 dark:border-white/[0.07] p-5 text-center">
           <div
@@ -380,7 +380,7 @@ export function FeedbackSettingsView({
     <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85dvh] animate-fade-in">
       <SubViewHeader title="Kirim Masukan" onBack={onBack} onClose={onClose} />
 
-      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 py-5 pb-[max(2rem,env(safe-area-inset-bottom))] [scrollbar-width:thin] [scrollbar-color:#3f3f46_transparent]">
+      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,0px)+56px)] sm:pb-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
         <p className="text-[13.5px] text-zinc-600 dark:text-zinc-400 leading-relaxed mb-5">
           Bagikan ide fitur baru, masukan desain, atau kendala yang Anda temui agar
           Axioma terus berkembang lebih baik.
