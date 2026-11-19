@@ -91,31 +91,33 @@ interface SettingsHeaderProps {
 
 function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
   return (
-    <div className="relative shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#F8F8FA]/90 sm:bg-white/90 dark:bg-[#0a0a0c]/90 dark:sm:bg-[#101013]/90 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between">
-      <button
-        type="button"
-        onClick={onBack}
-        className="relative z-10 inline-flex items-center gap-1.5 py-1 pr-2 -ml-1 rounded-xl text-[14px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white active:scale-95 transition cursor-pointer"
-      >
-        <ChevronLeft className="w-4 h-4 shrink-0" />
-        <span>Kembali</span>
-      </button>
+    <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#f8f9fa] sm:bg-white dark:bg-[#0d0d10] dark:sm:bg-[#101013] border-b border-zinc-200/70 dark:border-white/[0.06]">
+      <div className="relative flex items-center justify-between w-full min-h-[36px]">
+        <button
+          type="button"
+          onClick={onBack}
+          className="relative z-10 inline-flex items-center gap-1.5 py-1 pr-2 -ml-1 rounded-xl text-[14px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white active:scale-95 transition cursor-pointer"
+        >
+          <ChevronLeft className="w-4 h-4 shrink-0" />
+          <span>Kembali</span>
+        </button>
 
-      <h1
-        id="settings-modal-title"
-        className="font-heading absolute left-1/2 -translate-x-1/2 text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100 truncate max-w-[55%]"
-      >
-        {title}
-      </h1>
+        <h1
+          id="settings-modal-title"
+          className="font-heading absolute left-1/2 -translate-x-1/2 text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100 truncate max-w-[55%]"
+        >
+          {title}
+        </h1>
 
-      <button
-        type="button"
-        onClick={onClose}
-        aria-label={`Tutup ${title}`}
-        className="relative z-10 w-9 h-9 rounded-full bg-zinc-200/70 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-white/[0.06] dark:hover:bg-white/[0.12] dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition flex items-center justify-center cursor-pointer shrink-0"
-      >
-        <X className="w-4 h-4" />
-      </button>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={`Tutup ${title}`}
+          className="relative z-10 w-9 h-9 rounded-full bg-zinc-200/80 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition flex items-center justify-center cursor-pointer shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 }

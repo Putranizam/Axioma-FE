@@ -933,8 +933,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isUserScrolledUp, setIsUserScrolledUp] = useState<boolean>(false);
   const [greeting, setGreeting] = useState<string>("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
-  const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
-  const [isVirtualKeyboardOpen, setIsVirtualKeyboardOpen] = useState<boolean>(false);
+  const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
+  const syncViewportRef = useRef<(() => void) | null>(null);
   const [activeMediaMode, setActiveMediaMode] = useState<"image" | "video" | null>(null);
   const activeMediaModeRef = useRef<"image" | "video" | null>(null);
 
@@ -1317,63 +1317,68 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   ]);
 
 
-  // Sinkronisasi window.visualViewport stabil tanpa translateY / animasi berulang
+  // Sinkronisasi sinkron window.visualViewport pada frame yang sama untuk mencegah lonjakan / kedipan iOS
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
-    let rafId: number | null = null;
     let lastWidth = window.innerWidth;
     let maxTouchViewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight, vv.height);
 
     const syncViewport = () => {
-      if (rafId) cancelAnimationFrame(rafId);
-      rafId = requestAnimationFrame(() => {
-        const root = document.getElementById("axioma-app-shell");
-        if (!root) return;
+      const root = document.getElementById("axioma-app-shell");
+      if (!root) return;
 
-        const currentFullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
-        if (Math.abs(window.innerWidth - lastWidth) > 20) {
-          lastWidth = window.innerWidth;
-          maxTouchViewportHeight = Math.max(currentFullHeight, vv.height);
-        } else if (currentFullHeight >= maxTouchViewportHeight) {
-          maxTouchViewportHeight = currentFullHeight;
-        }
+      const currentFullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
+      if (Math.abs(window.innerWidth - lastWidth) > 20) {
+        lastWidth = window.innerWidth;
+        maxTouchViewportHeight = Math.max(currentFullHeight, vv.height);
+      } else if (currentFullHeight >= maxTouchViewportHeight) {
+        maxTouchViewportHeight = currentFullHeight;
+      }
 
-        const isCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
-        const activeTag = document.activeElement?.tagName;
-        const isTextFocused = activeTag === "TEXTAREA" || activeTag === "INPUT";
-        const referenceHeight = isCoarsePointer ? maxTouchViewportHeight : currentFullHeight;
-        const keyboardDelta = referenceHeight - vv.height;
-        const keyboardOpen =
-          vv.height < window.innerHeight * 0.8 ||
-          (isCoarsePointer && keyboardDelta > 120) ||
-          (isTextFocused && keyboardDelta > 80);
+      const isCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
+      const isMobileViewport = window.innerWidth < 768;
+      const activeTag = document.activeElement?.tagName;
+      const isTextFocused = activeTag === "TEXTAREA" || activeTag === "INPUT";
+      const referenceHeight = isCoarsePointer ? maxTouchViewportHeight : currentFullHeight;
+      const keyboardDelta = referenceHeight - vv.height;
+      const keyboardOpen =
+        vv.height < window.innerHeight * 0.82 ||
+        (isCoarsePointer && vv.height < referenceHeight * 0.82) ||
+        (isMobileViewport && isTextFocused && keyboardDelta > 80);
 
-        setIsVirtualKeyboardOpen((prev) => (prev === keyboardOpen ? prev : keyboardOpen));
+      setIsKeyboardOpen((prev) => (prev === keyboardOpen ? prev : keyboardOpen));
 
-        if (keyboardOpen) {
-          // Gunakan height saja tanpa translateY yang memicu jitter di iOS standalone
-          root.style.height = `${Math.round(vv.height)}px`;
-          root.style.bottom = "auto";
-        } else {
-          // Kembalikan penuh layar (inset-0 / 100lvh iOS Standalone) saat keyboard ditutup
-          root.style.height = "";
-          root.style.bottom = "";
-        }
+      if (keyboardOpen) {
+        root.style.height = `${Math.round(vv.height)}px`;
+        root.style.bottom = "auto";
+      } else {
+        root.style.height = "";
+        root.style.bottom = "";
+      }
 
-        if (window.scrollY !== 0) {
-          window.scrollTo(0, 0);
-        }
-      });
+      if (
+        window.scrollY !== 0 ||
+        window.scrollX !== 0 ||
+        vv.offsetTop !== 0 ||
+        vv.offsetLeft !== 0
+      ) {
+        window.scrollTo(0, 0);
+      }
     };
 
+    syncViewportRef.current = syncViewport;
     syncViewport();
     vv.addEventListener("resize", syncViewport);
+    vv.addEventListener("scroll", syncViewport);
     window.addEventListener("resize", syncViewport);
+    window.addEventListener("orientationchange", syncViewport);
     return () => {
-      if (rafId) cancelAnimationFrame(rafId);
+      syncViewportRef.current = null;
       vv.removeEventListener("resize", syncViewport);
+      vv.removeEventListener("scroll", syncViewport);
       window.removeEventListener("resize", syncViewport);
+      window.removeEventListener("orientationchange", syncViewport);
     };
   }, []);
 
@@ -5122,7 +5127,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-app-shell"
       style={{ transition: "none" }}
-      className="fixed top-0 left-0 right-0 bottom-0 w-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed inset-x-0 top-0 bottom-0 w-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5327,7 +5332,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`absolute inset-0 z-50 w-full h-full rounded-none bg-[#F8F8FA] sm:bg-white dark:bg-[#0a0a0c] dark:sm:bg-[#101013] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[90vw] sm:max-w-[520px] sm:h-auto sm:max-h-[85dvh] sm:rounded-[28px] sm:border sm:border-zinc-200/80 dark:sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`absolute inset-0 z-50 w-full h-full rounded-none bg-[#f8f9fa] sm:bg-white dark:bg-[#0d0d10] dark:sm:bg-[#101013] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[90vw] sm:max-w-[520px] sm:h-auto sm:max-h-[85dvh] sm:rounded-[28px] sm:border sm:border-zinc-200/80 dark:sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5348,7 +5353,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) : (
               <>
                 {/* Sticky Top Navigation Bar */}
-                <div className="shrink-0 pt-[calc(env(safe-area-inset-top,0px)+12px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#F8F8FA]/90 sm:bg-white/90 dark:bg-[#0a0a0c]/90 dark:sm:bg-[#101013]/90 backdrop-blur-xl border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between">
+                <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#f8f9fa] sm:bg-white dark:bg-[#0d0d10] dark:sm:bg-[#101013] border-b border-zinc-200/70 dark:border-white/[0.06] flex items-center justify-between">
                   <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
                     Setelan
                   </h1>
@@ -5356,7 +5361,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     type="button"
                     onClick={() => setIsSettingsModalOpen(false)}
                     aria-label="Tutup setelan"
-                    className="w-10 h-10 min-w-[40px] min-h-[40px] sm:w-9 sm:h-9 sm:min-w-0 sm:min-h-0 rounded-full bg-zinc-200/70 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-white/[0.06] dark:hover:bg-white/[0.12] dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center cursor-pointer"
+                    className="w-9 h-9 rounded-full bg-zinc-200/80 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center cursor-pointer shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -5920,14 +5925,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`absolute inset-y-0 left-0 h-full z-40 w-[82vw] max-w-[300px] sm:w-[290px] sm:max-w-[290px] lg:max-w-none pt-[max(1rem,env(safe-area-inset-top))] pb-0 lg:pt-0 lg:pb-0 lg:h-full bg-white lg:bg-[#F8F8F9] dark:bg-[#09090b] border-r-0 lg:border-r lg:border-zinc-200/80 dark:border-r dark:border-white/[0.06] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
+        className={`absolute inset-y-0 left-0 h-full z-40 w-[82vw] max-w-[300px] sm:w-[290px] sm:max-w-[290px] lg:max-w-none pt-0 pb-0 lg:pt-0 lg:pb-0 lg:h-full bg-white lg:bg-[#F8F8F9] dark:bg-[#09090b] border-r-0 lg:border-r lg:border-zinc-200/80 dark:border-r dark:border-white/[0.06] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform lg:static ${
           isDesktopSidebarCollapsed
             ? "lg:w-0 lg:opacity-0 lg:invisible lg:pointer-events-none lg:border-r-0 lg:p-0 overflow-hidden"
             : "lg:w-[268px] lg:opacity-100 lg:visible lg:translate-x-0"
         } ${isMobileSidebarOpen ? "translate-x-0 visible" : "-translate-x-full invisible lg:visible"}`}
       >
         {/* Brand Header */}
-        <div className="h-14 flex items-center justify-between px-4 shrink-0">
+        <div className="pt-[calc(env(safe-area-inset-top,20px)+16px)] pb-3.5 px-4 lg:pt-0 lg:pb-0 lg:h-14 bg-white lg:bg-transparent dark:bg-[#0d0d10] lg:dark:bg-transparent flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <AxiomaLogoMark className="h-6 w-auto object-contain shrink-0" />
             <span className="font-heading text-[14px] font-bold tracking-[0.06em] uppercase text-zinc-900 dark:text-zinc-100">
@@ -5937,7 +5942,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="lg:hidden w-11 h-11 min-w-[44px] min-h-[44px] p-2.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-icon-muted dark:hover:text-text-primary dark:hover:bg-bg-surface transition-colors flex items-center justify-center cursor-pointer"
+            className="lg:hidden w-9 h-9 rounded-full text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800/80 active:scale-[0.96] transition-colors flex items-center justify-center cursor-pointer shrink-0"
             aria-label="Tutup menu"
           >
             <X className="w-4 h-4" />
@@ -7586,10 +7591,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Anak 3) */}
           <div
-            className={`relative z-20 w-full bg-transparent px-3 sm:px-6 pt-2 ${
-              isVirtualKeyboardOpen || isInputFocused
-                ? "pb-2.5"
-                : "pb-[calc(env(safe-area-inset-bottom,0px)+10px)]"
+            className={`relative z-20 w-full bg-transparent px-3 sm:px-6 ${
+              isKeyboardOpen
+                ? "pt-1.5 pb-2"
+                : "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)]"
             } ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
@@ -7980,13 +7985,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       onKeyDown={handleKeyDown}
                       onPaste={handlePaste}
                       onFocus={() => {
-                        setIsInputFocused(true);
-                        if (typeof window !== "undefined" && window.scrollY !== 0) {
+                        if (typeof window !== "undefined") {
                           window.scrollTo(0, 0);
+                          syncViewportRef.current?.();
                         }
                       }}
                       onBlur={() => {
-                        setIsInputFocused(false);
+                        syncViewportRef.current?.();
                       }}
                       aria-label="Ketik pesan untuk Axioma"
                       placeholder={
@@ -8338,7 +8343,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* 4 Compact Monochrome Starter Capsules (Tablet 2x2 >= sm & Desktop 4-col >= lg, hidden on < 640px or when touch keyboard is open) */}
-                {isDesktopEmptyState && !(isTouchOrMobile && (isVirtualKeyboardOpen || isInputFocused)) && (
+                {isDesktopEmptyState && !(isTouchOrMobile && isKeyboardOpen) && (
                   <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-[660px] lg:max-w-[720px] w-full mt-5 animate-fade-up">
                     {isChatAreaLoading
                       ? STARTER_PROMPTS.map((prompt) => (
@@ -8368,7 +8373,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
               className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
-                isVirtualKeyboardOpen || isInputFocused
+                isKeyboardOpen
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
               }`}
