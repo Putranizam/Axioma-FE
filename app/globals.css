@@ -73,7 +73,6 @@ html.dark body {
 }
 
 html {
-  scroll-behavior: smooth;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -86,10 +85,10 @@ html {
 
 html,
 body {
+  position: fixed;
+  inset: 0;
   width: 100%;
-  min-height: 100vh;
-  min-height: 100dvh;
-  height: 100dvh;
+  height: 100%;
   margin: 0;
   padding: 0;
   background-color: #09090b;
@@ -134,10 +133,10 @@ code {
 @media screen and (max-width: 768px) {
   html,
   body {
+    position: fixed;
+    inset: 0;
     width: 100%;
-    min-height: 100vh;
-    min-height: 100dvh;
-    height: 100dvh;
+    height: 100%;
     overflow: hidden;
     overscroll-behavior: none;
     overscroll-behavior-y: none;
@@ -150,35 +149,6 @@ code {
   select {
     font-size: 16px !important;
     touch-action: manipulation;
-  }
-}
-
-/* Edge-to-edge full physical viewport on iOS & Android Home Screen PWA */
-@media all and (display-mode: standalone) {
-  html,
-  body {
-    height: 100vh;
-    height: 100dvh;
-    min-height: 0;
-  }
-
-  main.axioma-root-shell,
-  #axioma-app-shell {
-    top: 0;
-    bottom: auto;
-    height: 100vh;
-    height: 100dvh;
-    min-height: 0;
-  }
-
-  @supports (-webkit-touch-callout: none) {
-    html,
-    body,
-    main.axioma-root-shell,
-    #axioma-app-shell {
-      bottom: auto;
-      height: 100lvh;
-    }
   }
 }
 

@@ -934,7 +934,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [greeting, setGreeting] = useState<string>("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState<boolean>(false);
+  const [isInputFocused, setIsInputFocused] = useState<boolean>(false);
   const syncViewportRef = useRef<(() => void) | null>(null);
+  const viewportRafRef = useRef<number | null>(null);
   const [activeMediaMode, setActiveMediaMode] = useState<"image" | "video" | null>(null);
   const activeMediaModeRef = useRef<"image" | "video" | null>(null);
 
@@ -1317,16 +1319,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   ]);
 
 
-  // Sinkronisasi sinkron window.visualViewport pada frame yang sama untuk mencegah lonjakan / kedipan iOS
+  // Sinkronisasi sinkron window.visualViewport (height + offsetTop) pada frame yang sama
   useEffect(() => {
     if (typeof window === "undefined" || !window.visualViewport) return;
     const vv = window.visualViewport;
     let lastWidth = window.innerWidth;
     let maxTouchViewportHeight = Math.max(window.innerHeight, document.documentElement.clientHeight, vv.height);
 
-    const syncViewport = () => {
-      const root = document.getElementById("axioma-app-shell");
-      if (!root) return;
+    const updateViewport = () => {
+      const shellEl = document.getElementById("axioma-app-shell");
+      if (!shellEl) return;
+
+      // Paksa scroll window tetap 0 agar iOS tidak melempar halaman
+      if (window.scrollY !== 0 || window.scrollX !== 0) {
+        window.scrollTo(0, 0);
+      }
 
       const currentFullHeight = Math.max(window.innerHeight, document.documentElement.clientHeight);
       if (Math.abs(window.innerWidth - lastWidth) > 20) {
@@ -1334,6 +1341,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         maxTouchViewportHeight = Math.max(currentFullHeight, vv.height);
       } else if (currentFullHeight >= maxTouchViewportHeight) {
         maxTouchViewportHeight = currentFullHeight;
+      }
+
+      if (vv.height > 0) {
+        const nextHeight = Math.round(vv.height);
+        const nextOffsetTop = Math.max(0, Math.round(vv.offsetTop));
+        shellEl.style.height = `${nextHeight}px`;
+        shellEl.style.transform = `translate3d(0, ${nextOffsetTop}px, 0)`;
       }
 
       const isCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
@@ -1348,37 +1362,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         (isMobileViewport && isTextFocused && keyboardDelta > 80);
 
       setIsKeyboardOpen((prev) => (prev === keyboardOpen ? prev : keyboardOpen));
-
-      if (keyboardOpen) {
-        root.style.height = `${Math.round(vv.height)}px`;
-        root.style.bottom = "auto";
-      } else {
-        root.style.height = "";
-        root.style.bottom = "";
-      }
-
-      if (
-        window.scrollY !== 0 ||
-        window.scrollX !== 0 ||
-        vv.offsetTop !== 0 ||
-        vv.offsetLeft !== 0
-      ) {
-        window.scrollTo(0, 0);
-      }
     };
 
-    syncViewportRef.current = syncViewport;
-    syncViewport();
-    vv.addEventListener("resize", syncViewport);
-    vv.addEventListener("scroll", syncViewport);
-    window.addEventListener("resize", syncViewport);
-    window.addEventListener("orientationchange", syncViewport);
+    syncViewportRef.current = updateViewport;
+    updateViewport();
+    vv.addEventListener("resize", updateViewport);
+    vv.addEventListener("scroll", updateViewport);
+    window.addEventListener("resize", updateViewport);
+    window.addEventListener("orientationchange", updateViewport);
     return () => {
       syncViewportRef.current = null;
-      vv.removeEventListener("resize", syncViewport);
-      vv.removeEventListener("scroll", syncViewport);
-      window.removeEventListener("resize", syncViewport);
-      window.removeEventListener("orientationchange", syncViewport);
+      if (viewportRafRef.current !== null) {
+        cancelAnimationFrame(viewportRafRef.current);
+        viewportRafRef.current = null;
+      }
+      vv.removeEventListener("resize", updateViewport);
+      vv.removeEventListener("scroll", updateViewport);
+      window.removeEventListener("resize", updateViewport);
+      window.removeEventListener("orientationchange", updateViewport);
     };
   }, []);
 
@@ -2025,6 +2026,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     isChatAreaLoading &&
     Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"));
   const isDesktopEmptyState = !hasMessages && !isLoadingExistingChat;
+  const isMobileKeyboardActive = isKeyboardOpen || (isTouchOrMobile && isInputFocused);
 
   useEffect(() => {
     const nextHasMessages = Boolean(currentMessages.length > 0);
@@ -5127,7 +5129,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-app-shell"
       style={{ transition: "none" }}
-      className="fixed inset-x-0 top-0 bottom-0 w-full flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed left-0 right-0 top-0 w-full h-[100dvh] flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -6944,7 +6946,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                 ) && (
                   <div
-                    className={`sm:hidden flex-1 min-h-0 w-full overflow-y-auto overscroll-y-contain flex flex-col items-center justify-center px-5 py-3 text-center pointer-events-none ${
+                    className={`sm:hidden flex-1 min-h-0 w-full overflow-hidden flex flex-col items-center justify-center px-6 text-center pointer-events-none ${
                       isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
                     }`}
                   >
@@ -6955,7 +6957,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </div>
 
                       {/* Sapaan adaptif dengan tipografi bersih & proporsional */}
-                      <h1 className="font-heading text-[24px] min-[390px]:text-[26px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 px-6 text-center max-w-[360px] mx-auto text-balance whitespace-pre-line animate-fade-in">
+                      <h1 className="font-heading text-[24px] min-[390px]:text-[26px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 px-4 text-center max-w-[360px] mx-auto text-balance whitespace-pre-line animate-fade-in">
                         {mobileGreeting}
                       </h1>
                     </div>
@@ -7592,9 +7594,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Input Console (Anak 3) */}
           <div
             className={`relative z-20 w-full bg-transparent px-3 sm:px-6 ${
-              isKeyboardOpen
+              isMobileKeyboardActive
                 ? "pt-1.5 pb-2"
-                : "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)]"
+                : "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+10px)]"
             } ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
@@ -7985,13 +7987,31 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       onKeyDown={handleKeyDown}
                       onPaste={handlePaste}
                       onFocus={() => {
+                        setIsInputFocused(true);
                         if (typeof window !== "undefined") {
-                          window.scrollTo(0, 0);
-                          syncViewportRef.current?.();
+                          if (window.scrollY !== 0 || window.scrollX !== 0) {
+                            window.scrollTo(0, 0);
+                          }
+                          if (viewportRafRef.current !== null) {
+                            cancelAnimationFrame(viewportRafRef.current);
+                          }
+                          viewportRafRef.current = requestAnimationFrame(() => {
+                            viewportRafRef.current = null;
+                            syncViewportRef.current?.();
+                          });
                         }
                       }}
                       onBlur={() => {
-                        syncViewportRef.current?.();
+                        setIsInputFocused(false);
+                        if (typeof window !== "undefined") {
+                          if (viewportRafRef.current !== null) {
+                            cancelAnimationFrame(viewportRafRef.current);
+                          }
+                          viewportRafRef.current = requestAnimationFrame(() => {
+                            viewportRafRef.current = null;
+                            syncViewportRef.current?.();
+                          });
+                        }
                       }}
                       aria-label="Ketik pesan untuk Axioma"
                       placeholder={
@@ -8343,7 +8363,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* 4 Compact Monochrome Starter Capsules (Tablet 2x2 >= sm & Desktop 4-col >= lg, hidden on < 640px or when touch keyboard is open) */}
-                {isDesktopEmptyState && !(isTouchOrMobile && isKeyboardOpen) && (
+                {isDesktopEmptyState && !(isTouchOrMobile && isMobileKeyboardActive) && (
                   <div className="hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-[660px] lg:max-w-[720px] w-full mt-5 animate-fade-up">
                     {isChatAreaLoading
                       ? STARTER_PROMPTS.map((prompt) => (
@@ -8373,7 +8393,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
               className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
-                isKeyboardOpen
+                isMobileKeyboardActive
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
               }`}
