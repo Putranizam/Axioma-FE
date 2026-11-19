@@ -283,7 +283,7 @@ function AiImageCardInner({ src, alt, onOpenLightbox }: AiImageCardProps) {
 
       {/* Top Badge Overlay */}
       {isLoaded && !hasError && (
-        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md text-zinc-200 text-[11px] font-medium border border-white/10 pointer-events-none shadow-sm">
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 text-zinc-200 text-[11px] font-medium border border-white/10 pointer-events-none shadow-sm">
           <Palette className="w-3.5 h-3.5 text-zinc-300" />
           <span>Studio Visual</span>
         </div>
@@ -301,7 +301,7 @@ function AiImageCardInner({ src, alt, onOpenLightbox }: AiImageCardProps) {
               onClick={() => onOpenLightbox?.(currentSrc, alt)}
               title="Perbesar gambar"
               aria-label="Perbesar gambar"
-              className="min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white backdrop-blur-md transition-colors cursor-pointer flex items-center justify-center"
+              className="min-w-[40px] min-h-[40px] sm:min-w-0 sm:min-h-0 p-2 sm:p-1.5 rounded-lg bg-zinc-900/80 hover:bg-zinc-800 text-white transition-colors cursor-pointer flex items-center justify-center"
             >
               <Eye className="w-4 h-4" />
             </button>

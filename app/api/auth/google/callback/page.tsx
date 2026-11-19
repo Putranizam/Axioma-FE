@@ -116,7 +116,7 @@ export default function GoogleAuthCallbackPage() {
   }, [router]);
 
   return (
-    <div className="min-h-screen w-full flex flex-col items-center justify-center bg-black text-white p-6">
+    <div className="h-[var(--app-height)] overflow-y-auto w-full flex flex-col items-center justify-center bg-black text-white p-6">
       <div className="flex flex-col items-center text-center max-w-sm">
         {errorMessage ? (
           <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">

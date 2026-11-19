@@ -1356,7 +1356,7 @@ export default function VoiceModeOverlay({
                   }}
                   title="Balik kamera"
                   aria-label="Balik kamera"
-                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md flex items-center justify-center border border-white/10 transition active:scale-95 cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-black/75 hover:bg-black/90 text-white flex items-center justify-center border border-white/10 transition active:scale-95 cursor-pointer"
                 >
                   <RotateCw className="w-4 h-4" />
                 </button>
@@ -1365,7 +1365,7 @@ export default function VoiceModeOverlay({
                   onClick={stopCameraStream}
                   title="Tutup kamera"
                   aria-label="Tutup kamera"
-                  className="w-9 h-9 rounded-full bg-black/60 hover:bg-black/80 text-white backdrop-blur-md flex items-center justify-center border border-white/10 transition active:scale-95 cursor-pointer"
+                  className="w-9 h-9 rounded-full bg-black/75 hover:bg-black/90 text-white flex items-center justify-center border border-white/10 transition active:scale-95 cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -1604,14 +1604,14 @@ export default function VoiceModeOverlay({
       </div>
 
       {/* Bottom Live Voice Control Bar (5 Elements Aligned + Tap-to-Interrupt Pill) */}
-      <div className="shrink-0 w-full px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-2 z-30 flex flex-col items-center relative animate-voice-morph">
+      <div className="shrink-0 w-full px-5 pb-[calc(var(--safe-bottom)+16px)] pt-2 z-30 flex flex-col items-center relative animate-voice-morph">
         {/* Pending attachment chips if attached inside Voice Mode */}
         {pendingAttachments.length > 0 && (
           <div className="max-w-[380px] w-full flex items-center gap-2 mb-3 overflow-x-auto scrollbar-none px-1">
             {pendingAttachments.map((att) => (
               <div
                 key={att.id}
-                className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#18181b]/95 border border-white/[0.08] text-xs text-zinc-200 backdrop-blur-md"
+                className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#18181b] border border-white/[0.08] text-xs text-zinc-200"
               >
                 {att.type === "image" && att.previewUrl ? (
                   <img
@@ -1646,7 +1646,7 @@ export default function VoiceModeOverlay({
               <button
                 type="button"
                 onClick={handleInterruptSpeech}
-                className="pointer-events-auto mb-3 px-4 py-1.5 rounded-full bg-[#1e1f22]/90 hover:bg-[#27282c] border border-white/[0.08] text-[13px] font-medium text-zinc-200 backdrop-blur-md shadow-lg animate-fade-up active:scale-95 transition whitespace-nowrap cursor-pointer"
+                className="pointer-events-auto mb-3 px-4 py-1.5 rounded-full bg-[#1e1f22] hover:bg-[#27282c] border border-white/[0.08] text-[13px] font-medium text-zinc-200 shadow-lg animate-fade-up active:scale-95 transition whitespace-nowrap cursor-pointer"
               >
                 Ketuk untuk menyela
               </button>

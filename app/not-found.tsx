@@ -4,7 +4,7 @@ import { AxiomaLogoMark } from "@/components/AxiomaLogoMark";
 
 export default function NotFound() {
   return (
-    <main className="min-h-[100dvh] w-full bg-bg-primary text-text-primary flex flex-col items-center justify-center p-6 font-sans antialiased selection:bg-border-strong selection:text-text-primary">
+    <main className="h-[var(--app-height)] overflow-y-auto w-full bg-bg-primary text-text-primary flex flex-col items-center justify-center p-6 font-sans antialiased selection:bg-border-strong selection:text-text-primary">
       <div className="w-full max-w-md rounded-2xl bg-bg-elevated border border-border-subtle p-7 shadow-2xl text-center space-y-6">
         <div className="flex items-center justify-center gap-2.5">
           <AxiomaLogoMark className="w-6 h-6 shrink-0" />

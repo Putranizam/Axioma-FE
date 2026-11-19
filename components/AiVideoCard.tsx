@@ -62,7 +62,7 @@ export function AiVideoCard({ src, title }: AiVideoCardProps) {
   return (
     <div className="my-3 max-w-xl w-full group/ai-video relative rounded-2xl overflow-hidden border border-white/10 bg-zinc-950 shadow-lg transition-all hover:border-white/20">
       {/* Top Badge Overlay */}
-      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/75 backdrop-blur-md text-zinc-200 text-[11px] font-medium border border-white/10 pointer-events-none shadow-sm">
+      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 text-zinc-200 text-[11px] font-medium border border-white/10 pointer-events-none shadow-sm">
         <Video className="w-3.5 h-3.5 text-zinc-300" />
         <span>Studio Video</span>
       </div>
