@@ -7604,7 +7604,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             className={`relative z-20 w-full bg-transparent px-3 sm:px-6 ${
               isMobileKeyboardActive
                 ? "pt-1.5 pb-2"
-                : "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+4px)] md:pb-3"
+                : currentMessages.length > 0
+                ? "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+6px)] md:pb-3"
+                : "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+8px)] md:pb-3"
             } ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
@@ -8400,8 +8402,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
-              className={`shrink-0 mt-1 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
-                isMobileKeyboardActive
+              className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
+                isMobileKeyboardActive || currentMessages.length === 0
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
               }`}
