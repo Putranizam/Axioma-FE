@@ -1343,13 +1343,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         maxTouchViewportHeight = currentFullHeight;
       }
 
-      if (vv.height > 0) {
-        const nextHeight = Math.round(vv.height);
-        const nextOffsetTop = Math.max(0, Math.round(vv.offsetTop));
-        shellEl.style.height = `${nextHeight}px`;
-        shellEl.style.transform = `translate3d(0, ${nextOffsetTop}px, 0)`;
-      }
-
       const isCoarsePointer = window.matchMedia?.("(pointer: coarse)").matches ?? false;
       const isMobileViewport = window.innerWidth < 768;
       const activeTag = document.activeElement?.tagName;
@@ -1360,6 +1353,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         vv.height < window.innerHeight * 0.82 ||
         (isCoarsePointer && vv.height < referenceHeight * 0.82) ||
         (isMobileViewport && isTextFocused && keyboardDelta > 80);
+
+      const isStandalonePwa =
+        window.matchMedia?.("(display-mode: standalone)").matches ||
+        (window.navigator as Navigator & { standalone?: boolean }).standalone === true;
+      const isIOSWebKit =
+        typeof CSS !== "undefined" && CSS.supports("-webkit-touch-callout", "none");
+
+      const nextOffsetTop = Math.max(0, Math.round(vv.offsetTop));
+      if (isStandalonePwa && isIOSWebKit && !keyboardOpen) {
+        shellEl.style.height = "";
+      } else if (vv.height > 0) {
+        const nextHeight = Math.round(vv.height);
+        shellEl.style.height = `${nextHeight}px`;
+      }
+      shellEl.style.transform = `translate3d(0, ${nextOffsetTop}px, 0)`;
 
       setIsKeyboardOpen((prev) => (prev === keyboardOpen ? prev : keyboardOpen));
     };
@@ -5129,7 +5137,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-app-shell"
       style={{ transition: "none" }}
-      className="fixed left-0 right-0 top-0 w-full h-[100dvh] flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed left-0 right-0 top-0 w-full h-[100dvh] pb-0 flex flex-col justify-between lg:flex-row bg-[#FFFFFF] dark:bg-[#09090b] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -6383,7 +6391,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       </aside>
 
       {/* Main Workspace Column */}
-      <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 overflow-hidden bg-transparent">
+      <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-transparent">
         {/* Header */}
         <header className="shrink-0 w-full flex items-center justify-between pt-[calc(env(safe-area-inset-top,0px)+14px)] pb-3 px-4 sm:px-6 lg:py-0 lg:h-14 z-20 bg-[#FFFFFF] dark:bg-transparent border-b-0">
           {isVoiceModeOpen ? (
@@ -7596,7 +7604,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             className={`relative z-20 w-full bg-transparent px-3 sm:px-6 ${
               isMobileKeyboardActive
                 ? "pt-1.5 pb-2"
-                : "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+10px)]"
+                : "pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+4px)] md:pb-3"
             } ${
               isDesktopEmptyState
                 ? "shrink-0 sm:shrink sm:flex-1 sm:min-h-0 sm:overflow-y-auto overscroll-y-contain sm:flex sm:flex-col"
@@ -8392,7 +8400,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
-              className={`shrink-0 mt-1.5 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
+              className={`shrink-0 mt-1 mb-0 w-full text-center text-[11px] sm:text-xs leading-tight md:leading-[1.4] text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal ${
                 isMobileKeyboardActive
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"

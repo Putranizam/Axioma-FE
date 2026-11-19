@@ -152,6 +152,19 @@ code {
   }
 }
 
+/* Edge-to-edge full physical viewport on iOS Home Screen PWA (prevents 47-59pt bottom gap from WebKit black-translucent innerHeight/vv.height deficit) */
+@media all and (display-mode: standalone) {
+  @supports (-webkit-touch-callout: none) {
+    html,
+    body,
+    main.axioma-root-shell,
+    #axioma-app-shell {
+      bottom: auto;
+      height: 100lvh;
+    }
+  }
+}
+
 #axioma-app-shell {
   transition: none !important;
   animation: none !important;
