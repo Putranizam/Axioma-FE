@@ -186,14 +186,14 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed top-0 left-0 right-0 bottom-0 w-full h-[100lvh] min-h-[100lvh] z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-black/70 sm:dark:bg-black/70 overflow-hidden animate-backdrop"
+      className="fixed inset-x-0 top-0 w-full h-screen-adaptive z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-black/70 sm:dark:bg-black/70 overflow-hidden animate-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="fixed top-0 left-0 right-0 bottom-0 w-full h-[100lvh] min-h-[100lvh] sm:static sm:w-full sm:h-auto sm:min-h-0 sm:max-h-[90vh] overflow-hidden bg-[#fafafa] dark:bg-[#0c0c0e] sm:max-w-[420px] sm:mx-auto sm:my-auto sm:rounded-2xl sm:bg-white sm:dark:bg-[#141416] sm:border sm:border-zinc-200 sm:dark:border-zinc-800 sm:shadow-2xl sm:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
+        className="fixed inset-x-0 top-0 w-full h-screen-adaptive sm:static sm:w-full sm:h-auto sm:max-h-[90vh] overflow-hidden bg-[#fafafa] dark:bg-[#0c0c0e] sm:max-w-[420px] sm:mx-auto sm:my-auto sm:rounded-2xl sm:bg-white sm:dark:bg-[#141416] sm:border sm:border-zinc-200 sm:dark:border-zinc-800 sm:shadow-2xl sm:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
       >
         {/* Header (solid, tanpa backdrop-blur, aman di bawah notch / punch-hole) */}
         <div className="shrink-0 flex items-start justify-between gap-3 pt-[calc(env(safe-area-inset-top,20px)+14px)] pb-4 px-4 min-[390px]:px-5 sm:p-0 sm:pb-5 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-transparent sm:dark:bg-transparent border-b border-zinc-200/70 dark:border-zinc-800/70 sm:border-b-0">

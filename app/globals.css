@@ -162,6 +162,18 @@ code {
   }
 }
 
+@layer components {
+  .h-screen-adaptive {
+    height: 100dvh;
+  }
+
+  @media all and (display-mode: standalone) {
+    .h-screen-adaptive {
+      height: 100lvh;
+    }
+  }
+}
+
 #axioma-app-shell {
   transition: none !important;
   animation: none !important;
