@@ -350,15 +350,16 @@ export function FeedbackSettingsView({
         );
       }
 
-      if (emailRes.status === "rejected") {
-        const emailErrMsg =
-          emailRes.reason instanceof Error
-            ? emailRes.reason.message
-            : "Gagal mengirim email masukan.";
+      const emailOk = emailRes.status === "fulfilled";
+
+      if (!emailOk) {
+        console.warn("[Feedback] Email notification notice:", emailRes.reason);
+      }
+
+      // Jangan pernah tampilkan error email/SMTP ke pengguna jika data sudah tersimpan di database
+      if (!supabaseOk && !emailOk) {
         throw new Error(
-          supabaseOk
-            ? `Data tersimpan di database, namun email gagal dikirim: ${emailErrMsg}`
-            : emailErrMsg
+          "Gagal mengirim masukan. Periksa koneksi internet Anda lalu coba lagi."
         );
       }
 
