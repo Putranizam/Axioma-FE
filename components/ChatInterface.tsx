@@ -5143,7 +5143,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
-        <div className="fixed inset-0 z-50 bg-bg-primary/80 backdrop-blur-sm border-2 border-dashed border-border-strong flex flex-col items-center justify-center p-6 pointer-events-none animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-bg-primary/90 border-2 border-dashed border-border-strong flex flex-col items-center justify-center p-6 pointer-events-none animate-fade-in">
           <div className="w-16 h-16 rounded-2xl bg-bg-elevated border border-border-subtle flex items-center justify-center mb-3 shadow-xl">
             <UploadCloud className="w-8 h-8 text-text-primary animate-bounce" />
           </div>
@@ -5160,7 +5160,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-label={`Pratinjau ${displayLightbox.name}`}
-          className={`fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 transition-opacity duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 z-50 bg-black/85 flex items-center justify-center p-4 transition-opacity duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isLightboxEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={() => setLightboxImage(null)}
@@ -5270,7 +5270,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           aria-modal="true"
           aria-labelledby="clear-all-dialog-title"
           aria-describedby="clear-all-dialog-desc"
-          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-md touch-none transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 touch-none transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isClearAllConfirmEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5280,7 +5280,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[440px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-4 max-h-[88dvh] sm:max-h-[85dvh] overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[440px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isClearAllConfirmEntered ? "translate-y-0 opacity-100 sm:scale-100" : "translate-y-full opacity-0 sm:scale-95"
             }`}
           >
@@ -5334,7 +5334,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className={`absolute inset-0 z-50 flex items-stretch sm:items-center justify-center bg-black/60 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 w-full h-full z-50 flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isSettingsEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5344,7 +5344,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`absolute inset-0 z-50 w-full h-full rounded-none bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100vw-3rem)] sm:max-w-[540px] sm:h-auto sm:max-h-[85dvh] sm:rounded-2xl sm:border sm:border-zinc-200 dark:sm:border-zinc-800 sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-0 z-50 w-full h-full rounded-none bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100vw-3rem)] sm:max-w-[540px] sm:h-auto sm:max-h-[85vh] sm:rounded-2xl sm:border sm:border-zinc-200 dark:sm:border-zinc-800 sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5365,7 +5365,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) : (
               <>
                 {/* Sticky Top Navigation Bar */}
-                <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+16px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
+                <div className="shrink-0 pt-[calc(env(safe-area-inset-top,20px)+14px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
                   <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
                     Setelan
                   </h1>
@@ -5380,7 +5380,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* Scrollable Body Area */}
-                <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,0px)+56px)] sm:pb-6 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden">
+                <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(env(safe-area-inset-bottom,20px)+28px)] sm:pb-6 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden">
                   {/* Grup 1: Akun */}
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
@@ -5732,7 +5732,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <div
           role="dialog"
           aria-modal="true"
-          className={`absolute inset-0 z-50 flex items-end sm:items-center justify-center bg-black/80 backdrop-blur-md p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 w-full h-full z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isProfileEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5744,7 +5744,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           {/* Popup Container (Bottom-sheet on mobile, centered modal on sm+) */}
           <div
             ref={profileDropdownRef}
-            className={`absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[90vw] sm:max-w-[480px] h-auto rounded-t-[28px] sm:rounded-[28px] bg-[#F8F8FA] sm:bg-white dark:bg-[#111114] px-5 pt-3 pb-[calc(env(safe-area-inset-bottom,0px)+18px)] sm:p-6 sm:max-h-[85dvh] max-h-[88dvh] flex flex-col shadow-2xl border-t sm:border border-zinc-200/80 dark:border-white/[0.08] overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[90vw] sm:max-w-[480px] h-auto max-h-[90vh] sm:max-h-[85vh] rounded-t-[28px] sm:rounded-[28px] bg-[#F8F8FA] sm:bg-white dark:bg-[#111114] px-5 pt-3 pb-[max(20px,env(safe-area-inset-bottom))] sm:p-6 flex flex-col shadow-2xl border-t sm:border border-zinc-200/80 dark:border-white/[0.08] overflow-y-auto overscroll-contain touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isProfileEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5916,7 +5916,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Mobile Off-canvas Backdrop (Smooth Enter & Exit Blur Transition) */}
+      {/* Mobile Off-canvas Backdrop (Solid Scrim, Zero Blur) */}
       {shouldRenderSidebarBackdrop && (
         <div
           role="button"
@@ -5927,7 +5927,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               setIsMobileSidebarOpen(false);
             }
           }}
-          className={`absolute inset-0 z-40 bg-black/45 dark:bg-black/65 backdrop-blur-xs md:hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 w-full h-full z-40 bg-black/70 md:hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isSidebarBackdropEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           aria-label="Tutup latar bilah sisi"
@@ -5937,7 +5937,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar (Mobile Drawer < 768px | Desktop Full 260px / Mini Rail 64px >= 768px) */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`absolute inset-y-0 left-0 h-full z-40 w-[82vw] max-w-[300px] md:max-w-none pt-0 pb-0 bg-white dark:bg-[#0d0d10] md:bg-[#f4f4f5] md:dark:bg-[#09090b] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-zinc-800/80 flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform md:static ${
+        className={`fixed inset-y-0 left-0 h-full z-40 w-[82vw] max-w-[300px] md:max-w-none pt-0 pb-0 bg-white dark:bg-[#0d0d10] md:bg-[#f4f4f5] md:dark:bg-[#09090b] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-zinc-800/80 flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform md:static ${
           isDesktopSidebarCollapsed
             ? "md:w-[64px] md:opacity-100 md:visible md:translate-x-0"
             : "md:w-[260px] md:opacity-100 md:visible md:translate-x-0"
@@ -5945,7 +5945,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       >
         {/* Brand Header */}
         <div
-          className={`pt-[calc(env(safe-area-inset-top,20px)+16px)] pb-3.5 px-4 md:pt-0 md:pb-0 md:h-14 bg-white dark:bg-[#0d0d10] md:bg-transparent md:dark:bg-transparent flex items-center shrink-0 ${
+          className={`pt-[calc(env(safe-area-inset-top,20px)+14px)] pb-3.5 px-4 md:pt-0 md:pb-0 md:h-14 bg-white dark:bg-[#0d0d10] md:bg-transparent md:dark:bg-transparent flex items-center shrink-0 ${
             isDesktopSidebarCollapsed ? "justify-between md:justify-center md:px-0" : "justify-between"
           }`}
         >
@@ -6253,7 +6253,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         {/* User Profile & Settings Menu (Item 4 & Item 7) */}
         <div
-          className={`px-2 pt-2 pb-[calc(env(safe-area-inset-bottom,0px)+14px)] md:pb-2 border-t border-zinc-200/80 dark:border-white/[0.07] shrink-0 relative flex items-center gap-1 ${
+          className={`px-2 pt-2 pb-[max(16px,env(safe-area-inset-bottom))] md:pb-2 border-t border-zinc-200/80 dark:border-white/[0.07] shrink-0 relative flex items-center gap-1 ${
             isDesktopSidebarCollapsed
               ? "justify-between md:flex-col md:justify-center md:px-1.5 md:gap-1.5"
               : "justify-between"
@@ -6426,7 +6426,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-[#fafafa] dark:bg-[#0c0c0e]">
         {/* Header */}
-        <header className="shrink-0 w-full flex items-center justify-between pt-[calc(env(safe-area-inset-top,16px)+10px)] pb-3 px-4 min-[390px]:px-5 md:py-0 md:h-14 md:px-5 z-30 bg-[#fafafa] dark:bg-[#0c0c0e] border-b border-zinc-200/70 dark:border-zinc-800/70">
+        <header className="relative shrink-0 w-full flex items-center justify-between pt-[calc(env(safe-area-inset-top,20px)+16px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-30 bg-[#fafafa] dark:bg-[#0c0c0e] border-b border-zinc-200 dark:border-zinc-800">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -6635,7 +6635,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <button
                     type="button"
                     onClick={() => setIsMobileSidebarOpen(true)}
-                    className="md:hidden w-9 h-9 shrink-0 rounded-xl bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                    className="md:hidden w-9 h-9 shrink-0 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 transition-colors flex items-center justify-center cursor-pointer"
                     aria-label="Buka bilah sisi"
                   >
                     <Menu className="w-[17px] h-[17px]" />
@@ -6647,7 +6647,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     onClick={toggleDesktopSidebar}
                     title={isDesktopSidebarCollapsed ? "Perluas bilah sisi" : "Ciutkan bilah sisi"}
                     aria-label={isDesktopSidebarCollapsed ? "Perluas bilah sisi" : "Ciutkan bilah sisi"}
-                    className="hidden md:flex w-9 h-9 shrink-0 rounded-xl bg-zinc-100 hover:bg-zinc-200/70 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 transition-all items-center justify-center cursor-pointer"
+                    className="hidden md:flex w-9 h-9 shrink-0 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 active:scale-95 transition-colors items-center justify-center cursor-pointer"
                   >
                     {isDesktopSidebarCollapsed ? (
                       <PanelLeft className="w-4 h-4" />
@@ -6673,7 +6673,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         toggleHeaderAgentMenu();
                       }}
                       aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
-                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-zinc-100/80 hover:bg-zinc-200/70 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-zinc-800 leading-none whitespace-nowrap active:scale-[0.98] transition cursor-pointer focus:outline-none"
+                      className="inline-flex items-center gap-1.5 h-9 px-3 rounded-xl bg-zinc-100 hover:bg-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 border border-zinc-200 dark:border-zinc-800 leading-none whitespace-nowrap active:scale-[0.98] transition-colors cursor-pointer focus:outline-none"
                     >
                       <span className="text-[14px] font-semibold tracking-[-0.01em] text-zinc-900 dark:text-zinc-100">
                         Axioma
@@ -6709,7 +6709,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               closeHeaderAgentMenu(true)
                             )
                           }
-                          className={`absolute left-0 top-full mt-2 w-[280px] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[70dvh] overflow-y-auto overscroll-y-contain bg-white dark:bg-[#161618] border border-zinc-200 dark:border-zinc-800 shadow-lg rounded-xl p-1.5 space-y-1 focus:outline-none origin-top-left transition-all duration-150 ease-out ${
+                          className={`absolute left-0 top-full mt-2 w-[280px] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[70vh] overflow-y-auto overscroll-y-contain bg-white dark:bg-[#161618] border border-zinc-200 dark:border-zinc-800 shadow-lg rounded-xl p-1.5 space-y-1 focus:outline-none origin-top-left transition-all duration-150 ease-out ${
                             isHeaderAgentMenuEntered
                               ? "scale-100 opacity-100 translate-y-0"
                               : "scale-95 opacity-0 -translate-y-1 pointer-events-none"
@@ -6768,10 +6768,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                     aria-label="Buka menu profil dan akun"
                     title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                    className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-all text-sm font-semibold uppercase ${
+                    className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-colors text-sm font-semibold uppercase ${
                       authUser
                         ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border border-zinc-800 dark:border-zinc-200"
-                        : "bg-zinc-100 hover:bg-zinc-200/70 text-zinc-700 border border-zinc-200/80 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-800"
+                        : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-800"
                     }`}
                   >
                     {authUser ? (
@@ -6857,7 +6857,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div
               role="status"
               aria-live="polite"
-              className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-zinc-900/95 dark:bg-zinc-800/95 text-white border border-zinc-700/60 shadow-2xl flex items-center gap-2 text-xs font-medium backdrop-blur-md animate-modal-pop duration-200 pointer-events-none select-none will-change-transform"
+              className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-zinc-900 dark:bg-zinc-800 text-white border border-zinc-700/60 shadow-2xl flex items-center gap-2 text-xs font-medium animate-modal-pop duration-200 pointer-events-none select-none will-change-transform"
             >
               <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
               <span>Teks disalin!</span>
@@ -7679,7 +7679,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Active Media Generation Mode Badge */}
                 {activeMediaMode && (
-                  <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full bg-zinc-900/95 border border-white/10 w-fit backdrop-blur-md animate-fade-in shadow-md select-none">
+                  <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-white/10 w-fit animate-fade-in shadow-md select-none">
                     {activeMediaMode === "image" ? (
                       <Palette className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
                     ) : (
@@ -7840,7 +7840,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             {shouldRenderAttachmentMenu && (
                               <>
                                 <div
-                                  className={`fixed inset-0 z-30 bg-black/40 backdrop-blur-xs md:hidden transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                                  className={`fixed inset-0 z-30 bg-black/70 md:hidden transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                                     isAttachmentMenuEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
                                   }`}
                                   onClick={() => closeAttachmentMenu(true)}
@@ -8201,7 +8201,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-confirm-title"
-          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 backdrop-blur-sm touch-none transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 touch-none transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isEditConfirmEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -8211,7 +8211,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[440px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-4 max-h-[88dvh] sm:max-h-[85dvh] overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[440px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-4 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isEditConfirmEntered
                 ? "translate-y-0 opacity-100 sm:scale-100"
                 : "translate-y-full opacity-0 sm:scale-95"
@@ -8265,7 +8265,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="guest-limit-title"
-          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/75 backdrop-blur-sm transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isGuestLimitEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -8275,7 +8275,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[480px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-5 max-h-[88dvh] sm:max-h-[85dvh] overflow-y-auto overscroll-y-contain overscroll-contain transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[480px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pt-3 pb-[max(1.5rem,env(safe-area-inset-bottom))] sm:p-6 shadow-2xl space-y-5 max-h-[90vh] sm:max-h-[85vh] overflow-y-auto overscroll-y-contain overscroll-contain transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isGuestLimitEntered
                 ? "translate-y-0 opacity-100 sm:scale-100"
                 : "translate-y-full opacity-0 sm:scale-95"
