@@ -21,10 +21,10 @@ import {
 } from "lucide-react";
 import { AttachmentItem, PendingAttachment } from "../lib/attachments";
 import {
+  SpeechQueue,
   calculateRms,
-  fetchNeuralTtsBlob,
-  speakResponse as speakWithBrowserTts,
-  stripMarkdownForTts,
+  preloadIndonesianVoice,
+  unlockSpeechSynthesis,
 } from "../lib/voice";
 
 // 0.1s silent placeholder removed cleanly — global unlocked voiceAudioRef lives in ChatInterface
@@ -59,7 +59,8 @@ export interface VoiceModeOverlayProps {
   onRemoveAttachment?: (id: string) => void;
   onSendMessage: (
     userText: string,
-    voiceMode: boolean
+    voiceMode: boolean,
+    signal?: AbortSignal
   ) => Promise<{
     aiReplyText: string;
     streamReader?: ReadableStreamDefaultReader<Uint8Array> | null;
@@ -136,7 +137,7 @@ export default function VoiceModeOverlay({
   isOpen,
   onClose,
   showTranscript,
-  speechRate = 1.05,
+  speechRate = 1.08,
   voiceName = "id-ID-ArdiNeural",
   voiceAudioRef,
   sharedAudioContextRef,
@@ -188,13 +189,10 @@ export default function VoiceModeOverlay({
   const smoothedVolumeRef = useRef<number>(0);
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
-  const currentUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const speechQueueRef = useRef<SpeechQueue | null>(null);
+  const turnAbortControllerRef = useRef<AbortController | null>(null);
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const wordTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const keepAliveTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const resumeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const ttsAbortControllerRef = useRef<AbortController | null>(null);
-  const activeTtsBlobUrlRef = useRef<string | null>(null);
   const accumulatedTranscriptRef = useRef<string>("");
   const latestCapturedTranscriptRef = useRef<string>("");
   const shouldListenRef = useRef<boolean>(false);
@@ -205,7 +203,6 @@ export default function VoiceModeOverlay({
   const speechRateRef = useRef<number>(speechRate);
   const voiceNameRef = useRef<string>(voiceName);
   const activeAiTurnIdRef = useRef<string | null>(null);
-  const lastBoundaryTimestampRef = useRef<number>(0);
 
   // Stable callback/prop refs so session lifecycle never restarts mid-call on prop updates
   const onCloseRef = useRef(onClose);
@@ -241,6 +238,7 @@ export default function VoiceModeOverlay({
 
   useEffect(() => {
     speechRateRef.current = speechRate;
+    speechQueueRef.current?.setRate(speechRate);
   }, [speechRate]);
 
   useEffect(() => {
@@ -295,14 +293,6 @@ export default function VoiceModeOverlay({
   }, [stopCameraHardwareTracks]);
 
   const clearSpeechTimers = useCallback(() => {
-    if (wordTimerRef.current) {
-      clearInterval(wordTimerRef.current);
-      wordTimerRef.current = null;
-    }
-    if (keepAliveTimerRef.current) {
-      clearInterval(keepAliveTimerRef.current);
-      keepAliveTimerRef.current = null;
-    }
     if (resumeTimeoutRef.current) {
       clearTimeout(resumeTimeoutRef.current);
       resumeTimeoutRef.current = null;
@@ -312,11 +302,16 @@ export default function VoiceModeOverlay({
   const stopAllTtsPlayback = useCallback(() => {
     clearSpeechTimers();
 
-    if (ttsAbortControllerRef.current) {
+    if (turnAbortControllerRef.current) {
       try {
-        ttsAbortControllerRef.current.abort();
+        turnAbortControllerRef.current.abort();
       } catch {}
-      ttsAbortControllerRef.current = null;
+      turnAbortControllerRef.current = null;
+    }
+
+    if (speechQueueRef.current) {
+      speechQueueRef.current.cancel();
+      speechQueueRef.current = null;
     }
 
     const audioEl = voiceAudioRef.current;
@@ -330,19 +325,11 @@ export default function VoiceModeOverlay({
       } catch {}
     }
 
-    if (activeTtsBlobUrlRef.current) {
-      try {
-        URL.revokeObjectURL(activeTtsBlobUrlRef.current);
-      } catch {}
-      activeTtsBlobUrlRef.current = null;
-    }
-
     if (typeof window !== "undefined" && window.speechSynthesis) {
       try {
         window.speechSynthesis.cancel();
       } catch {}
     }
-    currentUtteranceRef.current = null;
   }, [clearSpeechTimers, voiceAudioRef]);
 
   // Full teardown on exit / unmount (preserves unlocked shared AudioContext & voiceAudioRef across sessions)
@@ -446,9 +433,23 @@ export default function VoiceModeOverlay({
     }
   }, [isOpen, clearSpeechTimers, markTurnCompleted]);
 
-  // Interrupt TTS & return immediately to listening state ("Ketuk untuk menyela")
+  // Interrupt TTS / streaming AI & return immediately to listening state ("Ketuk untuk menyela" / barge-in)
   const handleInterruptSpeech = useCallback(() => {
-    if (!isSpeakingRef.current && voiceStateRef.current !== "speaking") return;
+    if (
+      !isSpeakingRef.current &&
+      !isProcessingTurnRef.current &&
+      voiceStateRef.current !== "speaking" &&
+      voiceStateRef.current !== "processing"
+    ) {
+      return;
+    }
+    isMutedRef.current = false;
+    setIsMuted(false);
+    if (mediaStreamRef.current) {
+      mediaStreamRef.current.getAudioTracks().forEach((track) => {
+        track.enabled = true;
+      });
+    }
     stopAllTtsPlayback();
     resumeListening();
   }, [stopAllTtsPlayback, resumeListening]);
@@ -479,20 +480,98 @@ export default function VoiceModeOverlay({
     }
   }, [voiceAudioRef, sharedAudioContextRef, ttsAnalyserRef, ttsMediaSourceConnectedRef]);
 
-  // Primary Neural TTS (/api/tts -> unlocked voiceAudioRef) + Automatic Web Speech API Fallback
+  // Shared SpeechQueue builder for both live SSE streaming and replay button
+  const createQueueForTurn = useCallback(
+    (turnId: string, getDisplayText: () => string): SpeechQueue => {
+      let revealedSoFar = 1;
+      return new SpeechQueue({
+        lang: "id-ID",
+        rate: speechRateRef.current || 1.08,
+        pitch: 1.0,
+        minSentenceLength: 15,
+        callbacks: {
+          onSpeechStart: () => {
+            shouldListenRef.current = false;
+            if (silenceTimerRef.current) {
+              clearTimeout(silenceTimerRef.current);
+              silenceTimerRef.current = null;
+            }
+            if (recognitionRef.current) {
+              try {
+                recognitionRef.current.stop();
+              } catch {}
+            }
+            isSpeakingRef.current = true;
+            setVoiceState("speaking");
+            setActiveAiTurnId(turnId);
+          },
+          onSentenceStart: ({ sentence, spokenCharsBefore }) => {
+            const text = getDisplayText();
+            const words = text.split(/\s+/).filter(Boolean);
+            if (!words.length || text.length === 0) return;
+            const approxChars = spokenCharsBefore + Math.min(sentence.length, 24);
+            const ratio = Math.min(1, approxChars / text.length);
+            const nextCount = Math.min(
+              words.length,
+              Math.max(revealedSoFar, Math.ceil(ratio * words.length))
+            );
+            if (nextCount > revealedSoFar) {
+              revealedSoFar = nextCount;
+              setVoiceTurns((prev) =>
+                prev.map((t) =>
+                  t.id === turnId
+                    ? { ...t, revealedWordCount: Math.max(t.revealedWordCount, nextCount) }
+                    : t
+                )
+              );
+            }
+          },
+          onBoundary: (globalCharIndex) => {
+            const text = getDisplayText();
+            const words = text.split(/\s+/).filter(Boolean);
+            if (!words.length || text.length === 0) return;
+            const ratio = Math.min(1, (globalCharIndex + 12) / text.length);
+            const nextCount = Math.min(words.length, Math.max(1, Math.ceil(ratio * words.length)));
+            if (nextCount > revealedSoFar) {
+              revealedSoFar = nextCount;
+              setVoiceTurns((prev) =>
+                prev.map((t) =>
+                  t.id === turnId
+                    ? { ...t, revealedWordCount: Math.max(t.revealedWordCount, nextCount) }
+                    : t
+                )
+              );
+            }
+          },
+          onQueueEmpty: () => {
+            speechQueueRef.current = null;
+            isSpeakingRef.current = false;
+            markTurnCompleted(turnId);
+            setActiveAiTurnId(null);
+            clearSpeechTimers();
+            // 250ms tail buffer so device speaker echo finishes before reopening mic
+            resumeTimeoutRef.current = setTimeout(() => {
+              resumeListening();
+            }, 250);
+          },
+        },
+      });
+    },
+    [clearSpeechTimers, markTurnCompleted, resumeListening]
+  );
+
+  // Instant Replay Web Speech TTS (breaks at first sentence cleanly via SpeechQueue)
   const speakResponseForTurn = useCallback(
     (turnId: string, fullDisplayText: string) => {
-      const words = fullDisplayText.trim().split(/\s+/).filter(Boolean);
-      const totalWords = words.length;
-      const ttsCleanText = stripMarkdownForTts(fullDisplayText);
-
-      if (!ttsCleanText) {
+      const cleanText = fullDisplayText.trim();
+      if (!cleanText) {
         markTurnCompleted(turnId);
-        resumeTimeoutRef.current = setTimeout(() => resumeListening(), 300);
+        resumeTimeoutRef.current = setTimeout(() => resumeListening(), 250);
         return;
       }
 
       stopAllTtsPlayback();
+      unlockSpeechSynthesis();
       shouldListenRef.current = false;
 
       if (recognitionRef.current) {
@@ -508,185 +587,15 @@ export default function VoiceModeOverlay({
         prev.map((t) => (t.id === turnId ? { ...t, revealedWordCount: 1 } : t))
       );
 
-      let currentRevealed = 1;
-      const updateRevealedWords = (nextCount: number) => {
-        const clamped = Math.min(totalWords, Math.max(1, nextCount));
-        if (clamped <= currentRevealed) return;
-        currentRevealed = clamped;
-        setVoiceTurns((prev) =>
-          prev.map((t) => (t.id === turnId ? { ...t, revealedWordCount: clamped } : t))
-        );
-      };
-
-      const finishTurnAndResumeMic = () => {
-        clearSpeechTimers();
-        isSpeakingRef.current = false;
-        markTurnCompleted(turnId);
-        setActiveAiTurnId(null);
-        // 300ms tail buffer so device speaker echo finishes before reopening mic
-        resumeTimeoutRef.current = setTimeout(() => {
-          resumeListening();
-        }, 300);
-      };
-
-      const playWebSpeechFallback = () => {
-        if (!isSpeakingRef.current) return;
-        if (typeof window === "undefined" || !("speechSynthesis" in window)) {
-          finishTurnAndResumeMic();
-          return;
-        }
-
-        const wordCharEnds: number[] = [];
-        let cursor = 0;
-        for (const word of words) {
-          const foundIdx = fullDisplayText.indexOf(word, cursor);
-          const startPos = foundIdx >= 0 ? foundIdx : cursor;
-          cursor = startPos + word.length;
-          wordCharEnds.push(cursor);
-        }
-
-        const startEpoch = Date.now();
-        lastBoundaryTimestampRef.current = 0;
-
-        const utterance = speakWithBrowserTts(ttsCleanText, {
-          lang: "id-ID",
-          rate: speechRateRef.current || 1.05,
-          pitch: 1.0,
-          onStart: () => {
-            if (!isSpeakingRef.current) return;
-            wordTimerRef.current = setInterval(() => {
-              if (!isSpeakingRef.current) return;
-              const boundaryActive = Date.now() - lastBoundaryTimestampRef.current < 600;
-              if (!boundaryActive) {
-                const rateMultiplier = Math.max(0.75, speechRateRef.current || 1.05);
-                const avgWordMs = Math.round(300 / rateMultiplier);
-                const targetFromClock =
-                  Math.floor((Date.now() - startEpoch) / avgWordMs) + 1;
-                updateRevealedWords(Math.min(targetFromClock, totalWords));
-              }
-
-              if (
-                Date.now() - startEpoch > 900 &&
-                window.speechSynthesis &&
-                !window.speechSynthesis.speaking &&
-                !window.speechSynthesis.pending
-              ) {
-                finishTurnAndResumeMic();
-              }
-            }, 100);
-
-            keepAliveTimerRef.current = setInterval(() => {
-              if (!isSpeakingRef.current) return;
-              try {
-                window.speechSynthesis.pause();
-                window.speechSynthesis.resume();
-              } catch {}
-            }, 9000);
-          },
-          onBoundary: (event) => {
-            if (typeof event.charIndex !== "number") return;
-            lastBoundaryTimestampRef.current = Date.now();
-            let wordIdx = wordCharEnds.findIndex((endPos) => event.charIndex < endPos);
-            if (wordIdx === -1) wordIdx = totalWords - 1;
-            updateRevealedWords(wordIdx + 2);
-          },
-          onEnd: () => {
-            finishTurnAndResumeMic();
-          },
-          onError: () => {
-            finishTurnAndResumeMic();
-          },
-        });
-
-        currentUtteranceRef.current = utterance;
-        if (!utterance) {
-          finishTurnAndResumeMic();
-        }
-      };
-
-      const abortController = new AbortController();
-      ttsAbortControllerRef.current = abortController;
-
-      void (async () => {
-        try {
-          const blob = await fetchNeuralTtsBlob(ttsCleanText, {
-            voice: voiceNameRef.current || "id-ID-ArdiNeural",
-            rate: speechRateRef.current || 1.05,
-            signal: abortController.signal,
-          });
-
-          if (abortController.signal.aborted || !isSpeakingRef.current) {
-            return;
-          }
-
-          const audioEl = voiceAudioRef.current;
-          if (!audioEl) {
-            playWebSpeechFallback();
-            return;
-          }
-
-          ensureTtsAnalyserConnected();
-
-          const blobUrl = URL.createObjectURL(blob);
-          activeTtsBlobUrlRef.current = blobUrl;
-
-          audioEl.src = blobUrl;
-          audioEl.playbackRate = 1.0;
-          audioEl.muted = false;
-          audioEl.volume = 1.0;
-
-          const syncAudioProgress = () => {
-            if (!audioEl || !isSpeakingRef.current) return;
-            if (Number.isFinite(audioEl.duration) && audioEl.duration > 0) {
-              const progress = Math.min(1, Math.max(0, audioEl.currentTime / audioEl.duration));
-              const nextWordCount = Math.ceil(progress * totalWords) + 1;
-              updateRevealedWords(nextWordCount);
-            }
-          };
-
-          audioEl.ontimeupdate = syncAudioProgress;
-          audioEl.onended = () => {
-            if (activeTtsBlobUrlRef.current === blobUrl) {
-              try {
-                URL.revokeObjectURL(blobUrl);
-              } catch {}
-              activeTtsBlobUrlRef.current = null;
-            }
-            finishTurnAndResumeMic();
-          };
-          audioEl.onerror = () => {
-            if (activeTtsBlobUrlRef.current === blobUrl) {
-              try {
-                URL.revokeObjectURL(blobUrl);
-              } catch {}
-              activeTtsBlobUrlRef.current = null;
-            }
-            playWebSpeechFallback();
-          };
-
-          wordTimerRef.current = setInterval(syncAudioProgress, 80);
-
-          await audioEl.play();
-        } catch (err) {
-          if (abortController.signal.aborted || !isSpeakingRef.current) {
-            return;
-          }
-          console.warn("[VoiceMode] Neural TTS failed, falling back to Web Speech API:", err);
-          playWebSpeechFallback();
-        }
-      })();
+      const queue = createQueueForTurn(turnId, () => cleanText);
+      speechQueueRef.current = queue;
+      queue.pushChunk(cleanText);
+      queue.finish();
     },
-    [
-      clearSpeechTimers,
-      stopAllTtsPlayback,
-      markTurnCompleted,
-      resumeListening,
-      voiceAudioRef,
-      ensureTtsAnalyserConnected,
-    ]
+    [stopAllTtsPlayback, markTurnCompleted, resumeListening, createQueueForTurn]
   );
 
-  // Send completed user utterance & stream AI response
+  // Send completed user utterance & stream AI response + sentence-by-sentence TTS in real time
   const handleSendTurn = useCallback(
     async (userText: string) => {
       const cleanUserText = userText.trim();
@@ -704,6 +613,20 @@ export default function VoiceModeOverlay({
           recognitionRef.current.stop();
         } catch {}
       }
+
+      if (turnAbortControllerRef.current) {
+        try {
+          turnAbortControllerRef.current.abort();
+        } catch {}
+      }
+
+      if (speechQueueRef.current) {
+        speechQueueRef.current.cancel();
+        speechQueueRef.current = null;
+      }
+
+      const abortController = new AbortController();
+      turnAbortControllerRef.current = abortController;
 
       setLiveUserDraft("");
       setVoiceState("processing");
@@ -726,40 +649,109 @@ export default function VoiceModeOverlay({
         },
       ]);
 
+      const aiTurnId = `v-ai-${Date.now() + 1}`;
+      let latestCleanReply = "";
+      let turnAdded = false;
+
+      const upsertAiTurn = (cleanText: string) => {
+        if (!cleanText || abortController.signal.aborted) return;
+        latestCleanReply = cleanText;
+        const replyWords = cleanText.split(/\s+/).filter(Boolean);
+        if (!turnAdded) {
+          turnAdded = true;
+          setVoiceTurns((prev) => [
+            ...prev,
+            {
+              id: aiTurnId,
+              sender: "ai",
+              text: cleanText,
+              revealedWordCount: 1,
+              totalWords: replyWords.length,
+              isCompleted: false,
+              rating: null,
+            },
+          ]);
+        } else {
+          setVoiceTurns((prev) =>
+            prev.map((t) =>
+              t.id === aiTurnId
+                ? { ...t, text: cleanText, totalWords: replyWords.length }
+                : t
+            )
+          );
+        }
+      };
+
+      const speechQueue = createQueueForTurn(aiTurnId, () => latestCleanReply);
+      speechQueueRef.current = speechQueue;
+
+      let fullAiText = "";
+
+      const processSseEvent = (eventBlock: string) => {
+        const line = eventBlock.split(/\r?\n/).find((l) => l.startsWith("data:"));
+        if (!line) return;
+        const jsonStr = line.slice(5).trim();
+        if (!jsonStr) return;
+        try {
+          const payload = JSON.parse(jsonStr) as {
+            type?: string;
+            text?: unknown;
+            data?: unknown;
+          };
+          if (payload.type === "chunk" && typeof payload.text === "string" && payload.text) {
+            fullAiText += payload.text;
+            const partialClean = cleanSpokenDisplayText(fullAiText);
+            if (partialClean) {
+              upsertAiTurn(partialClean);
+            }
+            speechQueue.pushChunk(payload.text);
+          } else if (
+            payload.type === "done" &&
+            typeof payload.data === "string" &&
+            !fullAiText
+          ) {
+            fullAiText = payload.data;
+            const partialClean = cleanSpokenDisplayText(fullAiText);
+            if (partialClean) {
+              upsertAiTurn(partialClean);
+            }
+            speechQueue.pushChunk(payload.data);
+          }
+        } catch {}
+      };
+
       try {
         const { aiReplyText, streamReader, sentAttachments } = await onSendMessageRef.current(
           cleanUserText,
-          true
+          true,
+          abortController.signal
         );
 
-        let fullAiText = "";
+        if (abortController.signal.aborted) {
+          speechQueue.cancel();
+          return;
+        }
+
         if (streamReader) {
           const decoder = new TextDecoder();
           let buffer = "";
 
           while (true) {
+            if (abortController.signal.aborted) {
+              try {
+                await streamReader.cancel();
+              } catch {}
+              speechQueue.cancel();
+              return;
+            }
+
             const { value, done } = await streamReader.read();
             if (done) {
               const remainder = buffer + decoder.decode();
               if (remainder.trim()) {
                 const events = remainder.split(/\r?\n\r?\n/);
                 for (const event of events) {
-                  const line = event.split(/\r?\n/).find((l) => l.startsWith("data:"));
-                  if (!line) continue;
-                  const jsonStr = line.slice(5).trim();
-                  if (!jsonStr) continue;
-                  try {
-                    const payload = JSON.parse(jsonStr);
-                    if (payload.type === "chunk" && typeof payload.text === "string") {
-                      fullAiText += payload.text;
-                    } else if (
-                      payload.type === "done" &&
-                      typeof payload.data === "string" &&
-                      !fullAiText
-                    ) {
-                      fullAiText = payload.data;
-                    }
-                  } catch {}
+                  processSseEvent(event);
                 }
               }
               break;
@@ -770,52 +762,35 @@ export default function VoiceModeOverlay({
             buffer = events.pop() || "";
 
             for (const event of events) {
-              const line = event.split(/\r?\n/).find((l) => l.startsWith("data:"));
-              if (!line) continue;
-              const jsonStr = line.slice(5).trim();
-              if (!jsonStr) continue;
-              try {
-                const payload = JSON.parse(jsonStr);
-                if (payload.type === "chunk" && typeof payload.text === "string") {
-                  fullAiText += payload.text;
-                } else if (
-                  payload.type === "done" &&
-                  typeof payload.data === "string" &&
-                  !fullAiText
-                ) {
-                  fullAiText = payload.data;
-                }
-              } catch {}
+              processSseEvent(event);
             }
           }
-        } else {
+        } else if (aiReplyText) {
           fullAiText = aiReplyText;
+          const partialClean = cleanSpokenDisplayText(fullAiText);
+          if (partialClean) {
+            upsertAiTurn(partialClean);
+          }
+          speechQueue.pushChunk(aiReplyText);
+        }
+
+        if (abortController.signal.aborted) {
+          speechQueue.cancel();
+          return;
         }
 
         if (!fullAiText && aiReplyText) {
           fullAiText = aiReplyText;
+          speechQueue.pushChunk(aiReplyText);
         }
 
         const cleanReply = cleanSpokenDisplayText(fullAiText);
         if (!cleanReply) {
+          speechQueue.cancel();
           throw new Error("Respons suara kosong");
         }
 
-        const replyWords = cleanReply.split(/\s+/).filter(Boolean);
-        const aiTurnId = `v-ai-${Date.now()}`;
-
-        setVoiceTurns((prev) => [
-          ...prev,
-          {
-            id: aiTurnId,
-            sender: "ai",
-            text: cleanReply,
-            revealedWordCount: 1,
-            totalWords: replyWords.length,
-            isCompleted: false,
-            rating: null,
-          },
-        ]);
+        upsertAiTurn(cleanReply);
 
         if (onTurnCompleteRef.current) {
           onTurnCompleteRef.current(
@@ -825,8 +800,15 @@ export default function VoiceModeOverlay({
           );
         }
 
-        speakResponseForTurn(aiTurnId, cleanReply);
+        speechQueue.finish();
       } catch (err) {
+        const isAborted =
+          abortController.signal.aborted ||
+          (err as { name?: string })?.name === "AbortError";
+        speechQueue.cancel();
+        if (isAborted) {
+          return;
+        }
         console.error("[VoiceMode] Error processing voice turn:", err);
         setErrorMessage("Gagal memproses respons suara. Mencoba mendengarkan kembali…");
         setTimeout(() => {
@@ -834,17 +816,20 @@ export default function VoiceModeOverlay({
           resumeListening();
         }, 2000);
       } finally {
+        if (turnAbortControllerRef.current === abortController) {
+          turnAbortControllerRef.current = null;
+        }
         isProcessingTurnRef.current = false;
       }
     },
-    [speakResponseForTurn, resumeListening]
+    [createQueueForTurn, resumeListening]
   );
 
   useEffect(() => {
     handleSendTurnRef.current = handleSendTurn;
   }, [handleSendTurn]);
 
-  // Setup Web Speech API SpeechRecognition (id-ID)
+  // Setup Web Speech API SpeechRecognition (id-ID) with 750ms fast endpointing
   const setupSpeechRecognition = useCallback((): SpeechRecognitionInstance | null => {
     if (typeof window === "undefined") return null;
 
@@ -959,17 +944,21 @@ export default function VoiceModeOverlay({
           silenceTimerRef.current = null;
         }
 
-        // Auto-send after natural silence pause (1.5s)
+        // Fast endpointing: auto-stop recognition and send immediately after 750ms silence
         silenceTimerRef.current = setTimeout(() => {
           const textToSend = (
             latestCapturedTranscriptRef.current || accumulatedTranscriptRef.current
           ).trim();
           if (textToSend && voiceStateRef.current === "listening") {
+            shouldListenRef.current = false;
             accumulatedTranscriptRef.current = "";
             latestCapturedTranscriptRef.current = "";
+            try {
+              recognition.stop();
+            } catch {}
             void handleSendTurnRef.current(textToSend);
           }
-        }, 1500);
+        }, 750);
       }
     };
 
@@ -1114,7 +1103,7 @@ export default function VoiceModeOverlay({
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
         try {
           window.speechSynthesis.resume();
-          window.speechSynthesis.getVoices?.();
+          preloadIndonesianVoice();
         } catch {}
       }
 
@@ -1164,6 +1153,18 @@ export default function VoiceModeOverlay({
   }, [runAudioVisualizerLoop, setupSpeechRecognition, sharedAudioContextRef, ensureTtsAnalyserConnected]);
 
   const handleToggleMute = useCallback(() => {
+    // Barge-in: pressing microphone button while AI is speaking/thinking stops TTS queue & resumes listening
+    if (
+      isSpeakingRef.current ||
+      isProcessingTurnRef.current ||
+      voiceStateRef.current === "speaking" ||
+      voiceStateRef.current === "processing"
+    ) {
+      unlockSpeechSynthesis();
+      handleInterruptSpeech();
+      return;
+    }
+
     setIsMuted((prev) => {
       const next = !prev;
       if (mediaStreamRef.current) {
@@ -1178,18 +1179,21 @@ export default function VoiceModeOverlay({
             recognitionRef.current.stop();
           } catch {}
         }
-      } else if (
-        voiceStateRef.current === "listening" &&
-        shouldListenRef.current &&
-        recognitionRef.current
-      ) {
-        try {
-          recognitionRef.current.start();
-        } catch {}
+      } else {
+        unlockSpeechSynthesis();
+        if (
+          voiceStateRef.current === "listening" &&
+          shouldListenRef.current &&
+          recognitionRef.current
+        ) {
+          try {
+            recognitionRef.current.start();
+          } catch {}
+        }
       }
       return next;
     });
-  }, []);
+  }, [handleInterruptSpeech]);
 
   // Toggle inline live camera preview
   const startCameraPreview = useCallback(
@@ -1303,9 +1307,7 @@ export default function VoiceModeOverlay({
     window.addEventListener("pagehide", cleanupHardware);
 
     if (typeof window !== "undefined" && window.speechSynthesis) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices?.();
-      };
+      preloadIndonesianVoice();
     }
 
     return () => {
@@ -1415,16 +1417,16 @@ export default function VoiceModeOverlay({
                             ) : (
                               <div
                                 key={att.id}
-                                className="px-3 py-1.5 rounded-xl bg-[#18181b] border border-white/[0.08] text-xs text-zinc-300 flex items-center gap-1.5"
+                                className="px-3 py-1.5 rounded-xl bg-zinc-100 border border-zinc-200 text-xs text-zinc-700 dark:bg-[#18181b] dark:border-white/[0.08] dark:text-zinc-300 flex items-center gap-1.5"
                               >
-                                <FileText className="w-3.5 h-3.5 text-red-400" />
+                                <FileText className="w-3.5 h-3.5 text-red-500 dark:text-red-400" />
                                 <span className="truncate max-w-[160px]">{att.original_name}</span>
                               </div>
                             )
                           )}
                         </div>
                       )}
-                      <div className="max-w-[84%] sm:max-w-[72%] rounded-[22px] bg-[#1e1f22] border border-white/[0.06] px-4 py-2.5 text-[15.5px] leading-relaxed text-[#f1f3f4] shadow-sm">
+                      <div className="max-w-[84%] sm:max-w-[72%] rounded-[22px] bg-zinc-100 border border-zinc-200/80 text-zinc-900 dark:bg-[#1e1f22] dark:border-white/[0.06] dark:text-zinc-100 px-4 py-2.5 text-[15.5px] leading-relaxed shadow-sm">
                         {turn.text}
                       </div>
                     </div>
@@ -1439,12 +1441,12 @@ export default function VoiceModeOverlay({
 
                 return (
                   <div key={turn.id} className="w-full flex flex-col items-start">
-                    <div className="text-[#f1f3f4] text-[18px] sm:text-[20px] font-medium leading-[1.45] tracking-[-0.01em] break-words">
+                    <div className="text-zinc-900 dark:text-zinc-100 text-[18px] sm:text-[20px] font-medium leading-[1.45] tracking-[-0.01em] break-words">
                       {visibleWords.map((word, idx) => (
                         <React.Fragment key={`${turn.id}-w-${idx}`}>
                           <span
                             className={
-                              turn.isCompleted ? "text-[#f1f3f4]" : "animate-voice-word"
+                              turn.isCompleted ? "text-zinc-900 dark:text-zinc-100" : "animate-voice-word"
                             }
                           >
                             {word}
@@ -1456,16 +1458,16 @@ export default function VoiceModeOverlay({
 
                     {showActions && (
                       <div className="w-full mt-3.5 animate-fade-in">
-                        <div className="flex items-center gap-1.5 -ml-2 text-zinc-400">
+                        <div className="flex items-center gap-1.5 -ml-2 text-zinc-500 dark:text-zinc-400">
                           <button
                             type="button"
                             onClick={() => onCopyText?.(turn.text, turn.id)}
                             title={copiedId === turn.id ? "Tersalin" : "Salin"}
                             aria-label="Salin teks"
-                            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/[0.08] hover:text-white active:scale-90 transition cursor-pointer"
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-90 transition cursor-pointer"
                           >
                             {copiedId === turn.id ? (
-                              <Check className="w-[17px] h-[17px] text-emerald-400" />
+                              <Check className="w-[17px] h-[17px] text-emerald-600 dark:text-emerald-400" />
                             ) : (
                               <Copy className="w-[17px] h-[17px]" />
                             )}
@@ -1476,7 +1478,7 @@ export default function VoiceModeOverlay({
                             onClick={() => void handleTurnShare(turn.text)}
                             title="Bagikan"
                             aria-label="Bagikan respons"
-                            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/[0.08] hover:text-white active:scale-90 transition cursor-pointer"
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-90 transition cursor-pointer"
                           >
                             <Share2 className="w-[17px] h-[17px]" />
                           </button>
@@ -1492,7 +1494,7 @@ export default function VoiceModeOverlay({
                             }}
                             title="Putar ulang suara"
                             aria-label="Putar ulang suara"
-                            className="w-9 h-9 rounded-full flex items-center justify-center hover:bg-white/[0.08] hover:text-white active:scale-90 transition cursor-pointer"
+                            className="w-9 h-9 rounded-full flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-90 transition cursor-pointer"
                           >
                             <Volume2 className="w-[17px] h-[17px]" />
                           </button>
@@ -1505,8 +1507,8 @@ export default function VoiceModeOverlay({
                             aria-pressed={turn.rating === "up"}
                             className={`w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition cursor-pointer ${
                               turn.rating === "up"
-                                ? "text-emerald-400 bg-emerald-950/50"
-                                : "hover:bg-white/[0.08] hover:text-white"
+                                ? "text-emerald-700 bg-emerald-50 dark:text-emerald-400 dark:bg-emerald-950/50"
+                                : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
                             }`}
                           >
                             <ThumbsUp className="w-[17px] h-[17px]" />
@@ -1520,15 +1522,15 @@ export default function VoiceModeOverlay({
                             aria-pressed={turn.rating === "down"}
                             className={`w-9 h-9 rounded-full flex items-center justify-center active:scale-90 transition cursor-pointer ${
                               turn.rating === "down"
-                                ? "text-amber-400 bg-amber-950/50"
-                                : "hover:bg-white/[0.08] hover:text-white"
+                                ? "text-amber-700 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/50"
+                                : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
                             }`}
                           >
                             <ThumbsDown className="w-[17px] h-[17px]" />
                           </button>
                         </div>
 
-                        <p className="mt-2 text-[12px] text-zinc-500">
+                        <p className="mt-2 text-[12px] text-zinc-600 dark:text-zinc-400">
                           Axioma dapat membuat kesalahan.
                         </p>
                       </div>
@@ -1540,7 +1542,7 @@ export default function VoiceModeOverlay({
               {/* Live user interim speech preview while speaking */}
               {liveUserDraft && (
                 <div className="w-full flex justify-end animate-fade-in">
-                  <div className="max-w-[82%] rounded-[22px] bg-[#1e1f22]/70 border border-white/[0.05] px-4 py-2 text-[15px] text-zinc-300">
+                  <div className="max-w-[82%] rounded-[22px] bg-zinc-100/90 border border-zinc-200/80 text-zinc-700 dark:bg-[#1e1f22]/70 dark:border-white/[0.05] dark:text-zinc-300 px-4 py-2 text-[15px]">
                     {liveUserDraft}
                   </div>
                 </div>
@@ -1549,9 +1551,10 @@ export default function VoiceModeOverlay({
               {/* Subtle processing indicator right before AI speech starts */}
               {voiceState === "processing" && (
                 <div className="flex items-center gap-1.5 py-2 animate-fade-in" aria-label="Memproses jawaban">
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" />
+                  <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-bounce" />
+                  <span className="text-xs text-zinc-600 dark:text-zinc-400 ml-1.5">Axioma sedang berpikir...</span>
                 </div>
               )}
             </div>
@@ -1562,8 +1565,8 @@ export default function VoiceModeOverlay({
         {(unsupportedNotice || inAppNotice || permissionNotice || errorMessage) && (
           <div className="px-4 pb-3 flex justify-center z-20 shrink-0">
             {unsupportedNotice && (
-              <div className="max-w-sm w-full p-3.5 rounded-2xl bg-amber-950/85 border border-amber-600/40 text-amber-200 text-xs space-y-1 text-center shadow-xl">
-                <div className="flex items-center justify-center gap-1.5 font-semibold text-amber-300">
+              <div className="max-w-sm w-full p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950/85 dark:border-amber-600/40 dark:text-amber-200 text-xs space-y-1 text-center shadow-xl">
+                <div className="flex items-center justify-center gap-1.5 font-semibold text-amber-800 dark:text-amber-300">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>Browser Belum Mendukung</span>
                 </div>
@@ -1572,8 +1575,8 @@ export default function VoiceModeOverlay({
             )}
 
             {inAppNotice && (
-              <div className="max-w-sm w-full p-3.5 rounded-2xl bg-amber-950/85 border border-amber-600/40 text-amber-200 text-xs space-y-1 text-center shadow-xl">
-                <div className="flex items-center justify-center gap-1.5 font-semibold text-amber-300">
+              <div className="max-w-sm w-full p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 dark:bg-amber-950/85 dark:border-amber-600/40 dark:text-amber-200 text-xs space-y-1 text-center shadow-xl">
+                <div className="flex items-center justify-center gap-1.5 font-semibold text-amber-800 dark:text-amber-300">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>Buka di Browser Utama</span>
                 </div>
@@ -1585,8 +1588,8 @@ export default function VoiceModeOverlay({
             )}
 
             {permissionNotice && (
-              <div className="max-w-sm w-full p-3.5 rounded-2xl bg-red-950/85 border border-red-700/40 text-red-200 text-xs space-y-1 text-center shadow-xl">
-                <div className="flex items-center justify-center gap-1.5 font-semibold text-red-300">
+              <div className="max-w-sm w-full p-3.5 rounded-2xl bg-red-50 border border-red-200 text-red-900 dark:bg-red-950/85 dark:border-red-700/40 dark:text-red-200 text-xs space-y-1 text-center shadow-xl">
+                <div className="flex items-center justify-center gap-1.5 font-semibold text-red-800 dark:text-red-300">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>Izin Mikrofon Ditolak</span>
                 </div>
@@ -1595,7 +1598,7 @@ export default function VoiceModeOverlay({
             )}
 
             {errorMessage && !permissionNotice && !unsupportedNotice && !inAppNotice && (
-              <div className="max-w-sm px-4 py-2 rounded-full bg-red-950/80 border border-red-700/40 text-red-200 text-xs text-center shadow-lg">
+              <div className="max-w-sm px-4 py-2 rounded-full bg-red-50 border border-red-200 text-red-900 dark:bg-red-950/80 dark:border-red-700/40 dark:text-red-200 text-xs text-center shadow-lg">
                 {errorMessage}
               </div>
             )}
@@ -1611,7 +1614,7 @@ export default function VoiceModeOverlay({
             {pendingAttachments.map((att) => (
               <div
                 key={att.id}
-                className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-[#18181b] border border-white/[0.08] text-xs text-zinc-200"
+                className="shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-white border border-zinc-200 text-xs text-zinc-800 dark:bg-[#18181b] dark:border-white/[0.08] dark:text-zinc-200"
               >
                 {att.type === "image" && att.previewUrl ? (
                   <img
@@ -1620,17 +1623,17 @@ export default function VoiceModeOverlay({
                     className="w-6 h-6 rounded-md object-cover"
                   />
                 ) : (
-                  <FileText className="w-4 h-4 text-red-400 shrink-0" />
+                  <FileText className="w-4 h-4 text-red-500 dark:text-red-400 shrink-0" />
                 )}
                 <span className="truncate max-w-[100px]">{att.name}</span>
                 {att.status === "uploading" || att.status === "compressing" ? (
-                  <span className="text-[10px] text-zinc-400">{att.progress}%</span>
+                  <span className="text-[10px] text-zinc-500 dark:text-zinc-400">{att.progress}%</span>
                 ) : null}
                 <button
                   type="button"
                   onClick={() => onRemoveAttachment?.(att.id)}
                   aria-label="Hapus lampiran"
-                  className="text-zinc-400 hover:text-white cursor-pointer"
+                  className="text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white cursor-pointer"
                 >
                   <X className="w-3.5 h-3.5" />
                 </button>
@@ -1646,7 +1649,7 @@ export default function VoiceModeOverlay({
               <button
                 type="button"
                 onClick={handleInterruptSpeech}
-                className="pointer-events-auto mb-3 px-4 py-1.5 rounded-full bg-[#1e1f22] hover:bg-[#27282c] border border-white/[0.08] text-[13px] font-medium text-zinc-200 shadow-lg animate-fade-up active:scale-95 transition whitespace-nowrap cursor-pointer"
+                className="pointer-events-auto mb-3 px-4 py-1.5 rounded-full bg-white hover:bg-zinc-100 border border-zinc-200 text-[13px] font-medium text-zinc-800 dark:bg-[#1e1f22] dark:hover:bg-[#27282c] dark:border-white/[0.08] dark:text-zinc-200 shadow-lg animate-fade-up active:scale-95 transition whitespace-nowrap cursor-pointer"
               >
                 Ketuk untuk menyela
               </button>
@@ -1662,7 +1665,7 @@ export default function VoiceModeOverlay({
                 onClick={() => setIsPlusMenuOpen((prev) => !prev)}
                 aria-label="Lampirkan foto atau file"
                 title="Lampirkan foto atau file"
-                className="w-12 h-12 rounded-full bg-[#18181b] hover:bg-[#222327] border border-white/[0.06] flex items-center justify-center text-zinc-200 active:scale-95 transition cursor-pointer"
+                className="w-12 h-12 rounded-full bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:hover:bg-[#222327] dark:border-white/[0.06] dark:text-zinc-200 flex items-center justify-center active:scale-95 transition cursor-pointer"
               >
                 <Plus className="w-5 h-5" />
               </button>
@@ -1671,7 +1674,7 @@ export default function VoiceModeOverlay({
                 <div
                   role="menu"
                   aria-label="Lampiran Mode Suara"
-                  className="absolute left-0 bottom-full mb-3 w-52 rounded-2xl bg-[#1e1f20] border border-white/[0.08] p-1.5 shadow-2xl space-y-1 z-50 animate-fade-up"
+                  className="absolute left-0 bottom-full mb-3 w-52 rounded-2xl bg-white border border-zinc-200 dark:bg-[#1e1f20] dark:border-white/[0.08] p-1.5 shadow-2xl space-y-1 z-50 animate-fade-up"
                 >
                   <button
                     type="button"
@@ -1680,9 +1683,9 @@ export default function VoiceModeOverlay({
                       setIsPlusMenuOpen(false);
                       onOpenImagePicker?.();
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-zinc-100 hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
                   >
-                    <ImageIcon className="w-4 h-4 text-zinc-300 shrink-0" />
+                    <ImageIcon className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0" />
                     <span>Foto &amp; Gambar</span>
                   </button>
                   <button
@@ -1692,9 +1695,9 @@ export default function VoiceModeOverlay({
                       setIsPlusMenuOpen(false);
                       onOpenPdfPicker?.();
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-zinc-100 hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
                   >
-                    <FileText className="w-4 h-4 text-zinc-300 shrink-0" />
+                    <FileText className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0" />
                     <span>Dokumen PDF</span>
                   </button>
                   <button
@@ -1704,9 +1707,9 @@ export default function VoiceModeOverlay({
                       setIsPlusMenuOpen(false);
                       onOpenCameraPicker?.();
                     }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-zinc-100 hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-[14px] text-zinc-800 hover:bg-zinc-100 dark:text-zinc-100 dark:hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
                   >
-                    <Camera className="w-4 h-4 text-zinc-300 shrink-0" />
+                    <Camera className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0" />
                     <span>Ambil Foto</span>
                   </button>
                 </div>
@@ -1721,8 +1724,8 @@ export default function VoiceModeOverlay({
               title={isCameraActive ? "Tutup kamera" : "Kamera langsung"}
               className={`w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition cursor-pointer border ${
                 isCameraActive
-                  ? "bg-blue-600/25 border-blue-400/40 text-blue-300"
-                  : "bg-[#18181b] hover:bg-[#222327] border-white/[0.06] text-zinc-200"
+                  ? "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-600/25 dark:border-blue-400/40 dark:text-blue-300"
+                  : "bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:hover:bg-[#222327] dark:border-white/[0.06] dark:text-zinc-200"
               }`}
             >
               <Video className="w-5 h-5" />
@@ -1733,7 +1736,13 @@ export default function VoiceModeOverlay({
               ref={centerPillRef}
               type="button"
               onClick={() => {
-                if (voiceState === "speaking") {
+                if (
+                  isSpeakingRef.current ||
+                  isProcessingTurnRef.current ||
+                  voiceState === "speaking" ||
+                  voiceState === "processing"
+                ) {
+                  unlockSpeechSynthesis();
                   handleInterruptSpeech();
                 } else if (voiceState === "error") {
                   void initializeVoiceSession();
@@ -1800,8 +1809,8 @@ export default function VoiceModeOverlay({
               aria-label={isMuted ? "Aktifkan mikrofon" : "Bisukan mikrofon"}
               className={`w-12 h-12 rounded-full flex items-center justify-center transition active:scale-95 cursor-pointer ${
                 isMuted
-                  ? "bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30"
-                  : "bg-[#18181b] hover:bg-[#222327] text-zinc-200 border border-white/[0.06]"
+                  ? "bg-red-50 text-red-600 border border-red-200 hover:bg-red-100 dark:bg-red-500/20 dark:text-red-400 dark:border-red-500/30 dark:hover:bg-red-500/30"
+                  : "bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:hover:bg-[#222327] dark:text-zinc-200 dark:border-white/[0.06]"
               }`}
             >
               {isMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
@@ -1813,7 +1822,7 @@ export default function VoiceModeOverlay({
               onClick={handleEndCall}
               title="Tutup Mode Suara"
               aria-label="Tutup Mode Suara"
-              className="w-12 h-12 rounded-full bg-[#18181b] hover:bg-[#222327] border border-white/[0.06] flex items-center justify-center text-zinc-200 active:scale-95 transition cursor-pointer"
+              className="w-12 h-12 rounded-full bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:hover:bg-[#222327] dark:border-white/[0.06] dark:text-zinc-200 flex items-center justify-center active:scale-95 transition cursor-pointer"
             >
               <X className="w-5 h-5" />
             </button>

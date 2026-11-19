@@ -83,6 +83,7 @@ import {
   checkVoiceSupport,
   getSupportedAudioMimeType,
   unlockAudioSystem,
+  unlockSpeechSynthesis,
   transcribeAudioBlob,
 } from "../lib/voice";
 
@@ -1075,7 +1076,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   // Voice Mode & Dictation states
   const [isVoiceModeOpen, setIsVoiceModeOpen] = useState<boolean>(false);
   const [showVoiceTranscript, setShowVoiceTranscript] = useState<boolean>(true);
-  const [voiceSpeechRate, setVoiceSpeechRate] = useState<number>(1.05);
+  const [voiceSpeechRate, setVoiceSpeechRate] = useState<number>(1.08);
   const [voiceNeuralName, setVoiceNeuralName] = useState<"id-ID-ArdiNeural" | "id-ID-GadisNeural">("id-ID-ArdiNeural");
   const [isVoiceOptionsMenuOpen, setIsVoiceOptionsMenuOpen] = useState<boolean>(false);
   const voiceOptionsMenuRef = useRef<HTMLDivElement | null>(null);
@@ -1244,8 +1245,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       root.classList.add("light");
     }
 
-    const themeColor = isDark ? "#000000" : "#ffffff";
-    const barStyle = isDark ? "black-translucent" : "default";
+    const themeColor = isDark ? "#0c0c0e" : "#fafafa";
+    const barStyle = "black-translucent";
 
     root.style.backgroundColor = themeColor;
     if (document.body) {
@@ -2393,15 +2394,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           void unlockAudioSystem(voiceAudioContextRef.current);
         }
 
-        // 3. Unlock Web Speech API synchronously in user gesture with empty silent utterance
-        if ("speechSynthesis" in window) {
-          window.speechSynthesis.cancel();
-          const silentUtterance = new SpeechSynthesisUtterance("");
-          silentUtterance.lang = "id-ID";
-          silentUtterance.volume = 0;
-          window.speechSynthesis.speak(silentUtterance);
-          window.speechSynthesis.getVoices?.();
-        }
+        // 3. Unlock Web Speech API synchronously in user gesture & preload Indonesian voice
+        unlockSpeechSynthesis();
       }
     } catch {}
 
@@ -3580,7 +3574,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const handleVoiceModeSendMessage = useCallback(
     async (
       userText: string,
-      voiceMode: boolean
+      voiceMode: boolean,
+      signal?: AbortSignal
     ): Promise<{
       aiReplyText: string;
       streamReader?: ReadableStreamDefaultReader<Uint8Array> | null;
@@ -3626,6 +3621,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       const response = await fetch(`${BACKEND_URL}/api/chats/message`, {
         method: "POST",
         headers,
+        signal,
         body: JSON.stringify({
           chat_id: sessionPayloadId,
           content: userText,
@@ -5293,7 +5289,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) : (
               <>
                 {/* Sticky Top Navigation Bar */}
-                <div className="shrink-0 pt-[calc(var(--safe-top)+14px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] border-b border-zinc-200/70 dark:border-zinc-800/70 flex items-center justify-between">
+                <div className="relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] sm:pt-4 pb-3 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] border-b border-zinc-200 dark:border-zinc-800 flex items-center justify-between">
                   <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
                     Setelan
                   </h1>
@@ -5873,7 +5869,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       >
         {/* Brand Header */}
         <div
-          className={`pt-[calc(var(--safe-top)+14px)] pb-3.5 px-4 md:pt-0 md:pb-0 md:h-14 bg-white dark:bg-[#0d0d10] md:bg-transparent md:dark:bg-transparent flex items-center shrink-0 ${
+          className={`relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] pb-3 px-4 md:pt-0 md:pb-0 md:h-14 bg-white dark:bg-[#0d0d10] md:bg-[#f4f4f5] md:dark:bg-[#09090b] flex items-center ${
             isDesktopSidebarCollapsed ? "justify-between md:justify-center md:px-0" : "justify-between"
           }`}
         >
@@ -6157,9 +6153,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   setOpenChatMenuId(null);
                                   handleInitiateDeleteChat(chat);
                                 }}
-                                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 focus:bg-red-950/40 focus:text-red-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer"
+                                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-red-600 hover:text-red-700 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 dark:focus:bg-red-950/40 dark:focus:text-red-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer"
                               >
-                                <Trash className="w-3.5 h-3.5 text-red-400" />
+                                <Trash className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
                                 <span>Hapus</span>
                               </button>
                             </div>
@@ -6295,9 +6291,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   closeSettingsMenu(false);
                   setIsClearAllConfirmOpen(true);
                 }}
-                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 focus:bg-red-950/40 focus:text-red-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer"
+                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-red-600 hover:text-red-700 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 dark:focus:bg-red-950/40 dark:focus:text-red-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer"
               >
-                <Trash className="w-3.5 h-3.5 text-red-400" />
+                <Trash className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
                 <span>Hapus semua percakapan</span>
               </button>
 
@@ -6317,9 +6313,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     showToastNotice("Berhasil keluar dari akun.");
                     void refreshChatHistory();
                   }}
-                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-red-400 hover:text-red-300 hover:bg-red-950/40 focus:bg-red-950/40 focus:text-red-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer font-medium"
+                  className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-red-600 hover:text-red-700 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 dark:focus:bg-red-950/40 dark:focus:text-red-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer font-medium"
                 >
-                  <LogOut className="w-3.5 h-3.5 text-red-400" />
+                  <LogOut className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
                   <span>Keluar dari Akun</span>
                 </button>
               ) : null}
@@ -6354,7 +6350,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-[#fafafa] dark:bg-[#0c0c0e]">
         {/* Header */}
-        <header className="relative shrink-0 w-full flex items-center justify-between pt-[calc(var(--safe-top)+12px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-30 bg-[#fafafa] dark:bg-[#0c0c0e] border-b border-zinc-200 dark:border-zinc-800">
+        <header className="relative shrink-0 w-full flex items-center justify-between pt-[calc(var(--safe-top)+14px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-30 bg-[#fafafa] dark:bg-[#0c0c0e] border-b border-zinc-200 dark:border-zinc-800">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -6363,7 +6359,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <button
                   type="button"
                   onClick={() => setIsMobileSidebarOpen(true)}
-                  className="lg:hidden w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-[#1e1f20] text-zinc-300 hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
+                  className="lg:hidden w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-[#1e1f20] dark:hover:bg-[#27282b] dark:border-transparent dark:text-zinc-300 dark:hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
                   aria-label="Buka bilah sisi"
                 >
                   <Menu className="w-[18px] h-[18px]" />
@@ -6373,7 +6369,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   onClick={toggleDesktopSidebar}
                   title={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
                   aria-label={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
-                  className="hidden lg:flex w-9 h-9 rounded-full bg-[#1e1f20] text-zinc-300 hover:text-white active:scale-95 transition-all items-center justify-center cursor-pointer"
+                  className="hidden lg:flex w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-[#1e1f20] dark:hover:bg-[#27282b] dark:border-transparent dark:text-zinc-300 dark:hover:text-white active:scale-95 transition-all items-center justify-center cursor-pointer"
                 >
                   <Menu className="w-[18px] h-[18px]" />
                 </button>
@@ -6381,7 +6377,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               {/* Right: Top-Right Capsule [Toggle Transkrip | •••] */}
               <div className="relative" ref={voiceOptionsMenuRef}>
-                <div className="bg-[#1e1f22] border border-white/[0.08] rounded-full px-3 py-1.5 flex items-center gap-3 shadow-md">
+                <div className="bg-zinc-100 border border-zinc-200 dark:bg-[#1e1f22] dark:border-white/[0.08] rounded-full px-3 py-1.5 flex items-center gap-3 shadow-md">
                   {/* (a) Tombol Toggle Transkrip (ikon dokumen/teks dicoret) */}
                   <button
                     type="button"
@@ -6399,8 +6395,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     }
                     className={`p-0.5 rounded-full transition-colors cursor-pointer ${
                       showVoiceTranscript
-                        ? "text-white hover:text-zinc-200"
-                        : "text-zinc-400 hover:text-zinc-200"
+                        ? "text-zinc-900 hover:text-zinc-700 dark:text-white dark:hover:text-zinc-200"
+                        : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
                     }`}
                   >
                     <svg
@@ -6429,7 +6425,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     aria-expanded={isVoiceOptionsMenuOpen}
                     title="Opsi Mode Suara"
                     aria-label="Opsi Mode Suara"
-                    className="p-0.5 rounded-full text-zinc-200 hover:text-white transition-colors cursor-pointer"
+                    className="p-0.5 rounded-full text-zinc-700 hover:text-zinc-900 dark:text-zinc-200 dark:hover:text-white transition-colors cursor-pointer"
                   >
                     <Ellipsis className="w-[18px] h-[18px]" />
                   </button>
@@ -6440,7 +6436,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <div
                     role="menu"
                     aria-label="Opsi Mode Suara"
-                    className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-[#1e1f20] border border-white/[0.08] p-2 shadow-2xl z-50 space-y-1.5 animate-fade-up"
+                    className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white border border-zinc-200 dark:bg-[#1e1f20] dark:border-white/[0.08] p-2 shadow-2xl z-50 space-y-1.5 animate-fade-up"
                   >
                     {/* Profil / Akun */}
                     <button
@@ -6450,30 +6446,30 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         setIsVoiceOptionsMenuOpen(false);
                         setIsProfileDropdownOpen(true);
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
                     >
-                      <div className="w-7 h-7 rounded-full bg-[#242628] border border-white/[0.08] flex items-center justify-center text-xs font-semibold text-white shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-900 dark:bg-[#242628] dark:border-white/[0.08] dark:text-white flex items-center justify-center text-xs font-semibold shrink-0">
                         {authUser ? (
                           (userName || "N").trim().charAt(0).toUpperCase()
                         ) : (
-                          <User className="w-3.5 h-3.5 text-zinc-300" />
+                          <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium text-white truncate">
+                        <div className="text-[13px] font-medium text-zinc-900 dark:text-white truncate">
                           {authUser ? userName : "Mode Tamu"}
                         </div>
-                        <div className="text-[11px] text-zinc-400">
+                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
                           {authUser ? "Profil Akun" : "Hubungkan Akun"}
                         </div>
                       </div>
                     </button>
 
-                    <div className="border-t border-white/[0.06]" />
+                    <div className="border-t border-zinc-200 dark:border-white/[0.06]" />
 
                     {/* Pilihan Suara Axioma */}
                     <div className="px-3 py-1.5 space-y-1.5">
-                      <div className="text-[11px] font-medium text-zinc-400">
+                      <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                         Suara Axioma
                       </div>
                       <div className="grid grid-cols-2 gap-1.5">
@@ -6489,8 +6485,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={() => setVoiceNeuralName(v.id)}
                             className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                               voiceNeuralName === v.id
-                                ? "bg-white text-black"
-                                : "bg-[#141416] text-zinc-300 hover:bg-white/[0.08]"
+                                ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
+                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-[#141416] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
                             }`}
                           >
                             {v.label}
@@ -6501,19 +6497,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                     {/* Kecepatan Bicara */}
                     <div className="px-3 py-1.5 space-y-1.5">
-                      <div className="text-[11px] font-medium text-zinc-400">
+                      <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
                         Kecepatan Suara
                       </div>
                       <div className="grid grid-cols-3 gap-1.5">
-                        {[0.9, 1.05, 1.2].map((rate) => (
+                        {[0.95, 1.08, 1.2].map((rate) => (
                           <button
                             key={rate}
                             type="button"
                             onClick={() => setVoiceSpeechRate(rate)}
                             className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
                               voiceSpeechRate === rate
-                                ? "bg-white text-black"
-                                : "bg-[#141416] text-zinc-300 hover:bg-white/[0.08]"
+                                ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
+                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-[#141416] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
                             }`}
                           >
                             {rate}x
@@ -6522,7 +6518,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </div>
                     </div>
 
-                    <div className="border-t border-white/[0.06]" />
+                    <div className="border-t border-zinc-200 dark:border-white/[0.06]" />
 
                     <button
                       type="button"
@@ -6531,9 +6527,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         setIsVoiceOptionsMenuOpen(false);
                         openSettingsModal("main");
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-zinc-200 hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
                     >
-                      <Settings className="w-4 h-4 text-zinc-400 shrink-0" />
+                      <Settings className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
                       <span>Setelan</span>
                     </button>
 
@@ -6544,7 +6540,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         setIsVoiceOptionsMenuOpen(false);
                         setIsVoiceModeOpen(false);
                       }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-red-400 hover:bg-red-950/30 transition-colors text-left cursor-pointer"
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors text-left cursor-pointer"
                     >
                       <X className="w-4 h-4 shrink-0" />
                       <span>Tutup Mode Suara</span>
@@ -7017,10 +7013,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={() => handleCopy(message.content, `user-${message.id}`)}
                             title="Salin pesan"
                             aria-label="Salin pesan pengguna"
-                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06] transition-colors flex items-center justify-center cursor-pointer"
+                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center cursor-pointer"
                           >
                             {copiedId === `user-${message.id}` ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-400" />
+                              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
                             ) : (
                               <Copy className="w-3.5 h-3.5" />
                             )}
@@ -7037,7 +7033,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onClick={() => handleStartEditUserMessage(message)}
                           title="Edit pesan"
                           aria-label="Edit pesan pengguna"
-                          className="p-1.5 rounded-lg text-zinc-500 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06] transition-colors flex items-center justify-center cursor-pointer"
+                          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 transition-colors flex items-center justify-center cursor-pointer"
                         >
                           <Pencil className="w-3.5 h-3.5" />
                         </button>
@@ -7102,7 +7098,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
 
                     <div
-                      className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 text-zinc-800 dark:text-zinc-100 text-[15.5px] leading-[1.6] tracking-[-0.005em] break-words transition-opacity duration-200 ${
+                      className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-[1.6] tracking-[-0.005em] break-words transition-opacity duration-200 ${
                         isStreamingThisMessage ? "streaming-prose" : ""
                       }`}
                     >
@@ -7129,7 +7125,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   if (!isBlockCode) {
                                     return (
                                       <code
-                                        className="px-1.5 py-0.5 mx-0.5 rounded-md bg-bg-surface border border-border-subtle text-text-primary font-mono text-[13px] leading-[1.55]"
+                                        className="px-1.5 py-0.5 mx-0.5 rounded-md bg-zinc-200/80 text-zinc-900 border border-zinc-300/60 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700/60 font-mono text-[13px] leading-[1.55]"
                                         {...props}
                                       >
                                         {children}
@@ -7166,7 +7162,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 href={href}
                                 target="_blank"
                                 rel="noopener noreferrer"
-                                className="text-text-primary underline underline-offset-4 decoration-border-strong hover:decoration-text-primary transition-colors"
+                                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline underline-offset-4 decoration-blue-600/40 dark:decoration-blue-400/40 hover:decoration-current transition-colors"
                                 {...props}
                               >
                                 {children}
@@ -7206,18 +7202,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           : "opacity-100 translate-y-0"
                       }`}
                     >
-                      <div className="flex items-center gap-1.5 -ml-1.5 text-zinc-400">
+                      <div className="flex items-center gap-1.5 -ml-1.5 text-zinc-500 dark:text-zinc-400">
                         {/* Copy button */}
                         <div className="relative flex items-center">
                           <button
                             type="button"
                             onClick={() => handleCopy(sanitizeAxiomaMessageContent(message.content), message.id)}
                             title={copiedId === message.id ? "Tersalin" : "Salin jawaban"}
-                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06] active:scale-90 transition-all cursor-pointer flex items-center justify-center"
+                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-90 transition-all cursor-pointer flex items-center justify-center"
                             aria-label="Salin teks"
                           >
                             {copiedId === message.id ? (
-                              <Check className="w-4 h-4 text-emerald-400" />
+                              <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                             ) : (
                               <Copy className="w-4 h-4" />
                             )}
@@ -7238,8 +7234,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           aria-pressed={msgFeedback === "up"}
                           className={`min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
                             msgFeedback === "up"
-                              ? "text-emerald-400 bg-emerald-950/60 border-emerald-700/60"
-                              : "border-transparent text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06]"
+                              ? "text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/60 dark:border-emerald-700/60"
+                              : "border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
                           }`}
                           aria-label="Suka"
                         >
@@ -7256,8 +7252,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           aria-pressed={msgFeedback === "down"}
                           className={`min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg active:scale-90 transition-all cursor-pointer flex items-center justify-center border ${
                             msgFeedback === "down"
-                              ? "text-amber-400 bg-amber-950/60 border-amber-700/60"
-                              : "border-transparent text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06]"
+                              ? "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950/60 dark:border-amber-700/60"
+                              : "border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
                           }`}
                           aria-label="Tidak suka"
                         >
@@ -7272,14 +7268,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={() => handleRegenerateLastReply(message.id)}
                             title="Buat ulang jawaban"
                             aria-label="Buat ulang jawaban"
-                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-400 hover:text-text-primary dark:hover:text-zinc-200 hover:bg-bg-surface dark:hover:bg-white/[0.06] active:scale-90 transition-all cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed"
+                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-90 transition-all cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed"
                           >
                             <RotateCw className="w-4 h-4" />
                           </button>
                         )}
 
                         {feedbackSavedNoticeId === message.id && (
-                          <span className="text-[11px] text-emerald-400 pl-1">
+                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 pl-1">
                             Masukan tersimpan ✓
                           </span>
                         )}
@@ -7378,12 +7374,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 >
                   <div className="flex items-center gap-3 px-1 py-1">
                     {isImagePending ? (
-                      <div className="w-6 h-6 rounded-md bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0">
-                        <Palette className="w-3.5 h-3.5 text-zinc-300 animate-pulse" />
+                      <div className="w-6 h-6 rounded-md bg-zinc-200/70 border border-zinc-300/80 dark:bg-white/[0.06] dark:border-white/10 flex items-center justify-center shrink-0">
+                        <Palette className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 animate-pulse" />
                       </div>
                     ) : isVideoPending ? (
-                      <div className="w-6 h-6 rounded-md bg-white/[0.06] border border-white/10 flex items-center justify-center shrink-0">
-                        <Video className="w-3.5 h-3.5 text-zinc-300 animate-pulse" />
+                      <div className="w-6 h-6 rounded-md bg-zinc-200/70 border border-zinc-300/80 dark:bg-white/[0.06] dark:border-white/10 flex items-center justify-center shrink-0">
+                        <Video className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 animate-pulse" />
                       </div>
                     ) : (
                       <AxiomaLogoMark className="w-5 h-5 shrink-0" />
@@ -7391,19 +7387,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="flex items-center gap-2.5">
                       <div className="flex items-center gap-1 h-5" aria-hidden="true">
                         <span
-                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-400"
+                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-500 dark:bg-zinc-400"
                           style={{ animationDelay: "0ms" }}
                         />
                         <span
-                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-400"
+                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-500 dark:bg-zinc-400"
                           style={{ animationDelay: "150ms" }}
                         />
                         <span
-                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-400"
+                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-500 dark:bg-zinc-400"
                           style={{ animationDelay: "300ms" }}
                         />
                       </div>
-                      <span className="text-xs text-text-muted font-medium tracking-tight animate-thinking-label select-none">
+                      <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium tracking-tight animate-thinking-label select-none">
                         {thinkingText}
                       </span>
                     </div>
@@ -7411,25 +7407,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Elegant Skeleton Shimmer Box during visual/video rendering */}
                   {(isImagePending || isVideoPending) && (
-                    <div className="ml-0 sm:ml-9 w-full max-w-[340px] sm:max-w-[440px] aspect-video rounded-2xl bg-zinc-900/80 border border-white/10 overflow-hidden relative p-4 flex flex-col justify-between shadow-lg">
+                    <div className="ml-0 sm:ml-9 w-full max-w-[340px] sm:max-w-[440px] aspect-video rounded-2xl bg-zinc-100 border border-zinc-200 dark:bg-zinc-900/80 dark:border-white/10 overflow-hidden relative p-4 flex flex-col justify-between shadow-sm dark:shadow-lg">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {isImagePending ? (
-                            <Palette className="w-4 h-4 text-zinc-400 animate-pulse" />
+                            <Palette className="w-4 h-4 text-zinc-600 dark:text-zinc-400 animate-pulse" />
                           ) : (
-                            <Video className="w-4 h-4 text-zinc-400 animate-pulse" />
+                            <Video className="w-4 h-4 text-zinc-600 dark:text-zinc-400 animate-pulse" />
                           )}
-                          <span className="text-xs text-zinc-400 font-medium">
+                          <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">
                             {isImagePending ? "Studio Visual" : "Studio Video"}
                           </span>
                         </div>
-                        <span className="text-[11px] text-zinc-500 font-mono animate-pulse">Memproses...</span>
+                        <span className="text-[11px] text-zinc-600 dark:text-zinc-500 font-mono animate-pulse">Memproses...</span>
                       </div>
                       <div className="w-full space-y-1.5">
-                        <div className="w-full h-1.5 rounded-full bg-white/10 overflow-hidden">
-                          <div className="w-2/5 h-full rounded-full bg-zinc-400 animate-pulse" />
+                        <div className="w-full h-1.5 rounded-full bg-zinc-200 dark:bg-white/10 overflow-hidden">
+                          <div className="w-2/5 h-full rounded-full bg-zinc-500 dark:bg-zinc-400 animate-pulse" />
                         </div>
-                        <p className="text-[11px] text-zinc-500 text-right font-mono">
+                        <p className="text-[11px] text-zinc-600 dark:text-zinc-500 text-right font-mono">
                           {isImagePending ? "Merender gambar..." : "Merender adegan video..."}
                         </p>
                       </div>
@@ -7603,13 +7599,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Active Media Generation Mode Badge */}
                 {activeMediaMode && (
-                  <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full bg-zinc-900 border border-white/10 w-fit animate-fade-in shadow-md select-none">
+                  <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-900 dark:bg-zinc-900 dark:border-white/10 dark:text-zinc-200 w-fit animate-fade-in shadow-sm dark:shadow-md select-none">
                     {activeMediaMode === "image" ? (
-                      <Palette className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                      <Palette className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 shrink-0" />
                     ) : (
-                      <Video className="w-3.5 h-3.5 text-zinc-300 shrink-0" />
+                      <Video className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 shrink-0" />
                     )}
-                    <span className="text-xs text-zinc-200 font-medium">
+                    <span className="text-xs font-medium">
                       {activeMediaMode === "image" ? "Mode Buat Gambar" : "Mode Buat Video"}
                     </span>
                     <button
@@ -7623,7 +7619,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       }}
                       title="Batal mode media"
                       aria-label="Batal mode media"
-                      className="ml-1 w-4 h-4 rounded-full hover:bg-white/10 flex items-center justify-center text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                      className="ml-1 w-4 h-4 rounded-full hover:bg-zinc-200/80 dark:hover:bg-white/10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -8119,10 +8115,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 : "translate-y-full opacity-0 sm:scale-95"
             }`}
           >
-            <div className="w-10 h-1 rounded-full bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
+            <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
             <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-xl bg-amber-950/60 border border-amber-800/60 flex items-center justify-center shrink-0">
-                <TriangleAlert className="w-4 h-4 text-amber-400" />
+              <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 dark:bg-amber-950/60 dark:border-amber-800/60 dark:text-amber-400 flex items-center justify-center shrink-0">
+                <TriangleAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
               <div className="space-y-1 min-w-0">
                 <h2 id="edit-confirm-title" className="text-sm font-semibold text-text-primary">

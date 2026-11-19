@@ -91,7 +91,7 @@ interface SettingsHeaderProps {
 
 function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
   return (
-    <div className="shrink-0 pt-[calc(var(--safe-top)+14px)] sm:pt-4 pb-3.5 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] border-b border-zinc-200/70 dark:border-zinc-800/70">
+    <div className="relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] sm:pt-4 pb-3 px-5 sm:px-6 bg-[#fafafa] sm:bg-white dark:bg-[#0c0c0e] dark:sm:bg-[#141416] border-b border-zinc-200 dark:border-zinc-800">
       <div className="relative flex items-center justify-between w-full min-h-[36px]">
         <button
           type="button"

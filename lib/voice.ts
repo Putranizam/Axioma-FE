@@ -203,6 +203,7 @@ export function stripMarkdownForTts(raw: string): string {
     .replace(/`([^`]+)`/g, "$1")
     .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
     .replace(/https?:\/\/\S+/g, "")
+    .replace(/<[^>]+>/g, " ")
     .replace(/^#{1,6}\s+/gm, "")
     .replace(/[*_]{1,3}(.*?)[*_]{1,3}/g, "$1")
     .replace(/~~(.*?)~~/g, "$1")
@@ -214,28 +215,371 @@ export function stripMarkdownForTts(raw: string): string {
     .trim();
 }
 
+let cachedIndonesianVoice: SpeechSynthesisVoice | null = null;
+let voicesChangedBound = false;
+
+function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return (
+    /iPad|iPhone|iPod/.test(ua) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1)
+  );
+}
+
 /**
  * Selects the clearest Indonesian voice available on the user's OS/browser
- * (e.g., Damayanti on iOS/macOS, Google Bahasa Indonesia on Android/Chrome).
+ * (prioritizes lang starting with "id-ID", then "id"; e.g. Damayanti on iOS/macOS,
+ * Google Bahasa Indonesia on Android/Chrome).
  */
 export function pickBestIndonesianVoice(): SpeechSynthesisVoice | null {
   if (typeof window === "undefined" || !("speechSynthesis" in window)) return null;
   const voices = window.speechSynthesis.getVoices?.() || [];
-  if (!voices.length) return null;
+  if (!voices.length) return cachedIndonesianVoice;
 
-  const preferred = voices.find(
-    (v) =>
-      v.lang.toLowerCase().replace("_", "-").startsWith("id") &&
-      /google|damayanti|ardi|gadis|natural|wavenet|neural/i.test(v.name)
+  const normalizeLang = (lang: string) => lang.toLowerCase().replace("_", "-");
+  const isNaturalVoice = (name: string) =>
+    /google|damayanti|ardi|gadis|natural|wavenet|neural|enhanced|premium/i.test(name);
+
+  const preferredIdId = voices.find(
+    (v) => normalizeLang(v.lang).startsWith("id-id") && isNaturalVoice(v.name)
   );
-  if (preferred) return preferred;
+  if (preferredIdId) return preferredIdId;
 
-  const exactId = voices.find(
-    (v) => v.lang.toLowerCase().replace("_", "-") === "id-id"
+  const exactIdId = voices.find((v) => normalizeLang(v.lang).startsWith("id-id"));
+  if (exactIdId) return exactIdId;
+
+  const preferredId = voices.find(
+    (v) => normalizeLang(v.lang).startsWith("id") && isNaturalVoice(v.name)
   );
-  if (exactId) return exactId;
+  if (preferredId) return preferredId;
 
-  return voices.find((v) => v.lang.toLowerCase().startsWith("id")) || null;
+  return voices.find((v) => normalizeLang(v.lang).startsWith("id")) || null;
+}
+
+/**
+ * Preloads & caches the best Indonesian SpeechSynthesisVoice and binds voiceschanged
+ * once so asynchronous voice lists (Chrome/iOS) are captured automatically.
+ */
+export function preloadIndonesianVoice(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return null;
+  }
+
+  const synth = window.speechSynthesis;
+  const refresh = () => {
+    const picked = pickBestIndonesianVoice();
+    if (picked) {
+      cachedIndonesianVoice = picked;
+    }
+  };
+
+  refresh();
+
+  if (!voicesChangedBound) {
+    voicesChangedBound = true;
+    if (typeof synth.addEventListener === "function") {
+      synth.addEventListener("voiceschanged", refresh);
+    } else {
+      synth.onvoiceschanged = refresh;
+    }
+  }
+
+  return cachedIndonesianVoice;
+}
+
+/**
+ * Synchronously unlocks iOS Safari / iOS PWA Web Speech synthesis inside a user click gesture
+ * by calling cancel() and speaking a zero-volume space utterance at rate 10, then preloading
+ * the Indonesian voice list.
+ */
+export function unlockSpeechSynthesis(): SpeechSynthesisVoice | null {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+    return null;
+  }
+
+  try {
+    const synth = window.speechSynthesis;
+    synth.cancel();
+    const u = new SpeechSynthesisUtterance(" ");
+    u.lang = "id-ID";
+    u.volume = 0;
+    u.rate = 10;
+    u.pitch = 1.0;
+    synth.speak(u);
+  } catch {}
+
+  return preloadIndonesianVoice();
+}
+
+export interface SpeechQueueCallbacks {
+  onSpeechStart?: () => void;
+  onSentenceStart?: (info: {
+    sentence: string;
+    spokenCharsBefore: number;
+  }) => void;
+  onBoundary?: (globalCharIndex: number) => void;
+  onQueueEmpty?: () => void;
+}
+
+export interface SpeechQueueOptions {
+  lang?: string;
+  rate?: number;
+  pitch?: number;
+  minSentenceLength?: number;
+  callbacks?: SpeechQueueCallbacks;
+}
+
+const SENTENCE_END_REGEX = /(?:[.!?](?![0-9])(?:\s+|$)|\n+)/g;
+
+/**
+ * Streaming sentence-by-sentence Web Speech queue for low-latency voice responses.
+ */
+export class SpeechQueue {
+  private lang: string;
+  private rate: number;
+  private pitch: number;
+  private minSentenceLength: number;
+  private callbacks: SpeechQueueCallbacks;
+
+  private rawBuffer = "";
+  private queue: string[] = [];
+  private isSpeaking = false;
+  private hasNotifiedStart = false;
+  private isStreamFinished = false;
+  private hasNotifiedEmpty = false;
+  private generation = 0;
+  private spokenCharsBeforeCurrent = 0;
+  private activeUtterance: SpeechSynthesisUtterance | null = null;
+  private watchdogTimer: ReturnType<typeof setInterval> | null = null;
+  private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
+
+  constructor(options?: SpeechQueueOptions) {
+    this.lang = options?.lang ?? "id-ID";
+    this.rate = options?.rate ?? 1.08;
+    this.pitch = options?.pitch ?? 1.0;
+    this.minSentenceLength = options?.minSentenceLength ?? 15;
+    this.callbacks = options?.callbacks ?? {};
+    preloadIndonesianVoice();
+  }
+
+  public setRate(nextRate: number): void {
+    if (Number.isFinite(nextRate) && nextRate > 0) {
+      this.rate = nextRate;
+    }
+  }
+
+  public pushChunk(chunk: string): void {
+    if (!chunk) return;
+    this.rawBuffer += chunk;
+    this.extractCompletedSentences(this.minSentenceLength);
+    if (!this.isSpeaking && this.queue.length > 0) {
+      this.speakNext();
+    }
+  }
+
+  public finish(): void {
+    this.isStreamFinished = true;
+    this.extractCompletedSentences(1);
+
+    const remainingClean = stripMarkdownForTts(this.rawBuffer);
+    this.rawBuffer = "";
+    if (remainingClean) {
+      this.queue.push(remainingClean);
+    }
+
+    if (!this.isSpeaking) {
+      if (this.queue.length > 0) {
+        this.speakNext();
+      } else {
+        this.notifyQueueEmpty();
+      }
+    }
+  }
+
+  public cancel(): void {
+    this.generation += 1;
+    this.clearTimers();
+    this.rawBuffer = "";
+    this.queue = [];
+    this.isSpeaking = false;
+    this.hasNotifiedStart = false;
+    this.isStreamFinished = false;
+    this.hasNotifiedEmpty = true;
+    this.spokenCharsBeforeCurrent = 0;
+    this.activeUtterance = null;
+
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      try {
+        window.speechSynthesis.cancel();
+      } catch {}
+    }
+  }
+
+  private extractCompletedSentences(minChars: number): void {
+    while (this.rawBuffer.length > 0) {
+      SENTENCE_END_REGEX.lastIndex = 0;
+      let matchedCut = -1;
+      let match: RegExpExecArray | null;
+
+      while ((match = SENTENCE_END_REGEX.exec(this.rawBuffer)) !== null) {
+        const endPos = match.index + match[0].length;
+        const candidateRaw = this.rawBuffer.slice(0, endPos);
+        if (candidateRaw.trim().length >= minChars) {
+          const cleaned = stripMarkdownForTts(candidateRaw);
+          if (cleaned.length >= minChars) {
+            matchedCut = endPos;
+            this.queue.push(cleaned);
+            break;
+          }
+        }
+      }
+
+      if (matchedCut > 0) {
+        this.rawBuffer = this.rawBuffer.slice(matchedCut);
+      } else {
+        break;
+      }
+    }
+  }
+
+  private clearTimers(): void {
+    if (this.watchdogTimer) {
+      clearInterval(this.watchdogTimer);
+      this.watchdogTimer = null;
+    }
+    if (this.keepAliveTimer) {
+      clearInterval(this.keepAliveTimer);
+      this.keepAliveTimer = null;
+    }
+  }
+
+  private notifyQueueEmpty(): void {
+    if (this.hasNotifiedEmpty) return;
+    this.hasNotifiedEmpty = true;
+    this.clearTimers();
+    this.isSpeaking = false;
+    this.activeUtterance = null;
+    this.callbacks.onQueueEmpty?.();
+  }
+
+  private speakNext(): void {
+    this.clearTimers();
+    const nextSentence = this.queue.shift();
+
+    if (!nextSentence) {
+      this.isSpeaking = false;
+      this.activeUtterance = null;
+      if (this.isStreamFinished) {
+        this.notifyQueueEmpty();
+      }
+      return;
+    }
+
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) {
+      this.queue = [];
+      this.notifyQueueEmpty();
+      return;
+    }
+
+    this.hasNotifiedEmpty = false;
+    this.isSpeaking = true;
+
+    if (!this.hasNotifiedStart) {
+      this.hasNotifiedStart = true;
+      this.callbacks.onSpeechStart?.();
+    }
+
+    const myGen = this.generation;
+    const synth = window.speechSynthesis;
+    const utterance = new SpeechSynthesisUtterance(nextSentence);
+    utterance.lang = this.lang;
+    utterance.rate = this.rate;
+    utterance.pitch = this.pitch;
+
+    const voice = preloadIndonesianVoice();
+    if (voice) {
+      utterance.voice = voice;
+    }
+
+    this.activeUtterance = utterance;
+    this.callbacks.onSentenceStart?.({
+      sentence: nextSentence,
+      spokenCharsBefore: this.spokenCharsBeforeCurrent,
+    });
+
+    let settled = false;
+    let utteranceStarted = false;
+    const startTs = Date.now();
+
+    const finishUtterance = () => {
+      if (settled || myGen !== this.generation) return;
+      settled = true;
+      this.clearTimers();
+      this.activeUtterance = null;
+      this.spokenCharsBeforeCurrent += nextSentence.length + 1;
+      this.speakNext();
+    };
+
+    utterance.onstart = () => {
+      if (settled || myGen !== this.generation) return;
+      utteranceStarted = true;
+    };
+
+    utterance.onboundary = (event: SpeechSynthesisEvent) => {
+      if (settled || myGen !== this.generation) return;
+      if (typeof event.charIndex === "number") {
+        this.callbacks.onBoundary?.(this.spokenCharsBeforeCurrent + event.charIndex);
+      }
+    };
+
+    utterance.onend = () => {
+      finishUtterance();
+    };
+
+    utterance.onerror = () => {
+      finishUtterance();
+    };
+
+    // Recover gracefully if browser drops onend event (Safari/Chrome workaround)
+    this.watchdogTimer = setInterval(() => {
+      if (settled || myGen !== this.generation) {
+        this.clearTimers();
+        return;
+      }
+      const elapsed = Date.now() - startTs;
+      const idleAfterStart = utteranceStarted && elapsed > 600 && !synth.speaking && !synth.pending;
+      const stuckBeforeStart = !utteranceStarted && elapsed > 3500 && !synth.speaking && !synth.pending;
+      const hardTimeout = elapsed > 25000;
+      if (idleAfterStart || stuckBeforeStart || hardTimeout) {
+        finishUtterance();
+      }
+    }, 250);
+
+    // Chrome desktop workaround for long utterances; avoid pause() on iOS Safari
+    if (!isIosDevice()) {
+      this.keepAliveTimer = setInterval(() => {
+        if (settled || myGen !== this.generation) {
+          this.clearTimers();
+          return;
+        }
+        try {
+          if (synth.speaking) {
+            synth.pause();
+            synth.resume();
+          }
+        } catch {}
+      }, 9000);
+    }
+
+    try {
+      synth.resume();
+      synth.speak(utterance);
+      synth.resume();
+    } catch {
+      finishUtterance();
+    }
+  }
 }
 
 /**
@@ -301,16 +645,16 @@ export function speakResponse(
   if (!cleanText) return null;
 
   try {
-    window.speechSynthesis.resume();
     window.speechSynthesis.cancel();
+    window.speechSynthesis.resume();
   } catch {}
 
   const utterance = new SpeechSynthesisUtterance(cleanText);
   utterance.lang = options?.lang || "id-ID";
-  utterance.rate = options?.rate ?? 1.05;
+  utterance.rate = options?.rate ?? 1.08;
   utterance.pitch = options?.pitch ?? 1.0;
 
-  const bestVoice = pickBestIndonesianVoice();
+  const bestVoice = preloadIndonesianVoice();
   if (bestVoice) {
     utterance.voice = bestVoice;
   }

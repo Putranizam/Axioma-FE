@@ -116,19 +116,19 @@ export default function GoogleAuthCallbackPage() {
   }, [router]);
 
   return (
-    <div className="h-[var(--app-height)] overflow-y-auto w-full flex flex-col items-center justify-center bg-black text-white p-6">
+    <div className="h-[var(--app-height)] overflow-y-auto w-full flex flex-col items-center justify-center bg-[#fafafa] text-zinc-900 dark:bg-[#0c0c0e] dark:text-zinc-100 p-6">
       <div className="flex flex-col items-center text-center max-w-sm">
         {errorMessage ? (
-          <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+          <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400 text-sm">
             <p className="font-semibold mb-1">Gagal Masuk</p>
-            <p className="text-xs text-zinc-400">{errorMessage}</p>
-            <p className="text-[11px] text-zinc-500 mt-2">Mengalihkan kembali ke halaman utama...</p>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400">{errorMessage}</p>
+            <p className="text-[11px] text-zinc-500 dark:text-zinc-500 mt-2">Mengalihkan kembali ke halaman utama...</p>
           </div>
         ) : (
           <>
-            <Loader2 className="w-8 h-8 text-blue-500 animate-spin mb-4" />
+            <Loader2 className="w-8 h-8 text-blue-600 dark:text-blue-500 animate-spin mb-4" />
             <h2 className="text-base font-semibold tracking-tight">Masuk dengan Google</h2>
-            <p className="text-xs text-zinc-400 mt-1">{statusMessage}</p>
+            <p className="text-xs text-zinc-600 dark:text-zinc-400 mt-1">{statusMessage}</p>
           </>
         )}
       </div>

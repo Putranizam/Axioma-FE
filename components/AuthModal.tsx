@@ -193,10 +193,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     >
       <div
         ref={modalRef}
-        className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] overflow-y-auto overscroll-contain touch-auto sm:static sm:w-full sm:h-auto sm:max-h-[90vh] sm:overflow-hidden bg-[#fafafa] dark:bg-[#0c0c0e] sm:max-w-[420px] sm:mx-auto sm:my-auto sm:rounded-2xl sm:bg-white sm:dark:bg-[#141416] sm:border sm:border-zinc-200 sm:dark:border-zinc-800 sm:shadow-2xl sm:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
+        className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] overflow-hidden sm:static sm:w-full sm:h-auto sm:max-h-[90vh] bg-[#fafafa] dark:bg-[#0c0c0e] sm:max-w-[420px] sm:mx-auto sm:my-auto sm:rounded-2xl sm:bg-white sm:dark:bg-[#141416] sm:border sm:border-zinc-200 sm:dark:border-zinc-800 sm:shadow-2xl sm:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
       >
-        {/* Header (solid, tanpa backdrop-blur, aman di bawah notch / punch-hole) */}
-        <div className="shrink-0 flex items-start justify-between gap-3 pt-[calc(var(--safe-top)+16px)] pb-4 px-5 sm:p-0 sm:pb-5 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-transparent sm:dark:bg-transparent border-b border-zinc-200/70 dark:border-zinc-800/70 sm:border-b-0">
+        {/* Header (solid opaque, aman di bawah status bar / Dynamic Island) */}
+        <div className="relative z-30 shrink-0 flex items-start justify-between gap-3 pt-[calc(var(--safe-top)+14px)] pb-3 px-5 sm:p-0 sm:pb-5 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-white sm:dark:bg-[#141416] border-b border-zinc-200 dark:border-zinc-800 sm:border-b-0">
           <div className="flex items-center gap-3 min-w-0">
             <AxiomaLogoMark className="w-8 h-8 shrink-0" />
             <div className="min-w-0">
@@ -220,19 +220,19 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         </div>
 
         {/* Content + Footer Body */}
-        <div className="flex-1 sm:min-h-0 sm:overflow-y-auto sm:overscroll-contain touch-auto px-5 sm:px-0 pt-5 pb-[calc(var(--safe-bottom)+20px)] sm:pb-0 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-0 pt-5 pb-[calc(var(--safe-bottom)+20px)] sm:pb-0 space-y-4">
           <div className="space-y-4">
           {!configured && (
             <div
               role="alert"
-              className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-xs text-amber-500 dark:text-amber-400 flex items-start gap-2.5"
+              className="p-3.5 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-800 dark:bg-amber-500/10 dark:border-amber-500/30 dark:text-amber-400 flex items-start gap-2.5"
             >
               <CircleAlert className="w-4 h-4 shrink-0 mt-0.5" />
               <div>
                 <p className="font-semibold">Kredensial Supabase Belum Terhubung</p>
-                <p className="text-[11px] mt-0.5 text-text-muted">
-                  Atur <code className="text-amber-300">NEXT_PUBLIC_SUPABASE_URL</code> dan{" "}
-                  <code className="text-amber-300">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> di environment frontend untuk mengaktifkan login cloud.
+                <p className="text-[11px] mt-0.5 text-zinc-600 dark:text-zinc-400">
+                  Atur <code className="text-amber-900 dark:text-amber-300">NEXT_PUBLIC_SUPABASE_URL</code> dan{" "}
+                  <code className="text-amber-900 dark:text-amber-300">NEXT_PUBLIC_SUPABASE_ANON_KEY</code> di environment frontend untuk mengaktifkan login cloud.
                 </p>
               </div>
             </div>
@@ -241,7 +241,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           {error && (
             <div
               role="alert"
-              className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 text-xs text-red-500 dark:text-red-400 flex items-start gap-2 animate-shake"
+              className="p-3 rounded-xl bg-red-50 border border-red-200 text-xs text-red-700 dark:bg-red-500/10 dark:border-red-500/30 dark:text-red-400 flex items-start gap-2 animate-shake"
             >
               <CircleAlert className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="flex-1 leading-relaxed">{error}</span>
@@ -251,7 +251,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           {successNotice && (
             <div
               role="status"
-              className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-xs text-emerald-500 dark:text-emerald-400 flex items-start gap-2.5"
+              className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400 flex items-start gap-2.5"
             >
               <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
               <span className="flex-1 leading-relaxed">{successNotice}</span>
@@ -384,7 +384,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     <button
                       type="button"
                       onClick={() => setTab("magiclink")}
-                      className="text-[11px] text-blue-400 hover:text-blue-300 transition-colors cursor-pointer"
+                      className="text-[11px] text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors cursor-pointer"
                     >
                       Lupa sandi?
                     </button>
@@ -444,7 +444,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
               <button
                 type="button"
                 onClick={onClose}
-                className="text-text-primary underline underline-offset-2 hover:text-blue-400 transition-colors cursor-pointer font-medium"
+                className="text-zinc-900 dark:text-zinc-100 underline underline-offset-2 hover:text-blue-600 dark:hover:text-blue-400 transition-colors cursor-pointer font-medium"
               >
                 Lanjutkan sebagai Tamu
               </button>
