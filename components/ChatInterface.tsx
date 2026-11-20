@@ -6169,11 +6169,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <Plus className="w-4 h-4 shrink-0" strokeWidth={1.75} />
                 <span className={isDesktopSidebarCollapsed ? "md:hidden" : ""}>Sesi Baru</span>
               </span>
-              {!isDesktopSidebarCollapsed && (
-                <kbd className="hidden md:inline-flex items-center border border-zinc-200 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-500">
-                  {isMacOs ? "⌘⇧O" : "Ctrl+Shift+O"}
-                </kbd>
-              )}
             </button>
 
             {/* Guest Mode Cloud Sync Prompt Banner */}
@@ -6224,11 +6219,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <Plus className="w-4 h-4 shrink-0" strokeWidth={1.75} />
                 <span className={isDesktopSidebarCollapsed ? "md:hidden" : ""}>Sesi Baru</span>
               </span>
-              {!isDesktopSidebarCollapsed && (
-                <kbd className="hidden md:inline-flex items-center border border-zinc-200 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-500">
-                  {isMacOs ? "⌘⇧O" : "Ctrl+Shift+O"}
-                </kbd>
-              )}
             </button>
 
             {/* Real-time Search Filter for Authenticated Users */}
