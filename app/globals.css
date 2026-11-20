@@ -687,6 +687,56 @@ html.dark .axioma-markdown td {
   will-change: transform, opacity;
 }
 
+/* Native iOS / macOS Smooth & Slow Enjoy Keyframes */
+@keyframes axiomaFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes axiomaScaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes axiomaBreathe {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.97);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.animate-axioma-fade-up {
+  animation: axiomaFadeUp 0.35s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.animate-axioma-scale-in {
+  animation: axiomaScaleIn 0.22s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.animate-axioma-breathe {
+  animation: axiomaBreathe 2s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
 /* Smooth fade-in on newly appended markdown blocks & glowing typing cursor during streaming */
 .streaming-prose {
   position: relative;
@@ -846,6 +896,8 @@ html.dark .axioma-markdown td {
   .animate-user-bubble,
   .animate-ai-bubble,
   .animate-message-in,
+  .animate-axioma-fade-up,
+  .animate-axioma-scale-in,
   .animate-error-shake,
   .streaming-prose > *:last-child,
   .animate-fade-in,
@@ -858,6 +910,7 @@ html.dark .axioma-markdown td {
     transform: none !important;
   }
 
+  .animate-axioma-breathe,
   .animate-voice-bar {
     animation: breathingPulse 2.2s ease-in-out infinite !important;
     transform: none !important;
