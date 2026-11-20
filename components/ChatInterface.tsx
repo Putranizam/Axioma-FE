@@ -5327,7 +5327,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <aside
           role="status"
           aria-live="polite"
-          className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-bg-elevated border border-border-strong text-text-primary shadow-2xl animate-user-bubble text-xs"
+          className="ios-glass fixed bottom-[calc(7.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:bottom-28 [[data-kb='open']_&]:bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-full text-zinc-900 dark:text-zinc-100 animate-axioma-scale-in text-xs max-w-[calc(100vw-2rem)]"
         >
           <span className="font-medium">Percakapan dihapus</span>
           <span className="text-text-muted select-none">·</span>
@@ -6992,7 +6992,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div
               role="status"
               aria-live="polite"
-              className="ios-glass fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 rounded-full px-4 py-2 text-xs font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 animate-axioma-scale-in pointer-events-none select-none whitespace-nowrap max-w-[calc(100vw-2rem)] truncate"
+              className="ios-glass absolute bottom-[calc(7.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:bottom-28 [[data-kb='open']_&]:bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-full px-4 py-2 text-xs font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 animate-axioma-scale-in pointer-events-none select-none whitespace-nowrap max-w-[calc(100vw-2rem)] truncate"
             >
               <span>{toastNotice}</span>
             </div>
@@ -7003,7 +7003,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div
               role="status"
               aria-live="polite"
-              className="ios-glass fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-zinc-900 dark:text-zinc-100 flex items-center gap-2 text-xs font-medium animate-axioma-scale-in pointer-events-none select-none"
+              className="ios-glass absolute bottom-[calc(7.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:bottom-28 [[data-kb='open']_&]:bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-zinc-900 dark:text-zinc-100 flex items-center gap-2 text-xs font-medium animate-axioma-scale-in pointer-events-none select-none"
             >
               <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>Teks disalin!</span>
@@ -7377,7 +7377,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             onScroll={handleChatScroll}
             className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages || isLoadingExistingChat
-                ? "opacity-100 pt-6 pb-[calc(10.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:pb-44 px-4 sm:px-6 flex"
+                ? "opacity-100 pt-6 pb-[calc(10.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] [[data-kb='open']_&]:pb-32 sm:pb-44 px-4 sm:px-6 flex"
                 : "hidden"
             } max-w-[720px] mx-auto w-full flex-col gap-6`}
           >
@@ -7973,7 +7973,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Floating overlay during active chat so scrolling messages pass behind .ios-glass) */}
           <div
-            className={`w-full bg-transparent px-3.5 min-[390px]:px-4 sm:px-6 pt-2 pb-[calc(0.75rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 ${
+            className={`w-full bg-transparent px-3.5 min-[390px]:px-4 sm:px-6 pt-2 pb-[calc(0.75rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 [[data-kb="open"]_&]:pb-2 ${
               hasMessages
                 ? "absolute bottom-0 inset-x-0 z-20 pointer-events-none"
                 : isDesktopEmptyState
@@ -8291,7 +8291,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                       closeAttachmentMenu(true)
                                     )
                                   }
-                                  className={`absolute -left-2 bottom-full mb-2 md:mb-2.5 z-40 w-[260px] sm:w-72 max-w-[calc(100vw-2rem)] rounded-2xl bg-white dark:bg-[#18181d] border border-zinc-200/90 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-2xl space-y-1 origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
+                                  className={`absolute -left-2 bottom-full mb-2 md:mb-2.5 z-40 w-[260px] sm:w-72 max-w-[calc(100vw-2rem)] max-h-[min(65vh,calc(var(--app-height)-140px))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] scrollbar-none rounded-2xl bg-white dark:bg-[#18181d] border border-zinc-200/90 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-2xl space-y-1 origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
                                     isAttachmentMenuEntered
                                       ? "scale-100 opacity-100 translate-y-0"
                                       : "scale-95 opacity-0 translate-y-1 pointer-events-none"
