@@ -429,45 +429,6 @@ const AVAILABLE_AGENTS: Agent[] = [
   },
 ];
 
-interface StarterPrompt {
-  id: string;
-  label: string;
-  mode: "send" | "prefill";
-  prefillText?: string;
-  icon: "lightbulb" | "mail" | "table" | "code" | "image" | "video";
-}
-
-const STARTER_PROMPTS: StarterPrompt[] = [
-  {
-    id: "summarize-notes",
-    label: "Rangkum catatan",
-    mode: "prefill",
-    prefillText: "Tolong rangkum catatan berikut secara ringkas dan terstruktur:\n",
-    icon: "table",
-  },
-  {
-    id: "fix-code",
-    label: "Bantu perbaiki kode",
-    mode: "prefill",
-    prefillText: "Bantu periksa dan perbaiki bug pada kode berikut:\n",
-    icon: "code",
-  },
-  {
-    id: "draft-email",
-    label: "Susun draf email",
-    mode: "prefill",
-    prefillText: "Tolong susun draf email profesional untuk: ",
-    icon: "mail",
-  },
-  {
-    id: "explain-concept",
-    label: "Jelaskan konsep",
-    mode: "prefill",
-    prefillText: "Jelaskan konsep ini secara sederhana dan jelas: ",
-    icon: "lightbulb",
-  },
-];
-
 const DYNAMIC_PLACEHOLDERS = [
   "Tulis pesan ke Axioma...",
   "Tanyakan ide atau kode...",
@@ -4887,20 +4848,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     handleSendMessageRef.current = handleSendMessage;
   });
 
-  const handleStarterPromptClick = (prompt: StarterPrompt) => {
-    if (isLoading || isGenerating || isSubmittingRef.current) return;
-    const text = prompt.prefillText || prompt.label;
-    setInputText(text);
-    requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (el) {
-        el.focus();
-        el.setSelectionRange(text.length, text.length);
-        adjustTextareaHeight();
-      }
-    });
-  };
-
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     // 1. Ignore IME composition events (Gboard, Samsung keyboard, etc.)
     if (e.nativeEvent.isComposing || e.keyCode === 229) {
@@ -5051,32 +4998,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     } catch (err) {
       console.error("Failed to submit feedback comment:", err);
     }
-  };
-
-  const renderStarterIcon = (icon: StarterPrompt["icon"]) => {
-    const iconEl = (() => {
-      const iconClass = "w-4 h-4 shrink-0";
-      switch (icon) {
-        case "lightbulb":
-          return <Lightbulb className={iconClass} strokeWidth={1.75} />;
-        case "mail":
-          return <Mail className={iconClass} strokeWidth={1.75} />;
-        case "table":
-          return <Table className={iconClass} strokeWidth={1.75} />;
-        case "code":
-          return <Code className={iconClass} strokeWidth={1.75} />;
-        case "image":
-          return <ImageIcon className={iconClass} strokeWidth={1.75} />;
-        case "video":
-          return <Video className={iconClass} strokeWidth={1.75} />;
-      }
-    })();
-
-    return (
-      <div className="w-7 h-7 rounded-xl bg-indigo-500/10 dark:bg-indigo-500/15 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400 transition-colors shrink-0">
-        {iconEl}
-      </div>
-    );
   };
 
   return (
@@ -7533,7 +7454,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             >
               <div
                 className={`relative w-full flex flex-col items-center ${
-                  isDesktopEmptyState ? "md:-mt-4" : ""
+                  isDesktopEmptyState ? "md:-mt-8" : ""
                 }`}
               >
                 {/* Desktop Empty State Hero (>= md) */}
@@ -8114,23 +8035,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
                   </div>
                 </div>
-
-                {/* Plain Text Suggestion Pill Chips (Staggered Entrance 60ms, soft hover) */}
-                {isDesktopEmptyState && (
-                  <div className="flex flex-wrap items-center justify-center gap-2 mt-4 px-4 max-w-[680px] mx-auto [[data-kb='open']_&]:hidden">
-                    {STARTER_PROMPTS.map((prompt, idx) => (
-                      <button
-                        key={prompt.id}
-                        type="button"
-                        onClick={() => handleStarterPromptClick(prompt)}
-                        style={{ animationDelay: `${idx * 60}ms` }}
-                        className="animate-chip-in px-3.5 py-1.5 rounded-full text-[13px] text-zinc-600 dark:text-zinc-400 bg-white/70 hover:bg-white hover:text-zinc-900 dark:bg-[#161618]/80 dark:hover:bg-[#1c1c1f] dark:hover:text-zinc-100 border border-zinc-200/80 dark:border-white/[0.08] shadow-[0_1px_2px_rgba(0,0,0,0.02)] hover:-translate-y-[1px] transition-all duration-300 ease-out cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                      >
-                        {prompt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
 

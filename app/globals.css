@@ -639,17 +639,6 @@ html.dark .axioma-markdown td {
   }
 }
 
-@keyframes chipStaggerIn {
-  0% {
-    opacity: 0;
-    transform: translate3d(0, 6px, 0);
-  }
-  100% {
-    opacity: 1;
-    transform: translate3d(0, 0, 0);
-  }
-}
-
 @keyframes breathingPulse {
   0%,
   100% {
@@ -674,11 +663,6 @@ html.dark .axioma-markdown td {
 
 .animate-message-in {
   animation: messageIn 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  will-change: transform, opacity;
-}
-
-.animate-chip-in {
-  animation: chipStaggerIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
   will-change: transform, opacity;
 }
 
@@ -851,7 +835,6 @@ html.dark .axioma-markdown td {
   .animate-user-bubble,
   .animate-ai-bubble,
   .animate-message-in,
-  .animate-chip-in,
   .animate-error-shake,
   .streaming-prose > *:last-child,
   .animate-fade-in,
