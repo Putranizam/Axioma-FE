@@ -8,8 +8,8 @@ export default function manifest(): MetadataRoute.Manifest {
       "Asisten AI cerdas berbahasa Indonesia untuk penalaran strategis, penulisan profesional, dan arsitektur perangkat lunak.",
     start_url: "/",
     display: "standalone",
-    background_color: "#0c0c0e",
-    theme_color: "#0c0c0e",
+    background_color: "#0e0e10",
+    theme_color: "#0e0e10",
     lang: "id",
     icons: [
       {

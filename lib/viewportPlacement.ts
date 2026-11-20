@@ -127,3 +127,4 @@ export function formatRelativeTimeId(timestampMs: number, now: Date | null): str
   const months = ["Jan", "Feb", "Mar", "Apr", "Mei", "Jun", "Jul", "Agu", "Sep", "Okt", "Nov", "Des"];
   return `${d.getDate()} ${months[d.getMonth()]}`;
 }
+

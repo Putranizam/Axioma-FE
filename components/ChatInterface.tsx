@@ -5429,24 +5429,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-stretch justify-center p-0 overflow-hidden transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            settingsView === "main"
-              ? "bg-black/70 md:bg-transparent"
-              : "bg-black/70 md:bg-black/50"
-          } ${
-            isSettingsEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-stretch justify-center p-0 overflow-hidden ${
+            isSettingsEntered ? "pointer-events-auto" : "pointer-events-none"
           }`}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setIsSettingsModalOpen(false);
-            }
-          }}
         >
+          {/* Sibling backdrop (keeps dialog wrapper free of opacity transition so Safari preserves -webkit-backdrop-filter) */}
+          <div
+            aria-hidden="true"
+            onClick={() => setIsSettingsModalOpen(false)}
+            className={`absolute inset-0 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              settingsView === "main"
+                ? "bg-black/60 md:bg-transparent"
+                : "bg-black/60 md:bg-black/50"
+            } ${isSettingsEntered ? "opacity-100" : "opacity-0"}`}
+          />
           <div
             style={settingsView === "main" ? settingsPopoverStyle : undefined}
-            className={`fixed z-50 flex flex-col overflow-hidden will-change-transform ${
+            className={`fixed z-50 flex flex-col overflow-hidden ${
               settingsView === "main"
-                ? `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] dark:bg-[#0e0e10] md:top-auto md:right-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:bg-white/90 dark:md:bg-[#161618]/88 md:backdrop-blur-2xl md:backdrop-saturate-150 md:border md:border-zinc-200/80 dark:md:border-white/[0.1] md:shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:md:shadow-[0_12px_40px_rgba(0,0,0,0.5)] md:p-2 md:origin-bottom-left transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                ? `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:top-auto md:right-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:p-2 md:origin-bottom-left transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isSettingsEntered
                       ? "translate-y-0 opacity-100 md:scale-100"
                       : "translate-y-full opacity-0 md:translate-y-0 md:scale-95 pointer-events-none"
@@ -5908,15 +5909,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <div
           role="dialog"
           aria-modal="true"
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-end justify-center bg-black/70 md:bg-transparent p-0 overflow-hidden transition-opacity duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-            isProfileEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-end justify-center p-0 overflow-hidden ${
+            isProfileEntered ? "pointer-events-auto" : "pointer-events-none"
           }`}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setIsProfileDropdownOpen(false);
-            }
-          }}
         >
+          {/* Sibling Dim Backdrop (keeps dialog wrapper free of opacity transition so Safari iOS renders -webkit-backdrop-filter) */}
+          <div
+            aria-hidden="true"
+            onClick={() => setIsProfileDropdownOpen(false)}
+            className={`absolute inset-0 bg-black/45 md:bg-transparent transition-opacity duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              isProfileEntered ? "opacity-100" : "opacity-0"
+            }`}
+          />
           {/* Popup Container (Mobile: Bottom-sheet with swipe-down | Desktop md+: Frosted Floating Popover near trigger) */}
           <div
             ref={profileDropdownRef}
@@ -5925,7 +5929,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 ? { transform: `translate3d(0, ${profileSwipeDeltaY}px, 0)`, transition: "none" }
                 : profilePopoverStyle
             }
-            className={`absolute z-50 w-full h-auto max-h-[90%] rounded-t-[28px] bg-white/85 dark:bg-[#141416]/80 backdrop-blur-2xl backdrop-saturate-150 px-5 pt-3 pb-[calc(var(--safe-bottom)+16px)] flex flex-col shadow-2xl border-t border-zinc-200/80 dark:border-white/[0.1] overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform inset-x-0 bottom-0 md:fixed md:w-[310px] md:max-h-[82vh] md:rounded-2xl md:bg-white/90 dark:md:bg-[#161618]/88 md:border md:shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:md:shadow-[0_12px_40px_rgba(0,0,0,0.5)] md:p-3 ${
+            className={`ios-glass relative z-10 w-full h-auto max-h-[90%] rounded-t-[28px] border-x-0 border-b-0 px-5 pt-3 pb-[calc(var(--safe-bottom)+16px)] flex flex-col overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] md:fixed md:z-50 md:w-[310px] md:max-h-[82vh] md:rounded-2xl md:border md:p-3 ${
               profileAnchor === "sidebar"
                 ? "md:inset-auto md:bottom-16 md:left-4 md:origin-bottom-left"
                 : "md:inset-auto md:top-16 md:right-4 md:origin-top-right"
@@ -6983,12 +6987,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             }}
           />
 
-          {/* Floating Notification Toast (Glass Pill — auto-dismiss 2s) */}
+          {/* Floating Notification Toast (Native iOS Glass Pill — auto-dismiss 2s) */}
           {toastNotice && (
             <div
               role="status"
               aria-live="polite"
-              className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 rounded-full px-3.5 py-1.5 text-xs font-medium bg-zinc-900/85 text-white dark:bg-zinc-100/90 dark:text-zinc-900 backdrop-blur-md shadow-lg border border-white/10 dark:border-zinc-900/10 flex items-center gap-1.5 animate-axioma-scale-in pointer-events-none select-none whitespace-nowrap max-w-[calc(100vw-2rem)] truncate"
+              className="ios-glass fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 rounded-full px-4 py-2 text-xs font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 animate-axioma-scale-in pointer-events-none select-none whitespace-nowrap max-w-[calc(100vw-2rem)] truncate"
             >
               <span>{toastNotice}</span>
             </div>
@@ -6999,9 +7003,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div
               role="status"
               aria-live="polite"
-              className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full bg-zinc-900 dark:bg-zinc-800 text-white border border-zinc-700/60 shadow-2xl flex items-center gap-2 text-xs font-medium animate-modal-pop duration-200 pointer-events-none select-none will-change-transform"
+              className="ios-glass fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-zinc-900 dark:text-zinc-100 flex items-center gap-2 text-xs font-medium animate-axioma-scale-in pointer-events-none select-none"
             >
-              <Check className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>Teks disalin!</span>
             </div>
           )}
@@ -7373,7 +7377,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             onScroll={handleChatScroll}
             className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages || isLoadingExistingChat
-                ? "opacity-100 py-6 px-4 sm:px-6 flex"
+                ? "opacity-100 pt-6 pb-[calc(10.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:pb-44 px-4 sm:px-6 flex"
                 : "hidden"
             } max-w-[720px] mx-auto w-full flex-col gap-6`}
           >
@@ -7967,28 +7971,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div ref={messagesEndRef} className="h-6 shrink-0" />
           </div>
 
-          {/* Subtle gradient overlay above input console so scrolling text fades gracefully (Item 11, only when messages exist) */}
-          {hasMessages && (
-            <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-[var(--bg-primary)] via-[var(--bg-primary)]/80 to-transparent z-10" />
-          )}
-
-          {/* Input Console (Anak 3) */}
+          {/* Input Console (Floating overlay during active chat so scrolling messages pass behind .ios-glass) */}
           <div
-            className={`relative z-20 w-full bg-transparent px-3.5 min-[390px]:px-4 sm:px-6 pt-2 pb-[calc(0.75rem+var(--safe-bottom,0px))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 ${
-              isDesktopEmptyState
-                ? "shrink-0 md:shrink md:flex-1 md:min-h-0 md:overflow-y-auto scrollbar-none overscroll-y-contain md:flex md:flex-col"
-                : "shrink-0"
+            className={`w-full bg-transparent px-3.5 min-[390px]:px-4 sm:px-6 pt-2 pb-[calc(0.75rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 ${
+              hasMessages
+                ? "absolute bottom-0 inset-x-0 z-20 pointer-events-none"
+                : isDesktopEmptyState
+                ? "relative z-20 shrink-0 md:shrink md:flex-1 md:min-h-0 md:overflow-y-auto scrollbar-none overscroll-y-contain md:flex md:flex-col"
+                : "relative z-20 shrink-0"
             }`}
           >
-            {/* Floating "Scroll to Bottom" button anchored dynamically above input box (tracks auto-grow height) */}
+            {/* Floating "Scroll to Bottom" button anchored dynamically above input box (parent kept free of opacity/scale for Safari iOS backdrop-filter) */}
             {hasMessages && (
-              <div
-                className={`pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-3 z-30 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform ${
-                  isUserScrolledUp
-                    ? "opacity-100 translate-y-0 scale-100"
-                    : "opacity-0 translate-y-2 scale-90"
-                }`}
-              >
+              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-3 z-30">
                 <button
                   type="button"
                   tabIndex={isUserScrolledUp ? 0 : -1}
@@ -7996,9 +7991,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   onClick={() => scrollToBottom(true)}
                   title="Kembali ke pesan terbaru"
                   aria-label="Gulir ke bawah"
-                  className={`${
-                    isUserScrolledUp ? "pointer-events-auto" : "pointer-events-none"
-                  } w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-white/80 hover:bg-white/95 dark:bg-[#1c1c1f]/75 dark:hover:bg-[#242428]/90 backdrop-blur-xl backdrop-saturate-150 text-zinc-700 dark:text-zinc-200 border border-zinc-200/80 dark:border-white/[0.1] shadow-md flex items-center justify-center transition-all duration-150 active:scale-[0.96] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60`}
+                  className={`ios-glass w-10 h-10 min-w-[40px] min-h-[40px] rounded-full text-zinc-800 dark:text-zinc-100 flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform active:scale-[0.96] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
+                    isUserScrolledUp
+                      ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
+                      : "opacity-0 translate-y-2 scale-90 pointer-events-none"
+                  }`}
                 >
                   <ArrowDown className="w-4 h-4" strokeWidth={1.75} />
                 </button>
@@ -8042,7 +8039,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Pending Attachment Chips Preview */}
                 {pendingAttachments.length > 0 && (
-                  <div className="flex items-center gap-2 mb-2 p-1.5 overflow-x-auto max-w-full scrollbar-none animate-fade-in">
+                  <div className="pointer-events-auto flex items-center gap-2 mb-2 p-1.5 overflow-x-auto max-w-full scrollbar-none animate-fade-in">
                     {pendingAttachments.map((att) => (
                       <div
                         key={att.id}
@@ -8129,7 +8126,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Active Media Generation Mode Badge */}
                 {activeMediaMode && (
-                  <div className="flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-900 dark:bg-zinc-900 dark:border-white/10 dark:text-zinc-200 w-fit animate-fade-in shadow-sm dark:shadow-md select-none">
+                  <div className="pointer-events-auto flex items-center gap-2 mb-2 px-3 py-1.5 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-900 dark:bg-zinc-900 dark:border-white/10 dark:text-zinc-200 w-fit animate-fade-in shadow-sm dark:shadow-md select-none">
                     {activeMediaMode === "image" ? (
                       <Palette className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 shrink-0" />
                     ) : (
@@ -8156,15 +8153,20 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Axioma Organic Minimalist Input Box (rounded-[24px], 2-Row) */}
+                {/* Axioma Organic Minimalist Input Box (rounded-[24px], 2-Row, Native iOS Glass) */}
                 <div
                   style={!hasMessages ? { animationDelay: "120ms" } : undefined}
-                  className={`max-w-[720px] mx-auto w-full rounded-[24px] bg-white/80 dark:bg-[#161618]/75 backdrop-blur-xl backdrop-saturate-150 border border-zinc-200/80 dark:border-white/[0.1] shadow-[0_4px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_4px_24px_rgba(0,0,0,0.35)] focus-within:border-zinc-300 dark:focus-within:border-white/[0.18] focus-within:shadow-[0_6px_28px_rgba(0,0,0,0.08)] dark:focus-within:shadow-[0_6px_28px_rgba(0,0,0,0.45)] px-4 pt-3 pb-2.5 flex flex-col gap-1.5 transition-all duration-200 ${
+                  className={`group/input relative pointer-events-auto max-w-[720px] mx-auto w-full rounded-[24px] px-4 pt-3 pb-2.5 flex flex-col gap-1.5 ${
                     !hasMessages ? "animate-axioma-fade-up" : ""
                   }`}
                 >
+                  {/* Dedicated .ios-glass backdrop layer (keeps parent free of backdrop-filter so nested Model Dropdown blurs cleanly in Safari iOS) */}
+                  <div
+                    aria-hidden="true"
+                    className="ios-glass absolute inset-0 rounded-[24px] pointer-events-none transition-all duration-200 group-focus-within/input:border-zinc-400/40 dark:group-focus-within/input:border-white/25"
+                  />
                   {/* Baris Atas: Textarea Auto-Expand / Recording Waveform / Transcribing */}
-                  <div className="w-full min-w-0 flex items-center">
+                  <div className="relative z-10 w-full min-w-0 flex items-center">
                     {isRecording ? (
                       <InlineVoiceWaveform
                         analyser={dictationAnalyser}
@@ -8221,7 +8223,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
 
                   {/* Baris Bawah: Toolbar Kiri (+ & Mic) | Aksi Utama Kanan (non-wrapping di 360px+) */}
-                  <div className="w-full flex flex-nowrap items-center justify-between gap-1.5 sm:gap-2 pt-0.5 min-w-0">
+                  <div className="relative z-10 w-full flex flex-nowrap items-center justify-between gap-1.5 sm:gap-2 pt-0.5 min-w-0">
                     {/* Kiri: Tombol + Lampiran & Tombol Mikrofon */}
                     <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
                       {/* Active Attachment Button & Popover Menu */}
@@ -8517,11 +8519,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   closeHeaderAgentMenu(true)
                                 )
                               }
-                              className={`absolute right-0 ${
+                              className={`ios-glass absolute right-0 ${
                                 agentDropdownDirection === "down"
                                   ? "top-full mt-2 origin-top-right"
                                   : "bottom-full mb-2 origin-bottom-right"
-                              } w-[min(280px,calc(100vw-2rem))] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[min(65vh,calc(var(--app-height)-140px))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] scrollbar-none bg-white/90 dark:bg-[#161618]/88 backdrop-blur-2xl backdrop-saturate-150 border border-zinc-200/80 dark:border-white/[0.1] shadow-lg rounded-2xl p-1.5 space-y-1 focus:outline-none transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                              } w-[min(280px,calc(100vw-2rem))] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[min(65vh,calc(var(--app-height)-140px))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] scrollbar-none rounded-2xl p-1.5 space-y-1 focus:outline-none transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                                 isHeaderAgentMenuEntered
                                   ? "scale-100 opacity-100 translate-y-0"
                                   : `scale-95 opacity-0 ${
@@ -8546,8 +8548,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                     }}
                                     className={`w-full text-left p-2.5 rounded-xl text-xs tracking-tight active:scale-[0.99] transition-colors flex flex-col gap-1 focus:outline-none cursor-pointer border ${
                                       isSelected
-                                        ? "bg-zinc-100/90 dark:bg-zinc-800/80 border-zinc-200/80 dark:border-zinc-700/70 text-zinc-900 dark:text-zinc-100"
-                                        : "border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100/70 dark:hover:bg-white/[0.06]"
+                                        ? "bg-black/[0.06] dark:bg-white/[0.1] border-black/[0.06] dark:border-white/[0.1] text-zinc-900 dark:text-zinc-100"
+                                        : "border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
                                     }`}
                                   >
                                     <div className="flex items-center justify-between gap-2 w-full">
@@ -8697,7 +8699,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
-              className={`shrink-0 mt-1.5 mb-0 py-0.5 md:pt-1.5 md:pb-3 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal [[data-kb="open"]_&]:hidden ${
+              className={`pointer-events-none shrink-0 mt-1.5 mb-0 py-0.5 md:pt-1.5 md:pb-3 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal [[data-kb="open"]_&]:hidden ${
                 currentMessages.length === 0
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5"
@@ -8706,7 +8708,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
               <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
               <span className="hidden md:inline text-border-strong">•</span>
-              <span className="hidden md:inline-flex items-center gap-2">
+              <span className="hidden md:inline-flex items-center gap-2 pointer-events-auto">
                 <Link
                   href="/privasi"
                   className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"

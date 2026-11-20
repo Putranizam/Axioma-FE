@@ -1076,3 +1076,50 @@ html.dark .hljs-meta {
   color: #94a3b8;
 }
 
+/* ==========================================================================
+   Native iOS Frosted Glass Surface (Safari iOS -webkit-backdrop-filter + Specular Edge)
+   ========================================================================== */
+@layer components {
+  .ios-glass {
+    background-color: rgba(255, 255, 255, 0.62);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    transform: translateZ(0);
+    isolation: isolate;
+  }
+
+  .dark .ios-glass {
+    background-color: rgba(28, 28, 32, 0.55);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(24px) saturate(180%);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    transform: translateZ(0);
+    isolation: isolate;
+  }
+
+  @media (min-width: 768px) {
+    .md-ios-glass {
+      background-color: rgba(255, 255, 255, 0.62);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+      transform: translateZ(0);
+      isolation: isolate;
+    }
+
+    .dark .md-ios-glass {
+      background-color: rgba(28, 28, 32, 0.55);
+      -webkit-backdrop-filter: blur(24px) saturate(180%);
+      backdrop-filter: blur(24px) saturate(180%);
+      border: 1px solid rgba(255, 255, 255, 0.14);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+      transform: translateZ(0);
+      isolation: isolate;
+    }
+  }
+}
+
