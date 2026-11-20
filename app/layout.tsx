@@ -118,10 +118,6 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f9f9f8" },
-    { media: "(prefers-color-scheme: dark)", color: "#0e0e10" },
-  ],
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
@@ -147,7 +143,7 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://axioma-be.onrender.com" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement;var m=window.matchMedia("(prefers-color-scheme: dark)");function apply(){var t=localStorage.getItem("axioma_theme");var isDark=t==="dark"||((!t||t==="system")&&m.matches);var bg=isDark?"#0e0e10":"#f9f9f8";var bar="black-translucent";if(isDark){d.classList.add("dark");d.classList.remove("light");}else{d.classList.remove("dark");d.classList.add("light");}d.style.backgroundColor=bg;if(document.body){document.body.style.backgroundColor=bg;}var metas=document.querySelectorAll('meta[name="theme-color"]');if(metas.length>0){metas.forEach(function(el){el.removeAttribute("media");el.setAttribute("content",bg);});}else{var el=document.createElement("meta");el.name="theme-color";el.content=bg;document.head.appendChild(el);}var ap=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(ap){ap.setAttribute("content",bar);}else{var apel=document.createElement("meta");apel.name="apple-mobile-web-app-status-bar-style";apel.content=bar;document.head.appendChild(apel);}}apply();if(m&&m.addEventListener){m.addEventListener("change",function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}else if(m&&m.addListener){m.addListener(function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}}catch(e){}})();`,
+            __html: `(function(){try{var d=document.documentElement;var m=window.matchMedia("(prefers-color-scheme: dark)");function apply(){var t=localStorage.getItem("axioma_theme");var isDark=t==="dark"||((!t||t==="system")&&m.matches);var bg=isDark?"#0e0e10":"#f9f9f8";var bar="black-translucent";if(isDark){d.classList.add("dark");d.classList.remove("light");}else{d.classList.remove("dark");d.classList.add("light");}d.style.colorScheme=isDark?"dark":"light";d.style.backgroundColor=bg;if(document.body){document.body.style.backgroundColor=bg;}document.querySelectorAll('meta[name="theme-color"]').forEach(function(el){el.remove();});var el=document.createElement("meta");el.name="theme-color";el.content=bg;document.head.appendChild(el);var ap=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(ap){ap.setAttribute("content",bar);}else{var apel=document.createElement("meta");apel.name="apple-mobile-web-app-status-bar-style";apel.content=bar;document.head.appendChild(apel);}}apply();if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",apply,{once:true});}if(m&&m.addEventListener){m.addEventListener("change",function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}else if(m&&m.addListener){m.addListener(function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}}catch(e){}})();`,
           }}
         />
       </head>

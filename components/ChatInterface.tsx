@@ -1291,6 +1291,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }, durationMs);
   }, []);
 
+  const hasLoadedThemeRef = useRef<boolean>(false);
+
   const applyTheme = useCallback((mode: "dark" | "light" | "system") => {
     if (typeof window === "undefined") return;
     const root = document.documentElement;
@@ -1312,23 +1314,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const themeColor = isDark ? "#0e0e10" : "#f9f9f8";
     const barStyle = "black-translucent";
 
+    // Sync color-scheme & solid canvas background on html + body for Safari iOS chrome
+    root.style.colorScheme = isDark ? "dark" : "light";
     root.style.backgroundColor = themeColor;
     if (document.body) {
       document.body.style.backgroundColor = themeColor;
     }
 
-    const metaTags = document.querySelectorAll('meta[name="theme-color"]');
-    if (metaTags.length > 0) {
-      metaTags.forEach((el) => {
-        el.removeAttribute("media");
-        el.setAttribute("content", themeColor);
-      });
-    } else {
-      const meta = document.createElement("meta");
-      meta.name = "theme-color";
-      meta.content = themeColor;
-      document.head.appendChild(meta);
-    }
+    // Force Safari iOS to repaint status bar & bottom toolbar by removing old meta tags and appending a fresh one
+    document
+      .querySelectorAll('meta[name="theme-color"]')
+      .forEach((el) => el.remove());
+    const meta = document.createElement("meta");
+    meta.name = "theme-color";
+    meta.content = themeColor;
+    document.head.appendChild(meta);
 
     let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
     if (!appleMeta) {
@@ -1341,6 +1341,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   const handleSetTheme = useCallback(
     (mode: "dark" | "light" | "system") => {
+      hasLoadedThemeRef.current = true;
       setThemeMode(mode);
       safeSetLocalStorage(STORAGE_KEYS.THEME, mode);
       applyTheme(mode);
@@ -1348,20 +1349,45 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     [applyTheme]
   );
 
-  // Follow OS system theme changes in real time when mode is "system"
+  // Sync theme on changes, bfcache restore, and follow OS system theme changes in real time when mode is "system"
   useEffect(() => {
-    if (themeMode !== "system") return;
+    if (hasLoadedThemeRef.current) {
+      applyTheme(themeMode);
+    }
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        applyTheme(themeMode);
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+
+    if (themeMode !== "system") {
+      return () => {
+        window.removeEventListener("pageshow", handlePageShow);
+      };
+    }
+
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const handleOsThemeChange = () => {
       applyTheme("system");
     };
     if (mediaQuery.addEventListener) {
       mediaQuery.addEventListener("change", handleOsThemeChange);
-      return () => mediaQuery.removeEventListener("change", handleOsThemeChange);
+      return () => {
+        window.removeEventListener("pageshow", handlePageShow);
+        mediaQuery.removeEventListener("change", handleOsThemeChange);
+      };
     } else if (mediaQuery.addListener) {
       mediaQuery.addListener(handleOsThemeChange);
-      return () => mediaQuery.removeListener(handleOsThemeChange);
+      return () => {
+        window.removeEventListener("pageshow", handlePageShow);
+        mediaQuery.removeListener(handleOsThemeChange);
+      };
     }
+    return () => {
+      window.removeEventListener("pageshow", handlePageShow);
+    };
   }, [themeMode, applyTheme]);
 
   const isModalActiveRef = useRef<boolean>(false);
@@ -1415,8 +1441,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
 
     // Load saved theme
-    const savedTheme =
-      (safeGetLocalStorage(STORAGE_KEYS.THEME) as "dark" | "light" | "system") || "system";
+    const rawSavedTheme = safeGetLocalStorage(STORAGE_KEYS.THEME);
+    const savedTheme: "dark" | "light" | "system" =
+      rawSavedTheme === "dark" || rawSavedTheme === "light" || rawSavedTheme === "system"
+        ? rawSavedTheme
+        : "system";
+    hasLoadedThemeRef.current = true;
     setThemeMode(savedTheme);
     applyTheme(savedTheme);
 
