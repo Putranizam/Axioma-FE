@@ -28,6 +28,7 @@ import {
   AudioLines,
   ArrowUp,
   ArrowDown,
+  ArrowLeft,
   ChevronDown,
   ChevronRight,
   ChevronsUpDown,
@@ -440,6 +441,16 @@ function getContextualGreetingByHour(hour: number): string {
   if (hour >= 11 && hour < 15) return "Selamat siang, ada yang bisa dibantu?";
   if (hour >= 15 && hour < 18) return "Selamat sore, mau bahas apa hari ini?";
   return "Selamat malam, lagi fokus ngerjain apa?";
+}
+
+function triggerHaptic(durationMs = 10): void {
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+      navigator.vibrate(durationMs);
+    }
+  } catch {
+    // Ignore on unsupported devices / browsers
+  }
 }
 
 /**
@@ -910,6 +921,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isUserScrolledUp, setIsUserScrolledUp] = useState<boolean>(false);
   const [greeting, setGreeting] = useState<string>("");
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState<boolean>(false);
+  const [profileAnchor, setProfileAnchor] = useState<"header" | "sidebar">("header");
+  const [profileSwipeDeltaY, setProfileSwipeDeltaY] = useState<number>(0);
+  const [sidebarSwipeDeltaX, setSidebarSwipeDeltaX] = useState<number>(0);
   const [activeMediaMode, setActiveMediaMode] = useState<"image" | "video" | null>(null);
   const activeMediaModeRef = useRef<"image" | "video" | null>(null);
 
@@ -943,14 +957,64 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     useState<Agent["id"]>("axioma-pro");
   const [themeMode, setThemeMode] = useState<"dark" | "light" | "system">("system");
   const [expandedSettingsSection, setExpandedSettingsSection] = useState<string | null>(null);
+  const [desktopSettingsPage, setDesktopSettingsPage] = useState<
+    | "account"
+    | "quota"
+    | "notifications"
+    | "agent"
+    | "storage"
+    | "shortcuts"
+    | "theme"
+    | "feedback"
+    | "about"
+    | null
+  >(null);
   const [isClearAllConfirmOpen, setIsClearAllConfirmOpen] = useState<boolean>(false);
   const [isClearingAllChats, setIsClearingAllChats] = useState<boolean>(false);
+
+  const openDesktopSettingsPage = useCallback(
+    (
+      page:
+        | "account"
+        | "quota"
+        | "notifications"
+        | "agent"
+        | "storage"
+        | "shortcuts"
+        | "theme"
+        | "feedback"
+        | "about"
+    ) => {
+      setSettingsNameInput(displayName);
+      setSettingsNameError(null);
+      setSettingsDefaultAgentInput(defaultAgentId);
+      setIsSettingsModalOpen(false);
+      setIsProfileDropdownOpen(false);
+      setIsSettingsMenuOpen(false);
+      setDesktopSettingsPage(page);
+    },
+    [displayName, defaultAgentId]
+  );
 
   const openSettingsModal = useCallback(
     (
       view: "main" | "feedback" | "about" = "main",
       expandedSection: string | null = null
     ) => {
+      if (typeof window !== "undefined" && window.innerWidth >= 768) {
+        if (view === "feedback") {
+          openDesktopSettingsPage("feedback");
+          return;
+        }
+        if (view === "about") {
+          openDesktopSettingsPage("about");
+          return;
+        }
+        if (expandedSection === "account" || expandedSection === "quota" || expandedSection === "agent" || expandedSection === "shortcuts") {
+          openDesktopSettingsPage(expandedSection);
+          return;
+        }
+      }
       setSettingsNameInput(displayName);
       setSettingsNameError(null);
       setSettingsDefaultAgentInput(defaultAgentId);
@@ -958,7 +1022,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setSettingsView(view);
       setIsSettingsModalOpen(true);
     },
-    [displayName, defaultAgentId]
+    [displayName, defaultAgentId, openDesktopSettingsPage]
   );
 
   // Desktop sidebar collapse state
@@ -1111,6 +1175,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const initialRouteLoadedRef = useRef<boolean>(false);
   const isUserScrolledUpRef = useRef<boolean>(false);
   const scrollRafRef = useRef<number | null>(null);
+  const profileSwipeStartYRef = useRef<number | null>(null);
+  const sidebarSwipeStartRef = useRef<{ x: number; y: number } | null>(null);
 
   // Trigger and menu refs for keyboard navigation & focus restoration
   const desktopAgentTriggerRef = useRef<HTMLButtonElement>(null);
@@ -2731,6 +2797,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }
           return;
         }
+        if (desktopSettingsPage) {
+          e.preventDefault();
+          setDesktopSettingsPage(null);
+          return;
+        }
         if (undoToastChat) {
           e.preventDefault();
           const pending = pendingDeleteRef.current;
@@ -2942,6 +3013,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   const handleCreateNewChat = useCallback(
     (options?: { updateUrl?: boolean }) => {
+      setDesktopSettingsPage(null);
       setIsVoiceModeOpen(false);
       setIsVoiceOptionsMenuOpen(false);
       setOpenFeedbackCommentId(null);
@@ -3010,6 +3082,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         return;
       }
 
+      setDesktopSettingsPage(null);
       setActiveChatId(chatId);
       setCurrentSessionChatId(chatId);
       setIsVoiceModeOpen(false);
@@ -5209,13 +5282,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Settings Modal (Full-Screen Mobile Native Page / Centered Modal sm+) */}
+      {/* Settings Modal (Mobile < md: Full-Screen Native Page | Desktop md+: Floating Popover at Gear Button) */}
       {shouldRenderSettings && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-stretch sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-stretch justify-center p-0 overflow-hidden transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+            settingsView === "main"
+              ? "bg-black/70 md:bg-transparent"
+              : "bg-black/70 md:bg-black/50"
+          } ${
             isSettingsEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5225,10 +5302,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed top-0 left-0 right-0 z-50 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] sm:bg-white dark:bg-[#0e0e10] dark:sm:bg-[#161618] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100vw-3rem)] sm:max-w-[540px] sm:h-auto sm:max-h-[82vh] sm:rounded-2xl sm:border sm:border-zinc-200/80 dark:sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
-              isSettingsEntered
-                ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
-                : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
+            className={`fixed z-50 flex flex-col overflow-hidden will-change-transform ${
+              settingsView === "main"
+                ? `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] dark:bg-[#0e0e10] md:top-auto md:right-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:bg-white/90 dark:md:bg-[#161618]/88 md:backdrop-blur-2xl md:backdrop-saturate-150 md:border md:border-zinc-200/80 dark:md:border-white/[0.1] md:shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:md:shadow-[0_12px_40px_rgba(0,0,0,0.5)] md:p-2 md:origin-bottom-left transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    isSettingsEntered
+                      ? "translate-y-0 opacity-100 md:scale-100"
+                      : "translate-y-full opacity-0 md:translate-y-0 md:scale-95 pointer-events-none"
+                  }`
+                : `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    isSettingsEntered
+                      ? "translate-y-0 md:-translate-y-1/2 opacity-100 md:scale-100"
+                      : "translate-y-full md:-translate-y-[calc(50%-16px)] opacity-0 md:scale-95 pointer-events-none"
+                  }`
             }`}
           >
             {settingsView === "about" ? (
@@ -5245,8 +5330,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               />
             ) : (
               <>
-                {/* Sticky Top Navigation Bar */}
-                <div className="relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] sm:pt-4 pb-3 px-5 sm:px-6 bg-[#f9f9f8] sm:bg-white dark:bg-[#0e0e10] dark:sm:bg-[#161618] border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between">
+                {/* Sticky Top Navigation Bar (Mobile only; hidden on Desktop Popover) */}
+                <div className="md:hidden relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] pb-3 px-5 bg-[#f9f9f8] dark:bg-[#0e0e10] border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between">
                   <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
                     Setelan
                   </h1>
@@ -5261,25 +5346,31 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* Scrollable Body Area */}
-                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(var(--safe-bottom)+28px)] sm:pb-6 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 pt-5 pb-[calc(var(--safe-bottom)+28px)] space-y-5 md:p-0 md:space-y-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
                   {/* Grup 1: Akun */}
                   <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2 md:pb-1 md:mb-0">
                       Akun
                     </div>
-                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none">
+                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:shadow-none md:space-y-0.5">
                       {/* Kelola Akun */}
                       <button
                         type="button"
-                        onClick={() => setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"))}
-                        className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] rounded-t-2xl cursor-pointer"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("account");
+                          } else {
+                            setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"));
+                          }
+                        }}
+                        className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] rounded-t-2xl cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
-                          <User className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Kelola Akun</span>
+                          <User className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Kelola Akun</span>
                         </div>
                         <ChevronRight
-                          className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                          className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
                             expandedSettingsSection === "account" ? "rotate-90" : ""
                           }`}
                         />
@@ -5287,7 +5378,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Kelola Akun drawer */}
                       {expandedSettingsSection === "account" && (
-                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] space-y-3">
+                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-3">
                           <div>
                             <label htmlFor="settings-display-name" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300 mb-1.5">
                               Nama Tampilan
@@ -5314,12 +5405,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   handleUpdateDisplayName(settingsNameInput);
                                 }}
                                 placeholder="Masukkan nama tampilan..."
-                                className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3.5 py-2.5 text-[16px] md:text-[15px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors"
+                                className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3.5 py-2.5 md:px-2.5 md:py-1.5 text-[16px] md:text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors"
                               />
                               <button
                                 type="button"
                                 onClick={() => handleUpdateDisplayName(settingsNameInput)}
-                                className="shrink-0 rounded-xl px-4 py-2.5 text-[14px] font-medium bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors cursor-pointer active:scale-95"
+                                className="shrink-0 rounded-xl px-4 py-2.5 md:px-3 md:py-1.5 text-[14px] md:text-xs font-medium bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors cursor-pointer active:scale-95"
                               >
                                 Simpan
                               </button>
@@ -5341,17 +5432,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {/* Batas penggunaan */}
                       <button
                         type="button"
-                        onClick={() => setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"))}
-                        className={`w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer ${
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("quota");
+                          } else {
+                            setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"));
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150 ${
                           expandedSettingsSection === "quota" ? "" : "rounded-b-2xl"
                         }`}
                       >
                         <div className="flex items-center min-w-0">
-                          <Clock className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Batas penggunaan</span>
+                          <Clock className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Batas penggunaan</span>
                         </div>
                         <ChevronRight
-                          className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                          className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
                             expandedSettingsSection === "quota" ? "rotate-90" : ""
                           }`}
                         />
@@ -5359,8 +5456,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Quota Details */}
                       {expandedSettingsSection === "quota" && (
-                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] rounded-b-2xl space-y-2 text-xs">
-                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed text-sm">
+                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] rounded-b-2xl md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2 text-xs">
+                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed text-sm md:text-xs">
                             {authUser
                               ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan seluruh fitur Axioma Pro."
                               : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
@@ -5384,35 +5481,49 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Grup 2: Preferensi */}
                   <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2.5 md:pb-1 md:mb-0">
                       Preferensi
                     </div>
-                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none">
+                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:shadow-none md:space-y-0.5">
                       {/* Notifikasi */}
-                      <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("notifications");
+                          }
+                        }}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:transition-colors md:duration-150 md:cursor-pointer"
+                      >
                         <div className="flex items-center min-w-0">
-                          <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Notifikasi</span>
+                          <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Notifikasi</span>
                         </div>
-                        <ChevronRight className="w-5 h-5 text-zinc-400 shrink-0" />
-                      </div>
+                        <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0" />
+                      </button>
 
                       {/* Model Default */}
                       <button
                         type="button"
-                        onClick={() => setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"))}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("agent");
+                          } else {
+                            setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"));
+                          }
+                        }}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
-                          <Cpu className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Model Default</span>
+                          <Cpu className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Model Default</span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap max-w-[140px] sm:max-w-[180px] truncate">
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap max-w-[140px] md:max-w-[90px] truncate">
                             {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
                           </span>
                           <ChevronRight
-                            className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                            className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
                               expandedSettingsSection === "agent" ? "rotate-90" : ""
                             }`}
                           />
@@ -5421,19 +5532,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Model Selector */}
                       {expandedSettingsSection === "agent" && (
-                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] space-y-2">
+                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-2 md:py-2 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2">
                           {AVAILABLE_AGENTS.map((agent) => {
                             const isChecked = defaultAgentId === agent.id;
                             return (
                               <label
                                 key={agent.id}
-                                className={`flex items-center justify-between p-3 rounded-xl border text-xs cursor-pointer transition-colors ${
+                                className={`flex items-center justify-between p-3 md:p-2 rounded-xl border text-xs cursor-pointer transition-colors ${
                                   isChecked
                                     ? "bg-white dark:bg-zinc-800/90 border-zinc-300 dark:border-zinc-600 text-zinc-900 dark:text-white shadow-xs"
                                     : "bg-white/60 dark:bg-[#1e1f20]/60 border-zinc-200/80 dark:border-zinc-800 text-zinc-700 dark:text-zinc-300 hover:border-zinc-300 dark:hover:border-zinc-700"
                                 }`}
                               >
-                                <div className="flex items-center gap-3 min-w-0">
+                                <div className="flex items-center gap-2.5 min-w-0">
                                   <input
                                     type="radio"
                                     name="defaultAgent"
@@ -5443,11 +5554,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                     className="w-4 h-4 accent-zinc-900 dark:accent-white cursor-pointer shrink-0"
                                   />
                                   <div className="min-w-0">
-                                    <div className="font-semibold text-sm text-zinc-900 dark:text-zinc-100">{agent.name}</div>
-                                    <div className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">{agent.description}</div>
+                                    <div className="font-semibold text-sm md:text-xs text-zinc-900 dark:text-zinc-100">{agent.name}</div>
+                                    <div className="text-xs md:text-[11px] text-zinc-500 dark:text-zinc-400 line-clamp-1">{agent.description}</div>
                                   </div>
                                 </div>
-                                <span className="text-xs px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium border border-zinc-200 dark:border-zinc-700 ml-2 shrink-0">
+                                <span className="text-xs md:text-[10px] px-2 py-0.5 rounded bg-zinc-100 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 font-medium border border-zinc-200 dark:border-zinc-700 ml-2 shrink-0">
                                   {agent.tag}
                                 </span>
                               </label>
@@ -5457,28 +5568,42 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       )}
 
                       {/* Penyimpanan Riwayat */}
-                      <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left">
-                        <div className="flex items-center shrink-0">
-                          <Database className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 whitespace-nowrap">Penyimpanan Riwayat</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("storage");
+                          }
+                        }}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:transition-colors md:duration-150 md:cursor-pointer"
+                      >
+                        <div className="flex items-center min-w-0">
+                          <Database className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Penyimpanan Riwayat</span>
                         </div>
-                        <span className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap shrink-0 text-right">
+                        <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap shrink-0 text-right">
                           {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
                         </span>
-                      </div>
+                      </button>
 
                       {/* Pintasan Keyboard */}
                       <button
                         type="button"
-                        onClick={() => setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"))}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("shortcuts");
+                          } else {
+                            setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"));
+                          }
+                        }}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
-                          <Keyboard className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Pintasan Keyboard</span>
+                          <Keyboard className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Pintasan Keyboard</span>
                         </div>
                         <ChevronRight
-                          className={`w-5 h-5 text-zinc-400 shrink-0 transition-transform ${
+                          className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
                             expandedSettingsSection === "shortcuts" ? "rotate-90" : ""
                           }`}
                         />
@@ -5486,7 +5611,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Keyboard Shortcuts */}
                       {expandedSettingsSection === "shortcuts" && (
-                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] space-y-2 text-xs">
+                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2 text-xs">
                           <div className="flex items-center justify-between py-1 border-b border-zinc-200/70 dark:border-zinc-800/60">
                             <span className="text-zinc-600 dark:text-zinc-400">Cari percakapan</span>
                             <kbd className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
@@ -5514,8 +5639,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </div>
                       )}
 
-                      {/* Tema */}
-                      <div className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left rounded-b-2xl">
+                      {/* Tema (Mobile inline select | Desktop opens flat canvas page) */}
+                      <div className="md:hidden w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left rounded-b-2xl">
                         <div className="flex items-center min-w-0">
                           <Moon className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Tema</span>
@@ -5533,69 +5658,97 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0 pointer-events-none" />
                         </div>
                       </div>
+                      <button
+                        type="button"
+                        onClick={() => openDesktopSettingsPage("theme")}
+                        className="hidden md:flex w-full px-3 py-2 rounded-xl text-[13.5px] text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.06] items-center justify-between text-left transition-colors duration-150 cursor-pointer"
+                      >
+                        <div className="flex items-center min-w-0">
+                          <Moon className="w-4 h-4 text-zinc-500 dark:text-zinc-400 mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[13.5px] font-normal text-zinc-800 dark:text-zinc-200 truncate">Tema</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                            {themeMode === "system" ? "Default sistem" : themeMode === "dark" ? "Gelap" : "Terang"}
+                          </span>
+                          <ChevronRight className="w-3.5 h-3.5 text-zinc-400 shrink-0" />
+                        </div>
+                      </button>
                     </div>
                   </div>
 
                   {/* Grup 3: Bantuan & Informasi */}
                   <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
+                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2.5 md:pb-1 md:mb-0">
                       Bantuan &amp; Informasi
                     </div>
-                    <div className="rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none overflow-hidden">
+                    <div className="rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none overflow-hidden md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:shadow-none md:space-y-0.5">
                       {/* 1) Kirim Masukan */}
                       <button
                         type="button"
-                        onClick={() => setSettingsView("feedback")}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("feedback");
+                          } else {
+                            setSettingsView("feedback");
+                          }
+                        }}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
-                          <MessageSquarePlus className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Kirim Masukan</span>
+                          <MessageSquarePlus className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Kirim Masukan</span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">Saran &amp; Bug</span>
-                          <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">Saran &amp; Bug</span>
+                          <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
 
                       {/* 2) Tentang Axioma */}
                       <button
                         type="button"
-                        onClick={() => setSettingsView("about")}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("about");
+                          } else {
+                            setSettingsView("about");
+                          }
+                        }}
+                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
-                          <Info className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Tentang Axioma</span>
+                          <Info className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Tentang Axioma</span>
                         </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          <span className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">v2.5 Pro</span>
-                          <ChevronRight className="w-5 h-5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">v2.5 Pro</span>
+                          <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
                     </div>
                   </div>
 
                   {/* Grup 4: Kartu Terpisah Hapus semua percakapan */}
-                  <div className="rounded-2xl bg-white dark:bg-[#131316] border border-red-200 dark:border-red-500/15 hover:bg-red-50/70 dark:hover:bg-red-500/[0.06] transition overflow-hidden">
+                  <div className="rounded-2xl bg-white dark:bg-[#131316] border border-red-200 dark:border-red-500/15 hover:bg-red-50/70 dark:hover:bg-red-500/[0.06] transition overflow-hidden md:bg-transparent md:dark:bg-transparent md:border-0 md:border-t md:border-zinc-200/70 md:dark:border-white/[0.08] md:rounded-none md:mt-1 md:pt-1 md:hover:bg-transparent md:dark:hover:bg-transparent">
                     <button
                       type="button"
                       onClick={() => {
                         setIsSettingsModalOpen(false);
                         setIsClearAllConfirmOpen(true);
                       }}
-                      className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left cursor-pointer text-red-600 dark:text-red-400 group"
+                      className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left cursor-pointer text-red-600 dark:text-red-400 group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:hover:bg-red-50 md:dark:hover:bg-red-500/10 md:transition-colors md:duration-150"
                     >
                       <div className="flex items-center min-w-0">
-                        <Trash className="w-5 h-5 text-red-600 dark:text-red-400 mr-4 shrink-0" strokeWidth={1.75} />
-                        <span className="text-[15px] font-medium leading-snug text-red-600 dark:text-red-400 truncate">Hapus semua percakapan</span>
+                        <Trash className="w-5 h-5 text-red-600 dark:text-red-400 mr-4 md:w-4 md:h-4 md:mr-3 shrink-0" strokeWidth={1.75} />
+                        <span className="text-[15px] font-medium leading-snug text-red-600 dark:text-red-400 md:text-[13.5px] md:font-normal truncate">Hapus semua percakapan</span>
                       </div>
-                      <ChevronRight className="w-5 h-5 text-red-400/70 group-hover:text-red-600 dark:text-red-400/50 dark:group-hover:text-red-400 transition-colors shrink-0" />
+                      <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-red-400/70 group-hover:text-red-600 dark:text-red-400/50 dark:group-hover:text-red-400 transition-colors shrink-0" />
                     </button>
                   </div>
 
-                  {/* Clean Version Footer */}
-                  <div className="pt-2 pb-1 text-center text-xs text-zinc-500 space-y-1">
+                  {/* Clean Version Footer (Mobile only) */}
+                  <div className="md:hidden pt-2 pb-1 text-center text-xs text-zinc-500 space-y-1">
                     <div>Axioma v2.5</div>
                     <div className="text-[11px] leading-relaxed">
                       Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
@@ -5608,12 +5761,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Shared Profile Sheet / Modal (Enter & Exit Animated Bottom Sheet / Centered Modal) */}
+      {/* Shared Profile Sheet / Desktop Floating Popover (Mobile < md: Bottom Sheet | Desktop md+: Frosted Popover at trigger) */}
       {shouldRenderProfile && (
         <div
           role="dialog"
           aria-modal="true"
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-end sm:items-center justify-center bg-black/70 p-0 sm:p-4 overflow-hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-end justify-center bg-black/70 md:bg-transparent p-0 overflow-hidden transition-opacity duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isProfileEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -5622,56 +5775,86 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             }
           }}
         >
-          {/* Popup Container (Bottom-sheet on mobile anchored inside h-[var(--app-height)] wrapper, centered modal on sm+) */}
+          {/* Popup Container (Mobile: Bottom-sheet with swipe-down | Desktop md+: Frosted Floating Popover near trigger) */}
           <div
             ref={profileDropdownRef}
-            className={`absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 z-50 w-full sm:w-[90vw] sm:max-w-[480px] h-auto max-h-[90%] sm:max-h-[85vh] rounded-t-[28px] sm:rounded-[28px] bg-[#F8F8FA] sm:bg-white dark:bg-[#111114] px-5 pt-3 pb-[calc(var(--safe-bottom)+16px)] sm:p-6 flex flex-col shadow-2xl border-t sm:border border-zinc-200/80 dark:border-white/[0.08] overflow-y-auto overscroll-contain touch-auto transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            style={
+              profileSwipeDeltaY > 0
+                ? { transform: `translate3d(0, ${profileSwipeDeltaY}px, 0)`, transition: "none" }
+                : undefined
+            }
+            className={`absolute z-50 w-full h-auto max-h-[90%] rounded-t-[28px] bg-white/85 dark:bg-[#141416]/80 backdrop-blur-2xl backdrop-saturate-150 px-5 pt-3 pb-[calc(var(--safe-bottom)+16px)] flex flex-col shadow-2xl border-t border-zinc-200/80 dark:border-white/[0.1] overflow-y-auto overscroll-contain touch-auto transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform inset-x-0 bottom-0 md:fixed md:w-[310px] md:max-h-[82vh] md:rounded-2xl md:bg-white/90 dark:md:bg-[#161618]/88 md:border md:shadow-[0_12px_40px_rgba(0,0,0,0.12)] dark:md:shadow-[0_12px_40px_rgba(0,0,0,0.5)] md:p-3 ${
+              profileAnchor === "sidebar"
+                ? "md:inset-auto md:bottom-16 md:left-4 md:origin-bottom-left"
+                : "md:inset-auto md:top-16 md:right-4 md:origin-top-right"
+            } ${
               isProfileEntered
-                ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
-                : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
+                ? "translate-y-0 opacity-100 md:scale-100"
+                : "translate-y-full opacity-0 md:translate-y-0 md:scale-95 pointer-events-none"
             }`}
           >
-            {/* Top Area: Drag handle & "Selesai" Action */}
+            {/* Top Area: Mobile Drag handle & "Selesai" (hidden on Desktop Popover) */}
             <div className="shrink-0">
-              <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/60 mx-auto mb-2 sm:hidden" />
+              <div
+                onTouchStart={(e) => {
+                  if (typeof window !== "undefined" && window.innerWidth >= 768) return;
+                  profileSwipeStartYRef.current = e.touches[0]?.clientY ?? null;
+                }}
+                onTouchMove={(e) => {
+                  if (profileSwipeStartYRef.current === null) return;
+                  const currentY = e.touches[0]?.clientY ?? profileSwipeStartYRef.current;
+                  const delta = currentY - profileSwipeStartYRef.current;
+                  if (delta > 0) {
+                    setProfileSwipeDeltaY(Math.min(delta, 240));
+                  }
+                }}
+                onTouchEnd={() => {
+                  if (profileSwipeStartYRef.current === null) return;
+                  const shouldClose = profileSwipeDeltaY > 70;
+                  profileSwipeStartYRef.current = null;
+                  setProfileSwipeDeltaY(0);
+                  if (shouldClose) {
+                    setIsProfileDropdownOpen(false);
+                  }
+                }}
+                onTouchCancel={() => {
+                  profileSwipeStartYRef.current = null;
+                  setProfileSwipeDeltaY(0);
+                }}
+                className="touch-none select-none md:hidden"
+              >
+                <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/60 mx-auto mb-2" />
 
-              <div className="flex items-center justify-between pb-3">
-                <div className="flex items-center gap-2">
-                  <AxiomaLogoMark className="w-5 h-5 shrink-0" />
-                  <span className="font-heading text-[14px] font-bold tracking-[0.06em] uppercase text-zinc-900 dark:text-zinc-100">
-                    Axioma
-                  </span>
+                <div className="flex items-center justify-between pb-3">
+                  <div className="flex items-center gap-2">
+                    <AxiomaLogoMark className="w-5 h-5 shrink-0" />
+                    <span className="font-heading text-[14px] font-bold tracking-[0.06em] uppercase text-zinc-900 dark:text-zinc-100">
+                      Axioma
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsProfileDropdownOpen(false)}
+                    className="text-[15px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer"
+                  >
+                    Selesai
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileDropdownOpen(false)}
-                  className="sm:hidden text-[15px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer"
-                >
-                  Selesai
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileDropdownOpen(false)}
-                  aria-label="Tutup profil"
-                  className="hidden sm:flex w-9 h-9 rounded-full bg-zinc-200/80 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition-all duration-200 ease-out items-center justify-center cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                >
-                  <X className="w-4 h-4" strokeWidth={1.75} />
-                </button>
               </div>
 
               {/* Card 1: Main User Account Card */}
-              <div className="bg-white dark:bg-[#16161a] rounded-3xl p-4 flex items-center justify-between gap-4 mb-3.5 border border-zinc-200/80 dark:border-white/[0.06] shadow-sm">
+              <div className="bg-white/90 dark:bg-[#1c1c1f]/90 rounded-3xl md:rounded-xl p-4 md:p-3 flex items-center justify-between gap-4 md:gap-3 mb-3.5 md:mb-2.5 border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none">
                 <div className="flex items-center min-w-0 flex-1">
-                  <div className="relative w-14 h-14 rounded-full shrink-0">
+                  <div className="relative w-14 h-14 md:w-10 md:h-10 rounded-full shrink-0">
                     <div
-                      className="w-14 h-14 rounded-full font-semibold text-2xl flex items-center justify-center overflow-hidden bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10"
+                      className="w-14 h-14 md:w-10 md:h-10 rounded-full font-semibold text-2xl md:text-base flex items-center justify-center overflow-hidden bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10"
                     >
                       {authUser ? (
-                        <span className="text-2xl font-semibold uppercase">
+                        <span className="text-2xl md:text-base font-semibold uppercase">
                           {(userName || "N").trim().charAt(0).toUpperCase()}
                         </span>
                       ) : (
-                        <span className="text-2xl font-semibold uppercase">{toTitleCase(userName)?.charAt(0) || "T"}</span>
+                        <span className="text-2xl md:text-base font-semibold uppercase">{toTitleCase(userName)?.charAt(0) || "T"}</span>
                       )}
                     </div>
                     <button
@@ -5682,17 +5865,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       }}
                       title="Ubah nama tampilan"
                       aria-label="Ubah nama tampilan"
-                      className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:bg-[#1e1f20] dark:border-zinc-700 dark:text-zinc-300 flex items-center justify-center dark:hover:bg-zinc-700 cursor-pointer transition-colors shadow-sm"
+                      className="absolute -bottom-1 -right-1 w-6 h-6 md:w-5 md:h-5 rounded-full bg-white border border-zinc-200 text-zinc-600 hover:bg-zinc-100 dark:bg-[#1e1f20] dark:border-zinc-700 dark:text-zinc-300 flex items-center justify-center dark:hover:bg-zinc-700 cursor-pointer transition-colors shadow-sm"
                     >
-                      <Pencil className="w-3 h-3" />
+                      <Pencil className="w-3 h-3 md:w-2.5 md:h-2.5" />
                     </button>
                   </div>
 
-                  <div className="min-w-0 flex-1 ml-4">
-                    <div className="text-[18px] font-semibold text-zinc-900 dark:text-white truncate">
+                  <div className="min-w-0 flex-1 ml-4 md:ml-3">
+                    <div className="text-[18px] md:text-[14px] font-semibold text-zinc-900 dark:text-white truncate">
                       {displayName ? toTitleCase(displayName) : (authUser ? "Pengguna" : "Mode Tamu")}
                     </div>
-                    <div className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 truncate mt-0.5">
+                    <div className="text-[13px] md:text-[12px] leading-relaxed text-zinc-500 dark:text-zinc-400 truncate mt-0.5 md:mt-0">
                       {authUser?.email || "Mode Tamu (Lokal)"}
                     </div>
                   </div>
@@ -5705,14 +5888,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     openSettingsModal("main", "account");
                   }}
                   aria-label="Pengaturan akun"
-                  className="w-8 h-8 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 flex items-center justify-center shrink-0 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
+                  className="w-8 h-8 md:w-7 md:h-7 rounded-full bg-zinc-100 hover:bg-zinc-200 text-zinc-600 hover:text-zinc-900 dark:bg-zinc-800 dark:hover:bg-zinc-700 flex items-center justify-center shrink-0 dark:text-zinc-400 dark:hover:text-white transition-colors cursor-pointer"
                 >
-                  <ChevronDown className="w-4 h-4" />
+                  <ChevronDown className="w-4 h-4 md:w-3.5 md:h-3.5" />
                 </button>
               </div>
 
               {/* Separate Standalone Capsule Buttons */}
-              <div className="space-y-2.5">
+              <div className="space-y-2.5 md:space-y-1.5">
                 {/* Button 1: Kelola Akun Google Anda / Masuk dengan Google */}
                 <button
                   type="button"
@@ -5724,16 +5907,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       openSettingsModal("main", "account");
                     }
                   }}
-                  className="w-full bg-white hover:bg-zinc-50 dark:bg-[#16161a] dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
+                  className="w-full bg-white/90 hover:bg-zinc-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center justify-between text-[15px] md:text-[13.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
                 >
-                  <div className="flex items-center gap-3.5 min-w-0">
-                    <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                  <div className="flex items-center gap-3.5 md:gap-2.5 min-w-0">
+                    <svg className="w-5 h-5 md:w-4 md:h-4 shrink-0" viewBox="0 0 24 24">
                       <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
                       <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
                       <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
                       <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
                     </svg>
-                    <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">
+                    <span className="text-[15px] md:text-[13.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">
                       {authUser ? "Kelola Akun Google Anda" : "Masuk dengan Google"}
                     </span>
                   </div>
@@ -5746,11 +5929,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     setIsProfileDropdownOpen(false);
                     openSettingsModal("main");
                   }}
-                  className="w-full bg-white hover:bg-zinc-50 dark:bg-[#16161a] dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center justify-between text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
+                  className="w-full bg-white/90 hover:bg-zinc-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center justify-between text-[15px] md:text-[13.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
                 >
-                  <div className="flex items-center gap-3.5">
-                    <Settings className="w-5 h-5 text-zinc-600 dark:text-zinc-300 shrink-0" strokeWidth={1.75} />
-                    <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">Setelan</span>
+                  <div className="flex items-center gap-3.5 md:gap-2.5">
+                    <Settings className="w-5 h-5 md:w-4 md:h-4 text-zinc-600 dark:text-zinc-300 shrink-0" strokeWidth={1.75} />
+                    <span className="text-[15px] md:text-[13.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">Setelan</span>
                   </div>
                 </button>
 
@@ -5770,9 +5953,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       showToastNotice("Berhasil keluar dari akun.");
                       void refreshChatHistory();
                     }}
-                    className="w-full bg-white hover:bg-red-50 dark:bg-[#16161a] dark:hover:bg-red-950/30 active:scale-[0.98] rounded-2xl px-5 py-4 flex items-center gap-3.5 text-[15px] font-medium leading-snug text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm"
+                    className="w-full bg-white/90 hover:bg-red-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-red-950/30 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center gap-3.5 md:gap-2.5 text-[15px] md:text-[13.5px] font-medium leading-snug text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
                   >
-                    <LogOut className="w-5 h-5 text-red-600 dark:text-red-400 shrink-0" strokeWidth={1.75} />
+                    <LogOut className="w-5 h-5 md:w-4 md:h-4 text-red-600 dark:text-red-400 shrink-0" strokeWidth={1.75} />
                     <span>Keluar dari Akun</span>
                   </button>
                 )}
@@ -5780,7 +5963,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
 
             {/* Bottom Footer Links (1-line horizontal layout) */}
-            <div className="mt-6 flex items-center justify-center gap-2 text-[12px] text-zinc-500 shrink-0">
+            <div className="mt-6 md:mt-3 flex items-center justify-center gap-2 text-[12px] md:text-[11px] text-zinc-500 shrink-0">
               <Link
                 href="/privasi"
                 onClick={() => setIsProfileDropdownOpen(false)}
@@ -6163,8 +6346,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ref={settingsTriggerRef}
             type="button"
             aria-haspopup="menu"
-            aria-expanded={isSettingsMenuOpen}
-            onClick={() => setIsSettingsMenuOpen((prev) => !prev)}
+            aria-expanded={
+              typeof window !== "undefined" && window.innerWidth >= 768
+                ? isProfileDropdownOpen && profileAnchor === "sidebar"
+                : isSettingsMenuOpen
+            }
+            onClick={() => {
+              if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                if (isProfileDropdownOpen && profileAnchor === "sidebar") {
+                  setIsProfileDropdownOpen(false);
+                } else {
+                  setProfileAnchor("sidebar");
+                  setIsProfileDropdownOpen(true);
+                }
+              } else {
+                setIsSettingsMenuOpen((prev) => !prev);
+              }
+            }}
             onKeyDown={(e) => {
               if (e.key === "ArrowUp" || e.key === "ArrowDown") {
                 e.preventDefault();
@@ -6200,12 +6398,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
           </button>
 
-          {/* Item 7: Directly open Settings Modal on clicking gear icon */}
+          {/* Item 7: Directly open/toggle Settings (Mobile page / Desktop floating popover) */}
           <button
             type="button"
             onClick={(e) => {
               e.stopPropagation();
-              openSettingsModal("main");
+              if (isSettingsModalOpen) {
+                setIsSettingsModalOpen(false);
+              } else {
+                openSettingsModal("main");
+              }
             }}
             aria-label="Buka Pengaturan"
             title="Pengaturan"
@@ -6666,10 +6868,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <div className="flex items-center shrink-0">
                   <button
                     type="button"
-                    onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
+                    onClick={() => {
+                      if (isProfileDropdownOpen && profileAnchor === "header") {
+                        setIsProfileDropdownOpen(false);
+                      } else {
+                        setProfileAnchor("header");
+                        setIsProfileDropdownOpen(true);
+                      }
+                    }}
                     aria-label="Buka menu profil dan akun"
                     title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                    className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-[0.96] transition-all duration-200 text-sm font-semibold uppercase bg-zinc-200 hover:bg-zinc-300/80 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 dark:text-zinc-100 dark:border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                    className="w-9 h-9 shrink-0 rounded-xl flex md:hidden items-center justify-center cursor-pointer select-none overflow-hidden active:scale-[0.96] transition-all duration-200 text-sm font-semibold uppercase bg-zinc-200 hover:bg-zinc-300/80 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 dark:text-zinc-100 dark:border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
                   >
                     {authUser ? (
                       <span className="uppercase font-semibold select-none text-[13.5px]">
@@ -6787,6 +6996,309 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               copiedId={copiedId}
               onToast={showToastNotice}
             />
+          ) : desktopSettingsPage ? (
+            <div className="hidden md:flex flex-1 min-h-0 w-full overflow-y-auto bg-[#f9f9f8] dark:bg-[#0e0e10] animate-fade-in">
+              <div className="w-full max-w-[680px] mx-auto px-6 py-8">
+                {/* Editorial Flat Header */}
+                <div className="border-b border-zinc-200/70 dark:border-white/[0.07] pb-4 mb-6">
+                  <button
+                    type="button"
+                    onClick={() => setDesktopSettingsPage(null)}
+                    className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 mb-4 cursor-pointer transition-colors"
+                  >
+                    <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
+                    <span>Kembali</span>
+                  </button>
+                  <h1 className="text-2xl font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
+                    {desktopSettingsPage === "account"
+                      ? "Kelola Akun"
+                      : desktopSettingsPage === "quota"
+                      ? "Batas penggunaan"
+                      : desktopSettingsPage === "notifications"
+                      ? "Notifikasi"
+                      : desktopSettingsPage === "agent"
+                      ? "Model Default"
+                      : desktopSettingsPage === "storage"
+                      ? "Penyimpanan Riwayat"
+                      : desktopSettingsPage === "shortcuts"
+                      ? "Pintasan Keyboard"
+                      : desktopSettingsPage === "theme"
+                      ? "Tema"
+                      : desktopSettingsPage === "feedback"
+                      ? "Kirim Masukan"
+                      : "Tentang Axioma"}
+                  </h1>
+                </div>
+
+                {/* Sub-Menu Body (Flat & Editorial) */}
+                {desktopSettingsPage === "account" && (
+                  <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
+                    <div className="py-4 space-y-3">
+                      <label htmlFor="desktop-settings-display-name" className="block text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                        Nama Tampilan
+                      </label>
+                      <div className="flex gap-2.5">
+                        <input
+                          id="desktop-settings-display-name"
+                          type="text"
+                          maxLength={60}
+                          value={settingsNameInput}
+                          aria-invalid={Boolean(settingsNameError)}
+                          onChange={(e) => {
+                            setSettingsNameInput(e.target.value);
+                            if (settingsNameError) setSettingsNameError(null);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleUpdateDisplayName(settingsNameInput);
+                            }
+                          }}
+                          onBlur={() => handleUpdateDisplayName(settingsNameInput)}
+                          placeholder="Masukkan nama tampilan..."
+                          className="flex-1 min-w-0 bg-white dark:bg-[#161618] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 rounded-xl px-3.5 py-2 text-[14px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleUpdateDisplayName(settingsNameInput)}
+                          className="shrink-0 rounded-xl px-4 py-2 text-[13.5px] font-medium bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors cursor-pointer active:scale-[0.96]"
+                        >
+                          Simpan
+                        </button>
+                      </div>
+                      {settingsNameError && (
+                        <p role="alert" className="text-[13px] text-red-500 dark:text-red-400">
+                          {settingsNameError}
+                        </p>
+                      )}
+                    </div>
+
+                    <div className="py-4 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                          Status Akun
+                        </div>
+                        <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          {authUser ? authUser.email : "Mode Tamu (Lokal di perangkat ini)"}
+                        </div>
+                      </div>
+                      {!authUser ? (
+                        <button
+                          type="button"
+                          onClick={() => setIsAuthModalOpen(true)}
+                          className="px-4 py-2 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/10 text-[13px] font-medium transition-colors cursor-pointer"
+                        >
+                          Hubungkan Akun
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            if (supabase) {
+                              await supabase.auth.signOut();
+                            }
+                            setAuthUser(null);
+                            setAuthToken(null);
+                            setDisplayName(DEFAULT_DISPLAY_NAME);
+                            safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
+                            setDesktopSettingsPage(null);
+                            showToastNotice("Berhasil keluar dari akun.");
+                            void refreshChatHistory();
+                          }}
+                          className="px-4 py-2 rounded-xl text-[13px] font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                        >
+                          Keluar dari Akun
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {desktopSettingsPage === "quota" && (
+                  <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
+                    <div className="py-4 space-y-3">
+                      <p className="text-[13.5px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
+                        {authUser
+                          ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan seluruh fitur Axioma Pro."
+                          : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
+                      </p>
+                      {!authUser && (
+                        <button
+                          type="button"
+                          onClick={() => setIsAuthModalOpen(true)}
+                          className="px-4 py-2 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/10 text-[13px] font-medium transition-colors cursor-pointer"
+                        >
+                          Hubungkan Akun
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {desktopSettingsPage === "notifications" && (
+                  <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
+                    <div className="py-4 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                          Notifikasi Dalam Aplikasi
+                        </div>
+                        <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Umpan balik singkat seperti penyalinan teks, penghapusan sesi, dan status mikrofon ditampilkan langsung di ruang kerja.
+                        </div>
+                      </div>
+                      <span className="text-[13px] font-medium text-zinc-600 dark:text-zinc-300 shrink-0">
+                        Aktif
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {desktopSettingsPage === "agent" && (
+                  <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
+                    {AVAILABLE_AGENTS.map((agent) => {
+                      const isChecked = defaultAgentId === agent.id;
+                      return (
+                        <label
+                          key={agent.id}
+                          className="py-4 flex items-center justify-between gap-4 cursor-pointer group"
+                        >
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <input
+                              type="radio"
+                              name="desktopDefaultAgent"
+                              value={agent.id}
+                              checked={isChecked}
+                              onChange={() => handleSelectDefaultAgent(agent.id)}
+                              className="w-4 h-4 accent-zinc-900 dark:accent-white cursor-pointer shrink-0"
+                            />
+                            <div className="min-w-0">
+                              <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                                {agent.name}
+                              </div>
+                              <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                {agent.description}
+                              </div>
+                            </div>
+                          </div>
+                          <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-zinc-200/70 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium shrink-0">
+                            {agent.tag}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {desktopSettingsPage === "storage" && (
+                  <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
+                    <div className="py-4 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                          Mode Penyimpanan Saat Ini
+                        </div>
+                        <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          {authUser
+                            ? "Riwayat percakapan disinkronkan secara aman ke cloud dan cache lokal."
+                            : "Riwayat percakapan hanya disimpan di penyimpanan lokal peramban ini."}
+                        </div>
+                      </div>
+                      <span className="text-[13px] font-medium text-zinc-700 dark:text-zinc-300 shrink-0">
+                        {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
+                      </span>
+                    </div>
+
+                    <div className="py-4 flex items-center justify-between gap-4">
+                      <div>
+                        <div className="text-[15px] font-medium text-red-600 dark:text-red-400">
+                          Hapus semua percakapan
+                        </div>
+                        <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
+                          Menghapus seluruh riwayat chat dari perangkat{authUser ? " dan akun Anda" : ""}.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsClearAllConfirmOpen(true)}
+                        className="px-4 py-2 rounded-xl text-[13px] font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25 hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer shrink-0"
+                      >
+                        Hapus Semua
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {desktopSettingsPage === "shortcuts" && (
+                  <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
+                    {[
+                      { label: "Cari percakapan", keys: "Ctrl / ⌘ K" },
+                      { label: "Percakapan baru", keys: "Ctrl / ⌘ ⇧ O" },
+                      { label: "Hentikan balasan", keys: "Esc" },
+                      { label: "Kirim pesan", keys: "Enter" },
+                      { label: "Baris baru", keys: "Shift + Enter" },
+                    ].map((item) => (
+                      <div key={item.label} className="py-4 flex items-center justify-between">
+                        <span className="text-[15px] font-medium text-zinc-800 dark:text-zinc-200">{item.label}</span>
+                        <kbd className="px-2.5 py-1 rounded-lg bg-white dark:bg-[#161618] border border-zinc-200 dark:border-zinc-800 font-mono text-xs text-zinc-700 dark:text-zinc-300">
+                          {item.keys}
+                        </kbd>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {desktopSettingsPage === "theme" && (
+                  <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
+                    {(
+                      [
+                        { value: "system", label: "Default sistem", desc: "Mengikuti pengaturan tampilan perangkat Anda secara otomatis." },
+                        { value: "dark", label: "Gelap", desc: "Tampilan gelap tenang untuk fokus di kondisi cahaya redup." },
+                        { value: "light", label: "Terang", desc: "Kanvas terang hangat dengan kontras editorial yang tajam." },
+                      ] as const
+                    ).map((opt) => {
+                      const isActive = themeMode === opt.value;
+                      return (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => handleSetTheme(opt.value)}
+                          className="w-full py-4 flex items-center justify-between gap-4 text-left cursor-pointer group"
+                        >
+                          <div>
+                            <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                              {opt.label}
+                            </div>
+                            <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
+                              {opt.desc}
+                            </div>
+                          </div>
+                          {isActive && (
+                            <Check className="w-4 h-4 text-zinc-900 dark:text-zinc-100 shrink-0" strokeWidth={1.75} />
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {desktopSettingsPage === "feedback" && (
+                  <FeedbackSettingsView
+                    inline
+                    defaultEmail={authUser?.email || ""}
+                    userName={userName}
+                    onBack={() => setDesktopSettingsPage(null)}
+                    onClose={() => setDesktopSettingsPage(null)}
+                  />
+                )}
+
+                {desktopSettingsPage === "about" && (
+                  <AboutSettingsView
+                    inline
+                    onBack={() => setDesktopSettingsPage(null)}
+                    onClose={() => setDesktopSettingsPage(null)}
+                  />
+                )}
+              </div>
+            </div>
           ) : (
             <>
               {/* Mobile Empty State Center View (< md) */}
@@ -7951,15 +8463,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                         return (
                           <div className="flex items-center gap-2">
-                            {/* Subtle Desktop Keyboard Hint */}
-                            {hasUserTextOrAttachments && (
-                              <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-zinc-400 dark:text-zinc-500 select-none animate-fade-in">
-                                <kbd className="border border-zinc-200 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-500">
-                                  Enter
-                                </kbd>
-                              </span>
-                            )}
-
                             {/* Morphing Action Button Container (VN <-> Send: scale + rotate + opacity) */}
                             <div className="relative w-8 h-8">
                               {/* Send Button */}
