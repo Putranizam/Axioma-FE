@@ -116,6 +116,7 @@ body {
   width: 100%;
   height: var(--app-height);
   overflow: hidden;
+  overflow-x: hidden;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
   margin: 0;
@@ -135,6 +136,14 @@ body {
 html.dark,
 html.dark body {
   background-color: #0e0e10;
+}
+
+/* Native Mobile Tap Ergonomics (no grey/blue flash, instant tap without double-tap zoom delay) */
+button,
+a,
+[role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
 }
 
 /* Monochrome Zinc Text Selection */
@@ -419,6 +428,8 @@ html.dark .axioma-markdown em {
 
 .axioma-markdown a {
   color: #2563eb;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 html.dark .axioma-markdown a {
