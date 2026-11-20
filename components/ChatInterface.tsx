@@ -470,8 +470,8 @@ const STARTER_PROMPTS: StarterPrompt[] = [
 
 const DYNAMIC_PLACEHOLDERS = [
   "Tulis pesan ke Axioma...",
-  "Tanyakan ide, kode, atau ringkasan...",
-  "Ketik atau tekan ikon suara untuk bicara...",
+  "Tanyakan ide atau kode...",
+  "Ketik atau tekan ikon suara...",
 ] as const;
 
 function getContextualGreetingByHour(hour: number): string {
@@ -5304,7 +5304,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed top-0 left-0 right-0 z-50 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] sm:bg-white dark:bg-[#0e0e10] dark:sm:bg-[#161618] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100vw-3rem)] sm:max-w-[540px] sm:h-auto sm:max-h-[85vh] sm:rounded-2xl sm:border sm:border-zinc-200/80 dark:sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed top-0 left-0 right-0 z-50 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] sm:bg-white dark:bg-[#0e0e10] dark:sm:bg-[#161618] flex flex-col overflow-hidden sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:w-[calc(100vw-3rem)] sm:max-w-[540px] sm:h-auto sm:max-h-[82vh] sm:rounded-2xl sm:border sm:border-zinc-200/80 dark:sm:border-white/[0.08] sm:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isSettingsEntered
                 ? "translate-y-0 sm:-translate-y-1/2 opacity-100 sm:scale-100"
                 : "translate-y-full sm:-translate-y-[calc(50%-16px)] opacity-0 sm:scale-95 pointer-events-none"
@@ -5340,7 +5340,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* Scrollable Body Area */}
-                <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(var(--safe-bottom)+28px)] sm:pb-6 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(var(--safe-bottom)+28px)] sm:pb-6 space-y-5 scrollbar-none [&::-webkit-scrollbar]:hidden">
                   {/* Grup 1: Akun */}
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2">
@@ -5724,9 +5724,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <button
                   type="button"
                   onClick={() => setIsProfileDropdownOpen(false)}
-                  className="text-[16px] font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300 dark:hover:text-blue-200 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer"
+                  className="sm:hidden text-[15px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer"
                 >
                   Selesai
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIsProfileDropdownOpen(false)}
+                  aria-label="Tutup profil"
+                  className="hidden sm:flex w-9 h-9 rounded-full bg-zinc-200/80 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition-all duration-200 ease-out items-center justify-center cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                >
+                  <X className="w-4 h-4" strokeWidth={1.75} />
                 </button>
               </div>
 
@@ -5735,14 +5743,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <div className="flex items-center min-w-0 flex-1">
                   <div className="relative w-14 h-14 rounded-full shrink-0">
                     <div
-                      className={`w-14 h-14 rounded-full font-bold text-2xl flex items-center justify-center overflow-hidden shadow-inner ${
-                        authUser
-                          ? "bg-indigo-500/90 text-white border border-white/[0.1]"
-                          : "bg-zinc-100 text-zinc-700 border border-zinc-200/80 dark:bg-[#1e1f22] dark:text-zinc-200 dark:border-white/[0.08]"
-                      }`}
+                      className="w-14 h-14 rounded-full font-semibold text-2xl flex items-center justify-center overflow-hidden bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10"
                     >
                       {authUser ? (
-                        <span className="text-2xl font-bold uppercase">
+                        <span className="text-2xl font-semibold uppercase">
                           {(userName || "N").trim().charAt(0).toUpperCase()}
                         </span>
                       ) : (
@@ -5979,7 +5983,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsMobileSidebarOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full h-10 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 text-[14px] font-medium leading-snug transition-all duration-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                className="w-full h-10 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/10 text-[14px] font-medium leading-snug transition-all duration-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
               >
                 <span>Hubungkan Akun</span>
               </button>
@@ -6228,7 +6232,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         {/* User Profile & Settings Menu (Item 4 & Item 7) */}
         <div
-          className={`shrink-0 pt-3 pb-[calc(var(--safe-bottom)+12px)] px-4 md:px-2 md:pt-2 md:pb-2 border-t border-zinc-200/80 dark:border-white/[0.07] relative flex items-center gap-1 ${
+          className={`shrink-0 pt-3 pb-[calc(var(--safe-bottom)+12px)] px-4 md:px-2 md:pt-3 md:pb-4 border-t border-zinc-200/80 dark:border-white/[0.07] relative flex items-center gap-1 ${
             isDesktopSidebarCollapsed
               ? "justify-between md:flex-col md:justify-center md:px-1.5 md:gap-1.5"
               : "justify-between"
@@ -6252,14 +6256,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           >
             <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs">
               {authUser ? (
-                <div className="w-full h-full rounded-xl bg-indigo-600 border border-indigo-500/30 text-white flex items-center justify-center">
-                  <span className="uppercase font-semibold select-none text-white text-xs">
+                <div className="w-full h-full rounded-xl bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10 flex items-center justify-center">
+                  <span className="uppercase font-semibold select-none text-xs">
                     {(userName || "N").trim().charAt(0).toUpperCase()}
                   </span>
                 </div>
               ) : (
-                <div className="w-full h-full rounded-xl bg-zinc-100 hover:bg-zinc-200/80 text-zinc-700 border border-zinc-200/80 dark:bg-white/[0.05] dark:hover:bg-white/[0.08] dark:border-white/[0.08] dark:text-zinc-200 flex items-center justify-center transition-colors">
-                  <User className="w-4 h-4 text-current" />
+                <div className="w-full h-full rounded-xl bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10 flex items-center justify-center transition-colors">
+                  <User className="w-4 h-4 text-current" strokeWidth={1.75} />
                 </div>
               )}
             </div>
@@ -6499,11 +6503,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       }}
                       className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
                     >
-                      <div className="w-7 h-7 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-900 dark:bg-[#242628] dark:border-white/[0.08] dark:text-white flex items-center justify-center text-xs font-semibold shrink-0">
+                      <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10 flex items-center justify-center text-xs font-semibold shrink-0">
                         {authUser ? (
                           (userName || "N").trim().charAt(0).toUpperCase()
                         ) : (
-                          <User className="w-3.5 h-3.5 text-zinc-600 dark:text-zinc-300" />
+                          <User className="w-3.5 h-3.5 text-current" strokeWidth={1.75} />
                         )}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -6737,25 +6741,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 </div>
 
-                {/* Sisi Kanan: Tombol Profil / Akun (w-9 h-9 rounded-xl netral) */}
+                {/* Sisi Kanan: Tombol Profil / Akun (monokrom kalem seragam) */}
                 <div className="flex items-center shrink-0">
                   <button
                     type="button"
                     onClick={() => setIsProfileDropdownOpen((prev) => !prev)}
                     aria-label="Buka menu profil dan akun"
                     title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                    className={`w-9 h-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-95 transition-colors text-sm font-semibold uppercase ${
-                      authUser
-                        ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900 border border-zinc-800 dark:border-zinc-200"
-                        : "bg-zinc-100 hover:bg-zinc-200 text-zinc-700 border border-zinc-200 dark:bg-zinc-900 dark:hover:bg-zinc-800 dark:text-zinc-300 dark:border-zinc-800"
-                    }`}
+                    className="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center cursor-pointer select-none overflow-hidden active:scale-[0.96] transition-all duration-200 text-sm font-semibold uppercase bg-zinc-200 hover:bg-zinc-300/80 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 dark:text-zinc-100 dark:border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
                   >
                     {authUser ? (
                       <span className="uppercase font-semibold select-none text-[13.5px]">
                         {(userName || "N").trim().charAt(0).toUpperCase()}
                       </span>
                     ) : (
-                      <User className="w-4 h-4 text-current" />
+                      <User className="w-4 h-4 text-current" strokeWidth={1.75} />
                     )}
                   </button>
                 </div>
@@ -6899,7 +6899,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             key={activeChatId}
             ref={scrollRef}
             onScroll={handleChatScroll}
-            className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
+            className={`flex-1 min-h-0 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto max-md:scrollbar-none max-md:[&::-webkit-scrollbar]:hidden max-md:[-ms-overflow-style:none] max-md:[scrollbar-width:none] transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages || isLoadingExistingChat
                 ? "opacity-100 py-6 px-4 sm:px-6 flex"
                 : "hidden"
@@ -7132,7 +7132,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               }
 
               const msgFeedback = feedback[message.id]?.rating;
-              const isLastAi = message.id === lastAiMessageId;
               const isStreamingThisMessage = streamingMessageId === message.id;
 
               return (
@@ -7150,7 +7149,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </div>
 
                     <div
-                      className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-[1.7] tracking-[-0.005em] break-words transition-opacity duration-200 ${
+                      className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 font-normal text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-[1.7] tracking-[-0.005em] break-words transition-opacity duration-200 ${
                         isStreamingThisMessage ? "streaming-prose" : ""
                       }`}
                     >
@@ -7312,19 +7311,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           <ThumbsDown className="w-4 h-4" strokeWidth={1.75} />
                         </button>
 
-                        {/* Regenerate Last AI Reply 🔄 */}
-                        {isLastAi && (
-                          <button
-                            type="button"
-                            disabled={isLoading || isGenerating}
-                            onClick={() => handleRegenerateLastReply(message.id)}
-                            title="Buat ulang jawaban"
-                            aria-label="Buat ulang jawaban"
-                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                          >
-                            <RotateCw className="w-4 h-4" strokeWidth={1.75} />
-                          </button>
-                        )}
+                        {/* Regenerate AI Reply 🔄 (consistent across mobile & desktop) */}
+                        <button
+                          type="button"
+                          disabled={isLoading || isGenerating}
+                          onClick={() => handleRegenerateLastReply(message.id)}
+                          title="Buat ulang jawaban"
+                          aria-label="Buat ulang jawaban"
+                          className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                        >
+                          <RotateCw className="w-4 h-4" strokeWidth={1.75} />
+                        </button>
 
                         {feedbackSavedNoticeId === message.id && (
                           <span className="text-[11px] text-emerald-600 dark:text-emerald-400 pl-1">
@@ -8139,10 +8136,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
-              className={`shrink-0 mt-1.5 mb-0 py-0.5 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal [[data-kb="open"]_&]:hidden ${
+              className={`shrink-0 mt-1.5 mb-0 py-0.5 md:pt-1.5 md:pb-3 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal [[data-kb="open"]_&]:hidden ${
                 currentMessages.length === 0
                   ? "hidden"
-                  : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5 md:pt-1"
+                  : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5"
               }`}
             >
               <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
