@@ -119,8 +119,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
-    { media: "(prefers-color-scheme: dark)", color: "#0c0c0e" },
+    { media: "(prefers-color-scheme: light)", color: "#f9f9f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0e10" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -147,12 +147,12 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://axioma-be.onrender.com" />
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var d=document.documentElement;var m=window.matchMedia("(prefers-color-scheme: dark)");function apply(){var t=localStorage.getItem("axioma_theme");var isDark=t==="dark"||((!t||t==="system")&&m.matches);var bg=isDark?"#0c0c0e":"#fafafa";var bar="black-translucent";if(isDark){d.classList.add("dark");d.classList.remove("light");}else{d.classList.remove("dark");d.classList.add("light");}d.style.backgroundColor=bg;if(document.body){document.body.style.backgroundColor=bg;}var metas=document.querySelectorAll('meta[name="theme-color"]');if(metas.length>0){metas.forEach(function(el){el.removeAttribute("media");el.setAttribute("content",bg);});}else{var el=document.createElement("meta");el.name="theme-color";el.content=bg;document.head.appendChild(el);}var ap=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(ap){ap.setAttribute("content",bar);}else{var apel=document.createElement("meta");apel.name="apple-mobile-web-app-status-bar-style";apel.content=bar;document.head.appendChild(apel);}}apply();if(m&&m.addEventListener){m.addEventListener("change",function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}else if(m&&m.addListener){m.addListener(function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}}catch(e){}})();`,
+            __html: `(function(){try{var d=document.documentElement;var m=window.matchMedia("(prefers-color-scheme: dark)");function apply(){var t=localStorage.getItem("axioma_theme");var isDark=t==="dark"||((!t||t==="system")&&m.matches);var bg=isDark?"#0e0e10":"#f9f9f8";var bar="black-translucent";if(isDark){d.classList.add("dark");d.classList.remove("light");}else{d.classList.remove("dark");d.classList.add("light");}d.style.backgroundColor=bg;if(document.body){document.body.style.backgroundColor=bg;}var metas=document.querySelectorAll('meta[name="theme-color"]');if(metas.length>0){metas.forEach(function(el){el.removeAttribute("media");el.setAttribute("content",bg);});}else{var el=document.createElement("meta");el.name="theme-color";el.content=bg;document.head.appendChild(el);}var ap=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(ap){ap.setAttribute("content",bar);}else{var apel=document.createElement("meta");apel.name="apple-mobile-web-app-status-bar-style";apel.content=bar;document.head.appendChild(apel);}}apply();if(m&&m.addEventListener){m.addEventListener("change",function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}else if(m&&m.addListener){m.addListener(function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}}catch(e){}})();`,
           }}
         />
       </head>
       <body
-        className={`${inter.className} ${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} fixed inset-0 w-full h-[var(--app-height)] m-0 p-0 overflow-hidden overscroll-none bg-[#fafafa] dark:bg-[#0c0c0e] text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary`}
+        className={`${inter.className} ${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} fixed inset-0 w-full h-[var(--app-height)] m-0 p-0 overflow-hidden overscroll-none bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-primary font-sans antialiased selection:bg-border-strong selection:text-text-primary`}
         suppressHydrationWarning
       >
         <ViewportEnvSync />

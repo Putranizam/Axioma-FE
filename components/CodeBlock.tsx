@@ -45,36 +45,38 @@ export const CodeBlock = memo(function CodeBlock({
   }, [rawCode, language, isStreaming]);
 
   return (
-    <div className="my-3 w-full max-w-full min-w-0 rounded-xl bg-zinc-100 border border-zinc-200 text-zinc-900 dark:bg-[#141416] dark:border-zinc-800 dark:text-zinc-100 overflow-hidden shadow-xs dark:shadow-lg transition-all hover:border-zinc-300 dark:hover:border-zinc-700">
-      {/* Code Header Bar */}
-      <div className="px-3.5 py-2 bg-zinc-200/70 border-b border-zinc-200 dark:bg-[#1b1b1f] dark:border-zinc-800 flex items-center justify-between text-zinc-600 dark:text-zinc-400 font-mono text-xs select-none">
-        <span className="font-medium tracking-tight text-zinc-700 dark:text-zinc-300">
+    <div className="my-3.5 w-full max-w-full min-w-0 rounded-xl bg-[#f4f4f2] border border-zinc-200/80 text-zinc-900 dark:bg-[#161618] dark:border-white/[0.08] dark:text-zinc-100 overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.03)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.28)] transition-colors duration-200 hover:border-zinc-300/90 dark:hover:border-white/[0.14]">
+      {/* Slim Code Header Bar */}
+      <div className="px-3.5 py-1.5 bg-[#ebebea]/80 border-b border-zinc-200/80 dark:bg-[#1c1c1f] dark:border-white/[0.08] flex items-center justify-between select-none">
+        <span className="text-[11px] font-mono uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
           {displayLanguage}
         </span>
         <button
           type="button"
           onClick={onCopy}
-          aria-label={isCopied ? "Kode berhasil disalin" : "Salin seluruh kode"}
-          className="text-zinc-600 hover:text-zinc-900 hover:bg-zinc-300/60 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 flex items-center gap-1.5 font-sans font-medium tracking-tight text-xs transition-colors active:scale-95 cursor-pointer py-1 px-1.5 min-h-[36px] sm:min-h-0 rounded"
+          aria-label={isCopied ? "Kode berhasil disalin" : "Salin kode"}
+          className="inline-flex items-center gap-1.5 font-sans font-medium tracking-tight text-[11.5px] text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] transition-all duration-200 active:scale-[0.96] cursor-pointer py-1 px-2 min-h-[32px] sm:min-h-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
         >
           {isCopied ? (
-            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={1.75} />
           ) : (
-            <Copy className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" />
+            <Copy className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 shrink-0" strokeWidth={1.75} />
           )}
-          <span>{isCopied ? "Disalin" : "Salin kode"}</span>
+          <span className={isCopied ? "text-emerald-700 dark:text-emerald-400" : ""}>
+            {isCopied ? "Disalin" : "Salin"}
+          </span>
         </button>
       </div>
 
       {/* Code Body */}
-      <pre className="p-4 overflow-x-auto text-zinc-900 dark:text-zinc-100 font-mono text-[13px] leading-[1.55] m-0">
+      <pre className="p-4 overflow-x-auto text-zinc-900 dark:text-zinc-100 font-mono text-[13px] leading-[1.6] m-0">
         {highlightedHtml ? (
           <code
-            className="hljs font-mono text-[13px] leading-[1.55] block"
+            className="hljs font-mono text-[13px] leading-[1.6] block"
             dangerouslySetInnerHTML={{ __html: highlightedHtml }}
           />
         ) : (
-          <code className="font-mono text-[13px] leading-[1.55] block whitespace-pre">
+          <code className="font-mono text-[13px] leading-[1.6] block whitespace-pre">
             {rawCode}
           </code>
         )}

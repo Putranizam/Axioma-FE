@@ -1643,13 +1643,39 @@ export default function VoiceModeOverlay({
         )}
 
         <div className="w-full max-w-[380px] relative flex flex-col items-center">
+          {/* Dynamic Monochrome Voice Wave Visualizer (5 organic bars when listening or speaking) */}
+          {((voiceState === "listening" && !isMuted) || isSpeaking) && (
+            <div
+              aria-hidden="true"
+              className="mb-3.5 flex items-center justify-center gap-1 h-5 animate-fade-in"
+            >
+              {[
+                { delay: "0ms", duration: "0.95s", height: "12px" },
+                { delay: "140ms", duration: "0.78s", height: "18px" },
+                { delay: "60ms", duration: "0.86s", height: "20px" },
+                { delay: "220ms", duration: "0.74s", height: "16px" },
+                { delay: "110ms", duration: "0.92s", height: "11px" },
+              ].map((bar, idx) => (
+                <span
+                  key={idx}
+                  className="w-[3px] rounded-full bg-zinc-800 dark:bg-zinc-200 animate-voice-bar"
+                  style={{
+                    height: bar.height,
+                    animationDelay: bar.delay,
+                    animationDuration: bar.duration,
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
           {/* "Ketuk untuk menyela" Capsule — ONLY visible when Axioma is speaking */}
           {isSpeaking && (
             <div className="absolute bottom-full left-1/2 -translate-x-1/2 flex justify-center pointer-events-none z-40">
               <button
                 type="button"
                 onClick={handleInterruptSpeech}
-                className="pointer-events-auto mb-3 px-4 py-1.5 rounded-full bg-white hover:bg-zinc-100 border border-zinc-200 text-[13px] font-medium text-zinc-800 dark:bg-[#1e1f22] dark:hover:bg-[#27282c] dark:border-white/[0.08] dark:text-zinc-200 shadow-lg animate-fade-up active:scale-95 transition whitespace-nowrap cursor-pointer"
+                className="pointer-events-auto mb-3 px-4 py-1.5 rounded-full bg-white hover:bg-zinc-100 border border-zinc-200/80 text-[13px] font-medium text-zinc-800 dark:bg-[#1c1c1f] dark:hover:bg-[#27282c] dark:border-white/[0.08] dark:text-zinc-200 shadow-lg animate-fade-up active:scale-[0.96] transition-all duration-200 whitespace-nowrap cursor-pointer"
               >
                 Ketuk untuk menyela
               </button>

@@ -186,17 +186,17 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-black/70 sm:dark:bg-black/70 overflow-hidden animate-backdrop"
+      className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6 bg-[#f9f9f8] dark:bg-[#0e0e10] sm:bg-black/70 sm:dark:bg-black/70 overflow-hidden animate-backdrop"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] overflow-hidden sm:static sm:w-full sm:h-auto sm:max-h-[90vh] bg-[#fafafa] dark:bg-[#0c0c0e] sm:max-w-[420px] sm:mx-auto sm:my-auto sm:rounded-2xl sm:bg-white sm:dark:bg-[#141416] sm:border sm:border-zinc-200 sm:dark:border-zinc-800 sm:shadow-2xl sm:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
+        className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] overflow-hidden sm:static sm:w-full sm:h-auto sm:max-h-[90vh] bg-[#f9f9f8] dark:bg-[#0e0e10] sm:max-w-[420px] sm:mx-auto sm:my-auto sm:rounded-2xl sm:bg-white sm:dark:bg-[#161618] sm:border sm:border-zinc-200/80 sm:dark:border-white/[0.08] sm:shadow-2xl sm:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
       >
         {/* Header (solid opaque, aman di bawah status bar / Dynamic Island) */}
-        <div className="relative z-30 shrink-0 flex items-start justify-between gap-3 pt-[calc(var(--safe-top)+14px)] pb-3 px-5 sm:p-0 sm:pb-5 bg-[#fafafa] dark:bg-[#0c0c0e] sm:bg-white sm:dark:bg-[#141416] border-b border-zinc-200 dark:border-zinc-800 sm:border-b-0">
+        <div className="relative z-30 shrink-0 flex items-start justify-between gap-3 pt-[calc(var(--safe-top)+14px)] pb-3 px-5 sm:p-0 sm:pb-5 bg-[#f9f9f8] dark:bg-[#0e0e10] sm:bg-white sm:dark:bg-[#161618] border-b border-zinc-200/80 dark:border-white/[0.08] sm:border-b-0">
           <div className="flex items-center gap-3 min-w-0">
             <AxiomaLogoMark className="w-8 h-8 shrink-0" />
             <div className="min-w-0">

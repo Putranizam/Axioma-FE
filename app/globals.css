@@ -6,11 +6,11 @@
 @source "../components/**/*.{js,ts,jsx,tsx}";
 
 :root {
-  --background: #fafafa;
+  --background: #f9f9f8;
   --foreground: #09090b;
-  --bg-primary: #fafafa;
+  --bg-primary: #f9f9f8;
   --bg-elevated: #ffffff;
-  --bg-surface: #f4f4f5;
+  --bg-surface: #f3f3f1;
   --bg-subtle: #e4e4e7;
   --text-primary: #09090b;
   --text-secondary: #27272a;
@@ -21,16 +21,16 @@
 }
 
 html.dark {
-  --background: #0c0c0e;
+  --background: #0e0e10;
   --foreground: #f4f4f5;
-  --bg-primary: #0c0c0e;
-  --bg-elevated: #141416;
+  --bg-primary: #0e0e10;
+  --bg-elevated: #161618;
   --bg-surface: #18181b;
   --bg-subtle: #27272a;
-  --text-primary: #f4f4f5; /* ~17.4:1 vs #0c0c0e (WCAG AAA) */
-  --text-secondary: #d4d4d8; /* ~12.6:1 vs #0c0c0e (WCAG AAA) */
-  --text-muted: #a1a1aa; /* ~7.4:1 vs #0c0c0e (WCAG AA >= 4.5:1) */
-  --icon-muted: #a1a1aa; /* ~7.4:1 vs #0c0c0e (WCAG AA >= 3:1) */
+  --text-primary: #f4f4f5; /* ~17.4:1 vs #0e0e10 (WCAG AAA) */
+  --text-secondary: #d4d4d8; /* ~12.6:1 vs #0e0e10 (WCAG AAA) */
+  --text-muted: #a1a1aa; /* ~7.4:1 vs #0e0e10 (WCAG AA >= 4.5:1) */
+  --icon-muted: #a1a1aa; /* ~7.4:1 vs #0e0e10 (WCAG AA >= 3:1) */
   --border-subtle: #27272a;
   --border-strong: #3f3f46;
 }
@@ -120,7 +120,7 @@ body {
   overscroll-behavior-y: none;
   margin: 0;
   padding: 0;
-  background-color: #fafafa;
+  background-color: #f9f9f8;
   color: var(--text-primary);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   touch-action: pan-x pan-y;
@@ -134,7 +134,7 @@ body {
 
 html.dark,
 html.dark body {
-  background-color: #0c0c0e;
+  background-color: #0e0e10;
 }
 
 h1,
@@ -225,7 +225,7 @@ code {
   min-width: 0;
   color: #18181b;
   font-size: 15.5px;
-  line-height: 1.6;
+  line-height: 1.7;
   letter-spacing: -0.005em;
   word-break: break-word;
   overflow-wrap: anywhere;
@@ -239,7 +239,7 @@ html.dark .axioma-markdown {
 .axioma-markdown code {
   font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
   font-size: 13px;
-  line-height: 1.55;
+  line-height: 1.6;
 }
 
 .axioma-markdown pre {
@@ -622,7 +622,72 @@ html.dark .axioma-markdown td {
 }
 
 .animate-thinking-label {
-  animation: thinkingTextPulse 1.8s ease-in-out infinite;
+  animation: thinkingTextPulse 2.2s ease-in-out infinite;
+}
+
+/* Organic "Slow Enjoy" Keyframes & Utilities */
+@keyframes messageIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes chipStaggerIn {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 6px, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes breathingPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes voiceBarBounce {
+  0%,
+  100% {
+    transform: scaleY(0.32);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scaleY(1);
+    opacity: 0.95;
+  }
+}
+
+.animate-message-in {
+  animation: messageIn 380ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  will-change: transform, opacity;
+}
+
+.animate-chip-in {
+  animation: chipStaggerIn 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.animate-breathing {
+  animation: breathingPulse 2.2s ease-in-out infinite;
+}
+
+.animate-voice-bar {
+  transform-origin: center;
+  animation: voiceBarBounce 0.85s ease-in-out infinite;
+  will-change: transform, opacity;
 }
 
 /* Smooth fade-in on newly appended markdown blocks & glowing typing cursor during streaming */
@@ -783,6 +848,8 @@ html.dark .axioma-markdown td {
 @media (prefers-reduced-motion: reduce) {
   .animate-user-bubble,
   .animate-ai-bubble,
+  .animate-message-in,
+  .animate-chip-in,
   .animate-error-shake,
   .streaming-prose > *:last-child,
   .animate-fade-in,
@@ -792,6 +859,11 @@ html.dark .axioma-markdown td {
   .animate-cross-fade,
   .animate-backdrop {
     animation-duration: 80ms !important;
+    transform: none !important;
+  }
+
+  .animate-voice-bar {
+    animation: breathingPulse 2.2s ease-in-out infinite !important;
     transform: none !important;
   }
 
