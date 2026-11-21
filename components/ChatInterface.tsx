@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect, useCallback, useMemo } from "react"
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { AxiomaLogoMark } from "./AxiomaLogoMark";
+import { syncIosSafariTheme } from "@/lib/themeSync";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -1311,25 +1312,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       root.classList.add("light");
     }
 
-    const themeColor = isDark ? "#0e0e10" : "#f9f9f8";
+    // Force real-time Safari iOS status bar & bottom toolbar repaint (remove + recreate meta inside rAF)
+    syncIosSafariTheme(isDark);
+
     const barStyle = "black-translucent";
-
-    // Sync color-scheme & solid canvas background on html + body for Safari iOS chrome
-    root.style.colorScheme = isDark ? "dark" : "light";
-    root.style.backgroundColor = themeColor;
-    if (document.body) {
-      document.body.style.backgroundColor = themeColor;
-    }
-
-    // Force Safari iOS to repaint status bar & bottom toolbar by removing old meta tags and appending a fresh one
-    document
-      .querySelectorAll('meta[name="theme-color"]')
-      .forEach((el) => el.remove());
-    const meta = document.createElement("meta");
-    meta.name = "theme-color";
-    meta.content = themeColor;
-    document.head.appendChild(meta);
-
     let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
     if (!appleMeta) {
       appleMeta = document.createElement("meta");
