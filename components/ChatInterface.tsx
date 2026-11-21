@@ -1312,17 +1312,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       root.classList.add("light");
     }
 
-    // Force real-time Safari iOS status bar & bottom toolbar repaint (remove + recreate meta inside rAF)
+    // Force real-time Safari iOS status bar & bottom toolbar repaint synchronously + rAF nudge
+    // (syncs classList, colorScheme, html/body background, theme-color, and apple status bar style)
     syncIosSafariTheme(isDark);
-
-    const barStyle = "black-translucent";
-    let appleMeta = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');
-    if (!appleMeta) {
-      appleMeta = document.createElement("meta");
-      appleMeta.setAttribute("name", "apple-mobile-web-app-status-bar-style");
-      document.head.appendChild(appleMeta);
-    }
-    appleMeta.setAttribute("content", barStyle);
   }, []);
 
   const handleSetTheme = useCallback(
@@ -5415,18 +5407,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-stretch justify-center p-0 overflow-hidden ${
-            isSettingsEntered ? "pointer-events-auto" : "pointer-events-none"
+          className={`fixed inset-0 md:top-0 md:left-0 md:right-0 md:bottom-auto md:h-[var(--app-height)] z-50 flex items-stretch justify-center p-0 overflow-hidden max-md:transition-colors max-md:duration-200 ${
+            isSettingsEntered
+              ? "max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] pointer-events-auto"
+              : "max-md:bg-transparent pointer-events-none"
           }`}
         >
-          {/* Sibling backdrop (keeps dialog wrapper free of opacity transition so Safari preserves -webkit-backdrop-filter) */}
+          {/* Sibling backdrop (Desktop only: on mobile Settings is a 100% solid theme-colored full-screen surface with zero dark backdrop touching safe areas) */}
           <div
             aria-hidden="true"
             onClick={() => setIsSettingsModalOpen(false)}
-            className={`absolute inset-0 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              settingsView === "main"
-                ? "bg-black/60 md:bg-transparent"
-                : "bg-black/60 md:bg-black/50"
+            className={`hidden md:block absolute inset-0 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+              settingsView === "main" ? "bg-transparent" : "bg-black/50"
             } ${isSettingsEntered ? "opacity-100" : "opacity-0"}`}
           />
           <div

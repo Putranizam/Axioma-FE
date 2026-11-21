@@ -266,7 +266,7 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
   }
 
   return (
-    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85vh] animate-fade-in">
+    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85vh] bg-[#f9f9f8] sm:bg-white dark:bg-[#0e0e10] dark:sm:bg-[#161618] animate-fade-in">
       <SubViewHeader title="Tentang Axioma" onBack={onBack} onClose={onClose} />
 
       <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(var(--safe-bottom)+28px)] sm:pb-6 space-y-4 scrollbar-none [&::-webkit-scrollbar]:hidden">
@@ -525,7 +525,7 @@ export function FeedbackSettingsView({
   }
 
   return (
-    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85vh] animate-fade-in">
+    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85vh] bg-[#f9f9f8] sm:bg-white dark:bg-[#0e0e10] dark:sm:bg-[#161618] animate-fade-in">
       <SubViewHeader title="Kirim Masukan" onBack={onBack} onClose={onClose} />
 
       <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(var(--safe-bottom)+28px)] sm:pb-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
