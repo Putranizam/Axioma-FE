@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const receiverEmail = (
       process.env.FEEDBACK_RECEIVER_EMAIL ||
       smtpUser ||
-      "nizamputrarasya07@gmail.com"
+      "axiomamyid@gmail.com"
     ).trim();
 
     const timestamp = formatWibString();
