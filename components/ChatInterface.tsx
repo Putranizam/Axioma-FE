@@ -1038,6 +1038,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setSettingsDefaultAgentInput(defaultAgentId);
       setExpandedSettingsSection(expandedSection);
       setSettingsView(view);
+      setIsMobileSidebarOpen(false);
+      setIsProfileDropdownOpen(false);
       setIsSettingsModalOpen(true);
     },
     [displayName, defaultAgentId, openDesktopSettingsPage]
@@ -5401,36 +5403,36 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Settings Modal (Mobile < md: Full-Screen Native Page | Desktop md+: Floating Popover at Gear Button) */}
+      {/* Settings Modal (Mobile < md: Full-Screen Native Solid Theme Page | Desktop md+: Floating Popover / Centered Card) */}
       {shouldRenderSettings && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="settings-modal-title"
-          className={`fixed inset-0 md:top-0 md:left-0 md:right-0 md:bottom-auto md:h-[var(--app-height)] z-50 flex items-stretch justify-center p-0 overflow-hidden max-md:transition-colors max-md:duration-200 ${
+          className={`fixed inset-0 md:top-0 md:left-0 md:right-0 md:bottom-auto md:h-[var(--app-height)] z-50 flex items-stretch justify-center p-0 overflow-hidden ${
             isSettingsEntered
               ? "max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] pointer-events-auto"
               : "max-md:bg-transparent pointer-events-none"
           }`}
         >
-          {/* Sibling backdrop (Desktop only: on mobile Settings is a 100% solid theme-colored full-screen surface with zero dark backdrop touching safe areas) */}
+          {/* Sibling backdrop (Desktop only: ZERO dark backdrop on mobile so Safari iOS never samples black at top/bottom safe areas) */}
           <div
             aria-hidden="true"
             onClick={() => setIsSettingsModalOpen(false)}
             className={`hidden md:block absolute inset-0 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              settingsView === "main" ? "bg-transparent" : "bg-black/50"
+              settingsView === "main" ? "md:bg-transparent" : "md:bg-black/60"
             } ${isSettingsEntered ? "opacity-100" : "opacity-0"}`}
           />
           <div
             style={settingsView === "main" ? settingsPopoverStyle : undefined}
             className={`fixed z-50 flex flex-col overflow-hidden ${
               settingsView === "main"
-                ? `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:top-auto md:right-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:p-2 md:origin-bottom-left transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                ? `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:inset-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:p-2 md:origin-bottom-left transition-[transform,opacity] duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isSettingsEntered
                       ? "translate-y-0 opacity-100 md:scale-100"
                       : "translate-y-full opacity-0 md:translate-y-0 md:scale-95 pointer-events-none"
                   }`
-                : `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                : `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                     isSettingsEntered
                       ? "translate-y-0 md:-translate-y-1/2 opacity-100 md:scale-100"
                       : "translate-y-full md:-translate-y-[calc(50%-16px)] opacity-0 md:scale-95 pointer-events-none"
@@ -5883,7 +5885,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       )}
 
       {/* Shared Profile Sheet / Desktop Floating Popover (Mobile < md: Bottom Sheet | Desktop md+: Frosted Popover at trigger) */}
-      {shouldRenderProfile && (
+      {shouldRenderProfile && !isSettingsModalOpen && (
         <div
           role="dialog"
           aria-modal="true"
@@ -6108,8 +6110,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Mobile Off-canvas Backdrop (Solid Scrim, Zero Blur) */}
-      {shouldRenderSidebarBackdrop && (
+      {/* Mobile Off-canvas Backdrop (Solid Scrim, Zero Blur — immediately unmounted when Settings opens) */}
+      {shouldRenderSidebarBackdrop && !isSettingsModalOpen && (
         <div
           role="button"
           tabIndex={0}
