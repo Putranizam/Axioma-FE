@@ -406,37 +406,85 @@ const TIME_GROUP_ORDER: TimeGroupLabel[] = [
   "Lebih lama",
 ];
 
+type EngineMode = "auto" | "fast" | "pro";
+
 interface Agent {
-  id: "axioma-pro" | "axioma-omni" | "axioma-architect";
+  id: EngineMode | string;
   name: string;
   shortName: string;
   tag: string;
   description: string;
+  isDefault?: boolean;
+  backendAgentId: "axioma-pro" | "axioma-omni" | "axioma-architect";
 }
 
-const AVAILABLE_AGENTS: Agent[] = [
+const FALLBACK_ENGINES: Agent[] = [
   {
-    id: "axioma-pro",
+    id: "auto",
+    name: "Axioma Auto",
+    shortName: "Auto",
+    tag: "Dinamis",
+    description:
+      "Otomatis menyesuaikan kompleksitas pertanyaan (ringan vs mendalam/PDF/Lens)",
+    isDefault: true,
+    backendAgentId: "axioma-pro",
+  },
+  {
+    id: "fast",
+    name: "Axioma Fast",
+    shortName: "Fast",
+    tag: "Cepat",
+    description: "Respons instan dan ringan untuk obrolan harian dan ringkasan cepat",
+    isDefault: false,
+    backendAgentId: "axioma-omni",
+  },
+  {
+    id: "pro",
     name: "Axioma Pro",
     shortName: "Pro",
     tag: "Mendalam",
-    description: "Logika kompleks dan penalaran analitis",
-  },
-  {
-    id: "axioma-omni",
-    name: "Axioma Omni",
-    shortName: "Omni",
-    tag: "Multimodal",
-    description: "Multimodal cepat untuk analisis foto, dokumen PDF, dan obrolan harian",
-  },
-  {
-    id: "axioma-architect",
-    name: "Axioma Architect",
-    shortName: "Architect",
-    tag: "Kode",
-    description: "Desain sistem dan sintesis kode",
+    description: "Penalaran mendalam untuk analisis kritis, pemrograman, dan dokumen",
+    isDefault: false,
+    backendAgentId: "axioma-pro",
   },
 ];
+
+function mapRemoteEngineOption(raw: any): Agent | null {
+  if (!raw || typeof raw !== "object") return null;
+  const id = typeof raw.id === "string" ? raw.id.trim().toLowerCase() : "";
+  if (!id) return null;
+
+  const fallbackMatch = FALLBACK_ENGINES.find((item) => item.id === id);
+  const rawLabel = typeof raw.label === "string" ? raw.label.trim() : "";
+  const rawDesc = typeof raw.description === "string" ? raw.description.trim() : "";
+  const isDefault = Boolean(raw.isDefault);
+
+  if (fallbackMatch) {
+    return {
+      ...fallbackMatch,
+      tag: rawLabel && !/^axioma\s+/i.test(rawLabel) ? rawLabel : fallbackMatch.tag,
+      description: rawDesc || fallbackMatch.description,
+      isDefault,
+    };
+  }
+
+  const displayName = rawLabel
+    ? /^axioma\s+/i.test(rawLabel)
+      ? rawLabel
+      : `Axioma ${rawLabel}`
+    : `Axioma ${id}`;
+  const shortName = displayName.replace(/^axioma\s+/i, "").trim() || id;
+
+  return {
+    id,
+    name: displayName,
+    shortName,
+    tag: isDefault ? "Default" : "Engine",
+    description: rawDesc || "Engine dinamis Axioma",
+    isDefault,
+    backendAgentId: id === "fast" ? "axioma-omni" : "axioma-pro",
+  };
+}
 
 const DYNAMIC_PLACEHOLDERS = [
   "Tulis pesan ke Axioma...",
@@ -960,8 +1008,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     : "Mode Tamu";
   const userName = toTitleCase(rawUserName);
 
-  const [defaultAgentId, setDefaultAgentId] = useState<Agent["id"]>("axioma-pro");
-  const [selectedAgent, setSelectedAgent] = useState<Agent>(AVAILABLE_AGENTS[0]);
+  const [availableEngines, setAvailableEngines] = useState<Agent[]>(FALLBACK_ENGINES);
+  const [defaultAgentId, setDefaultAgentId] = useState<Agent["id"]>("auto");
+  const [selectedAgent, setSelectedAgent] = useState<Agent>(FALLBACK_ENGINES[0]);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState<boolean>(false);
   const [isHeaderAgentMenuOpen, setIsHeaderAgentMenuOpen] = useState<boolean>(false);
   const [headerMenuTop, setHeaderMenuTop] = useState<number | null>(null);
@@ -973,7 +1022,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [settingsNameInput, setSettingsNameInput] = useState<string>(DEFAULT_DISPLAY_NAME);
   const [settingsNameError, setSettingsNameError] = useState<string | null>(null);
   const [settingsDefaultAgentInput, setSettingsDefaultAgentInput] =
-    useState<Agent["id"]>("axioma-pro");
+    useState<Agent["id"]>("auto");
   const [themeMode, setThemeMode] = useState<"dark" | "light" | "system">("system");
   const [expandedSettingsSection, setExpandedSettingsSection] = useState<string | null>(null);
   const [desktopSettingsPage, setDesktopSettingsPage] = useState<
@@ -1371,6 +1420,50 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     };
   }, [themeMode, applyTheme]);
 
+  // Dynamically fetch available AI engines from GET /api/engines on mount (fallback to FALLBACK_ENGINES if offline)
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${BACKEND_URL}/api/engines`, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+        });
+        if (!res.ok) return;
+        const payload = await res.json().catch(() => null);
+        const rawList = Array.isArray(payload?.engines) ? payload.engines : [];
+        const parsed = rawList
+          .map(mapRemoteEngineOption)
+          .filter((item: Agent | null): item is Agent => Boolean(item));
+        if (cancelled || parsed.length === 0) return;
+
+        setAvailableEngines(parsed);
+
+        const remoteDefault =
+          parsed.find((item: Agent) => item.isDefault) ||
+          parsed.find((item: Agent) => item.id === "auto") ||
+          parsed[0];
+        const persistedDefaultId = safeGetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT);
+        const persistedSelectedId =
+          safeGetLocalStorage(STORAGE_KEYS.SELECTED_AGENT) || persistedDefaultId;
+
+        const resolvedDefault =
+          parsed.find((item: Agent) => item.id === persistedDefaultId) || remoteDefault;
+        const resolvedSelected =
+          parsed.find((item: Agent) => item.id === persistedSelectedId) || resolvedDefault;
+
+        setDefaultAgentId(resolvedDefault.id);
+        setSettingsDefaultAgentInput(resolvedDefault.id);
+        setSelectedAgent(resolvedSelected);
+      } catch {
+        // Offline or network error: retain FALLBACK_ENGINES silently
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const isModalActiveRef = useRef<boolean>(false);
   useEffect(() => {
     isModalActiveRef.current = Boolean(
@@ -1453,9 +1546,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }
     }
 
-    // Load saved default & selected agent
+    // Load saved default & selected engine (defaults to Axioma Auto for dynamic routing)
     const savedDefault = safeGetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT);
-    const validDefault = AVAILABLE_AGENTS.find((a) => a.id === savedDefault);
+    const validDefault = FALLBACK_ENGINES.find((a) => a.id === savedDefault);
     if (validDefault) {
       setDefaultAgentId(validDefault.id);
       setSettingsDefaultAgentInput(validDefault.id);
@@ -1463,7 +1556,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
     const savedSelected =
       safeGetLocalStorage(STORAGE_KEYS.SELECTED_AGENT) || savedDefault;
-    const validSelected = AVAILABLE_AGENTS.find((a) => a.id === savedSelected);
+    const validSelected = FALLBACK_ENGINES.find((a) => a.id === savedSelected);
     if (validSelected) {
       setSelectedAgent(validSelected);
     }
@@ -2697,25 +2790,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     if (isAgentMenuOpen) {
       const activeIdx = Math.max(
         0,
-        AVAILABLE_AGENTS.findIndex((a) => a.id === selectedAgent.id)
+        availableEngines.findIndex((a) => a.id === selectedAgent.id)
       );
       requestAnimationFrame(() => {
         desktopAgentItemRefs.current[activeIdx]?.focus();
       });
     }
-  }, [isAgentMenuOpen, selectedAgent.id]);
+  }, [isAgentMenuOpen, selectedAgent.id, availableEngines]);
 
   useEffect(() => {
     if (isHeaderAgentMenuOpen) {
       const activeIdx = Math.max(
         0,
-        AVAILABLE_AGENTS.findIndex((a) => a.id === selectedAgent.id)
+        availableEngines.findIndex((a) => a.id === selectedAgent.id)
       );
       requestAnimationFrame(() => {
         headerAgentItemRefs.current[activeIdx]?.focus();
       });
     }
-  }, [isHeaderAgentMenuOpen, selectedAgent.id]);
+  }, [isHeaderAgentMenuOpen, selectedAgent.id, availableEngines]);
 
   useEffect(() => {
     if (openChatMenuId) {
@@ -3716,7 +3809,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
 
     const chosenDefault =
-      AVAILABLE_AGENTS.find((a) => a.id === settingsDefaultAgentInput) || AVAILABLE_AGENTS[0];
+      availableEngines.find((a) => a.id === settingsDefaultAgentInput) ||
+      availableEngines[0] ||
+      FALLBACK_ENGINES[0];
     setDefaultAgentId(chosenDefault.id);
     setSelectedAgent(chosenDefault);
     safeSetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT, chosenDefault.id);
@@ -3727,13 +3822,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   const handleSelectDefaultAgent = (agentId: string) => {
     const chosenDefault =
-      AVAILABLE_AGENTS.find((a) => a.id === agentId) || AVAILABLE_AGENTS[0];
+      availableEngines.find((a) => a.id === agentId) ||
+      availableEngines[0] ||
+      FALLBACK_ENGINES[0];
     setSettingsDefaultAgentInput(chosenDefault.id);
     setDefaultAgentId(chosenDefault.id);
     setSelectedAgent(chosenDefault);
     safeSetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT, chosenDefault.id);
     safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, chosenDefault.id);
-    showToastNotice(`Model default diubah ke ${chosenDefault.name}`);
+    showToastNotice(`Engine default diubah ke ${chosenDefault.name}`);
   };
 
   const handleUpdateDisplayName = (rawName: string) => {
@@ -3818,7 +3915,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           chat_id: sessionPayloadId,
           content: userText,
           stream: true,
-          agent_id: selectedAgent.id,
+          engine_mode: selectedAgent.id,
+          agent_id: selectedAgent.backendAgentId,
           turnstile_token: turnstileToken || undefined,
           attachment_ids: attachmentIds.length > 0 ? attachmentIds : undefined,
           voice_mode: voiceMode,
@@ -4130,7 +4228,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             chat_id: sessionPayloadId,
             content: userText,
             stream: true,
-            agent_id: activeAgentSnapshot.id,
+            engine_mode: activeAgentSnapshot.id,
+            agent_id: activeAgentSnapshot.backendAgentId,
             regenerate: Boolean(options?.regenerate),
             turnstile_token: currentTurnstileToken || undefined,
             attachment_ids: options?.attachmentIds?.length ? options.attachmentIds : undefined,
@@ -5646,7 +5745,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap max-w-[140px] md:max-w-[90px] truncate">
-                            {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
+                            {availableEngines.find((a) => a.id === defaultAgentId)?.name || "Axioma Auto"}
                           </span>
                           <ChevronRight
                             className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
@@ -5659,7 +5758,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {/* Expandable Model Selector */}
                       {expandedSettingsSection === "agent" && (
                         <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-2 md:py-2 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2">
-                          {AVAILABLE_AGENTS.map((agent) => {
+                          {availableEngines.map((agent) => {
                             const isChecked = defaultAgentId === agent.id;
                             return (
                               <label
@@ -7198,7 +7297,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {desktopSettingsPage === "agent" && (
                   <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
-                    {AVAILABLE_AGENTS.map((agent) => {
+                    {availableEngines.map((agent) => {
                       const isChecked = defaultAgentId === agent.id;
                       return (
                         <label
@@ -8560,7 +8659,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                     } pointer-events-none`
                               }`}
                             >
-                              {AVAILABLE_AGENTS.map((agent, idx) => {
+                              {availableEngines.map((agent, idx) => {
                                 const isSelected = agent.id === selectedAgent.id;
                                 return (
                                   <button
