@@ -112,20 +112,34 @@ html[data-env="pwa-ios"][data-kb="open"] {
   --safe-bottom: 0px;
 }
 
-html,
+html {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  background-color: var(--bg-primary);
+  color-scheme: light;
+  color: var(--text-primary);
+  -webkit-text-size-adjust: 100%;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+html.dark {
+  background-color: #0e0e10;
+  color-scheme: dark;
+}
+
 body {
-  position: fixed;
-  inset: 0;
+  margin: 0;
+  padding: 0;
   width: 100%;
   height: 100%;
-  height: 100dvh;
-  height: var(--app-height, 100dvh);
   overflow: hidden;
   overflow-x: hidden;
   overscroll-behavior: none;
   overscroll-behavior-y: none;
-  margin: 0;
-  padding: 0;
   background-color: var(--bg-primary);
   color: var(--text-primary);
   font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -139,9 +153,8 @@ body {
   letter-spacing: -0.011em;
 }
 
-html.dark,
 html.dark body {
-  background-color: var(--bg-primary);
+  background-color: #0e0e10;
 }
 
 /* Native Mobile Tap Ergonomics (no grey/blue flash, instant tap without double-tap zoom delay) */
