@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   X,
@@ -15,6 +15,11 @@ import {
 } from "lucide-react";
 import { supabase } from "../lib/supabaseClient";
 import { AxiomaLogoMark } from "./AxiomaLogoMark";
+import {
+  APP_VERSION,
+  APP_CHANNEL,
+  APP_FULL_VERSION,
+} from "../lib/appMeta";
 
 export const AXIOMA_CREATORS = [
   {
@@ -34,8 +39,7 @@ export const AXIOMA_CREATORS = [
   },
 ] as const;
 
-export const AXIOMA_ABOUT_SYSTEM_IDENTITY =
-  "Axioma Pro (v2.5 Stable) dibuat oleh Muhammad Nizam Putra Rasya, Muhammad Rendy Ramadhani, dan Desbellion Seccar Ramis, dengan kemampuan inti Penalaran & Analisis, Studio Visual Terpadu, Mode Suara Langsung, dan Arsitektur Lintas Perangkat.";
+export const AXIOMA_ABOUT_SYSTEM_IDENTITY = `Axioma (${APP_FULL_VERSION} ${APP_CHANNEL}) dibuat oleh Muhammad Nizam Putra Rasya, Muhammad Rendy Ramadhani, dan Desbellion Seccar Ramis, dengan kemampuan inti Penalaran & Analisis, Studio Visual Terpadu, Mode Suara Langsung, dan Arsitektur Lintas Perangkat.`;
 
 const CORE_CAPABILITIES = [
   {
@@ -68,11 +72,10 @@ const CORE_CAPABILITIES = [
   },
 ] as const;
 
-const TECH_SPECS = [
-  { label: "Engine", value: "Axioma 2.5" },
-  { label: "Mode", value: "Multimodal" },
-  { label: "Status", value: "Optimal" },
-] as const;
+type SystemHealthStatus = "checking" | "optimal" | "slow" | "offline";
+
+const HEALTH_PING_TIMEOUT_MS = 5000;
+const HEALTH_OPTIMAL_THRESHOLD_MS = 1500;
 
 const FEEDBACK_CATEGORIES = [
   "Saran Fitur",
@@ -126,9 +129,113 @@ interface AboutSettingsViewProps {
   onBack: () => void;
   onClose: () => void;
   inline?: boolean;
+  activeEngine?: string;
+  activeMode?: string;
+  backendUrl?: string;
 }
 
-export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSettingsViewProps) {
+export function AboutSettingsView({
+  onBack,
+  onClose,
+  inline = false,
+  activeEngine,
+  activeMode,
+  backendUrl,
+}: AboutSettingsViewProps) {
+  const [healthStatus, setHealthStatus] = useState<SystemHealthStatus>("checking");
+
+  const resolvedBackendUrl = (
+    backendUrl ||
+    (process.env.NEXT_PUBLIC_BACKEND_URL || "").trim() ||
+    (process.env.NODE_ENV === "development"
+      ? "http://localhost:8000"
+      : "https://axioma-be.onrender.com")
+  )
+    .replace(/\/+$/, "")
+    .replace(/\/api$/, "");
+
+  useEffect(() => {
+    let isActive = true;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => {
+      controller.abort();
+    }, HEALTH_PING_TIMEOUT_MS);
+
+    const pingBackend = async () => {
+      if (
+        !resolvedBackendUrl ||
+        (typeof navigator !== "undefined" && navigator.onLine === false)
+      ) {
+        if (isActive) setHealthStatus("offline");
+        window.clearTimeout(timeoutId);
+        return;
+      }
+
+      if (isActive) setHealthStatus("checking");
+      const startedAt =
+        typeof performance !== "undefined" ? performance.now() : Date.now();
+
+      try {
+        const res = await fetch(`${resolvedBackendUrl}/api/health`, {
+          method: "GET",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const elapsedMs =
+          (typeof performance !== "undefined" ? performance.now() : Date.now()) -
+          startedAt;
+
+        if (!isActive) return;
+        if (!res.ok) {
+          setHealthStatus("offline");
+        } else if (elapsedMs < HEALTH_OPTIMAL_THRESHOLD_MS) {
+          setHealthStatus("optimal");
+        } else {
+          setHealthStatus("slow");
+        }
+      } catch {
+        if (isActive) setHealthStatus("offline");
+      } finally {
+        window.clearTimeout(timeoutId);
+      }
+    };
+
+    void pingBackend();
+
+    return () => {
+      isActive = false;
+      window.clearTimeout(timeoutId);
+      controller.abort();
+    };
+  }, [resolvedBackendUrl]);
+
+  const displayEngine = activeEngine?.trim() || "Axioma Auto";
+  const displayMode = activeMode?.trim() || "Multimodal";
+  const statusLabel =
+    healthStatus === "checking"
+      ? "Memeriksa..."
+      : healthStatus === "optimal"
+        ? "Optimal"
+        : healthStatus === "slow"
+          ? "Melambat"
+          : "Terputus";
+
+  const dynamicSpecs = [
+    { label: "Versi", value: APP_FULL_VERSION, isStatus: false },
+    { label: "Engine", value: displayEngine, isStatus: false },
+    { label: "Mode", value: displayMode, isStatus: false },
+    { label: "Status", value: statusLabel, isStatus: true },
+  ];
+
+  const statusDotClass =
+    healthStatus === "checking"
+      ? "bg-zinc-400 dark:bg-zinc-500 animate-pulse"
+      : healthStatus === "optimal"
+        ? "bg-zinc-900 dark:bg-zinc-100"
+        : healthStatus === "slow"
+          ? "bg-zinc-500 dark:bg-zinc-400"
+          : "bg-transparent border border-zinc-400 dark:border-zinc-500";
+
   const content = (
     <>
       {/* a) Hero Banner */}
@@ -138,13 +245,13 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
             <AxiomaLogoMark className={inline ? "w-10 h-10" : "w-12 h-12"} />
           </div>
           <div className={inline ? "min-w-0" : "relative flex flex-col items-center"}>
-            <div className={inline ? "flex items-center gap-2.5" : "flex flex-col items-center"}>
+            <div className={inline ? "flex items-center gap-2.5 flex-wrap" : "flex flex-col items-center"}>
               <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 dark:text-white">
-                Axioma Pro
+                Axioma
               </h2>
-              <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 ${inline ? "" : "mt-1.5"}`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-                <span>v2.5 Stable</span>
+              <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200/90 dark:bg-white/[0.06] dark:text-zinc-300 dark:border-white/10 ${inline ? "" : "mt-1.5"}`}>
+                <span className="w-1.5 h-1.5 rounded-full bg-zinc-900 dark:bg-zinc-200" />
+                <span>{APP_VERSION} {APP_CHANNEL}</span>
               </span>
             </div>
             <p className={`text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed ${inline ? "mt-2" : "mt-3"}`}>
@@ -183,7 +290,7 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
       </div>
 
       {/* c) Kredit Pembuat */}
-      <div className={inline ? "pt-4 border-t border-zinc-200/70 dark:border-white/[0.06]" : "p-4 rounded-2xl bg-zinc-50/90 dark:bg-gradient-to-br dark:from-[#16171c] dark:to-[#121215] border border-zinc-200/80 dark:border-white/[0.08]"}>
+      <div className={inline ? "pt-4 border-t border-zinc-200/70 dark:border-white/[0.06]" : "p-4 rounded-2xl bg-zinc-50/90 dark:bg-[#141416] border border-zinc-200/80 dark:border-white/[0.08]"}>
         <div className="mb-3 flex items-center gap-2">
           <span
             aria-hidden="true"
@@ -224,20 +331,23 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
         </p>
       </div>
 
-      {/* d) 3 Spesifikasi Sistem */}
-      <div className={inline ? "divide-y divide-zinc-200/70 dark:divide-white/[0.06] border-t border-zinc-200/70 dark:border-white/[0.06]" : "grid grid-cols-3 gap-2 text-center"}>
-        {TECH_SPECS.map((spec) => (
+      {/* d) Spesifikasi Sistem Dinamis */}
+      <div className={inline ? "divide-y divide-zinc-200/70 dark:divide-white/[0.06] border-t border-zinc-200/70 dark:border-white/[0.06]" : "grid grid-cols-2 gap-2 text-center"}>
+        {dynamicSpecs.map((spec) => (
           <div
             key={spec.label}
             className={
               inline
-                ? "py-3 flex items-center justify-between"
-                : "py-2.5 px-2 rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06]"
+                ? "py-3 flex items-center justify-between gap-4"
+                : "py-2.5 px-3 rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06]"
             }
           >
-            <div className={inline ? "text-[13px] text-zinc-500 dark:text-zinc-400" : "text-[10.5px] text-zinc-500"}>{spec.label}</div>
-            <div className="text-[12.5px] font-medium text-zinc-900 dark:text-zinc-200 mt-0.5">
-              {spec.value}
+            <div className={inline ? "text-[13px] text-zinc-500 dark:text-zinc-400 shrink-0" : "text-[10.5px] text-zinc-500 dark:text-zinc-400"}>{spec.label}</div>
+            <div className={`text-[12.5px] font-medium text-zinc-900 dark:text-zinc-200 ${inline ? "text-right truncate" : "mt-0.5 truncate"} ${spec.isStatus ? "inline-flex items-center justify-center gap-1.5" : ""}`}>
+              {spec.isStatus && (
+                <span aria-hidden="true" className={`w-1.5 h-1.5 rounded-full shrink-0 ${statusDotClass}`} />
+              )}
+              <span className="truncate">{spec.value}</span>
             </div>
           </div>
         ))}

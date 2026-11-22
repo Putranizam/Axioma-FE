@@ -6,6 +6,7 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { AxiomaLogoMark } from "./AxiomaLogoMark";
 import { syncIosSafariTheme } from "@/lib/themeSync";
+import { APP_BADGE_LABEL, APP_FULL_VERSION } from "@/lib/appMeta";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -1187,6 +1188,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   // Voice Mode & Dictation states
   const [isVoiceModeOpen, setIsVoiceModeOpen] = useState<boolean>(false);
+
+  const activeAboutModeLabel = useMemo(() => {
+    if (isVoiceModeOpen) return "Mode Suara";
+    if (activeMediaMode === "image") return "Multimodal · Gambar";
+    if (activeMediaMode === "video") return "Multimodal · Video";
+    const engineTag = selectedAgent?.tag?.trim();
+    return engineTag ? `Multimodal · ${engineTag}` : "Multimodal";
+  }, [isVoiceModeOpen, activeMediaMode, selectedAgent?.tag]);
   const [showVoiceTranscript, setShowVoiceTranscript] = useState<boolean>(true);
   const [voiceSpeechRate, setVoiceSpeechRate] = useState<number>(1.08);
   const [voiceNeuralName, setVoiceNeuralName] = useState<"id-ID-ArdiNeural" | "id-ID-GadisNeural">("id-ID-ArdiNeural");
@@ -5543,6 +5552,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             >
             {settingsView === "about" ? (
               <AboutSettingsView
+                activeEngine={selectedAgent.name}
+                activeMode={activeAboutModeLabel}
+                backendUrl={BACKEND_URL}
                 onBack={() => setSettingsView("main")}
                 onClose={() => setIsSettingsModalOpen(false)}
               />
@@ -5966,7 +5978,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Tentang Axioma</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">v2.5 Pro</span>
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{APP_BADGE_LABEL}</span>
                           <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
@@ -5993,7 +6005,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Clean Version Footer (Mobile only) */}
                   <div className="md:hidden pt-2 pb-1 text-center text-xs text-zinc-500 space-y-1">
-                    <div>Axioma v2.5</div>
+                    <div>Axioma {APP_FULL_VERSION}</div>
                     <div className="text-[11px] leading-relaxed">
                       Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
                     </div>
@@ -7435,6 +7447,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {desktopSettingsPage === "about" && (
                   <AboutSettingsView
                     inline
+                    activeEngine={selectedAgent.name}
+                    activeMode={activeAboutModeLabel}
+                    backendUrl={BACKEND_URL}
                     onBack={() => setDesktopSettingsPage(null)}
                     onClose={() => setDesktopSettingsPage(null)}
                   />
