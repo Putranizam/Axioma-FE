@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { AxiomaLogoMark } from "./AxiomaLogoMark";
@@ -2755,18 +2756,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, [isClearAllConfirmOpen]);
 
-  // Body scroll lock when any dialog or modal is open (without touchAction: none which breaks iOS Safari inner scrolling)
+  // Body scroll lock for secondary confirmation dialogs (Settings modal excluded: globals.css already locks html/body and avoids Safari iOS chrome repaint suppression)
   useEffect(() => {
-    const isAnyModalOpen = Boolean(
-      isSettingsModalOpen || isClearAllConfirmOpen || editConfirmTarget || isGuestLimitModalOpen
+    const isSecondaryDialogOpen = Boolean(
+      isClearAllConfirmOpen || editConfirmTarget || isGuestLimitModalOpen
     );
-    if (!isAnyModalOpen) return;
+    if (!isSecondaryDialogOpen) return;
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = originalOverflow;
     };
-  }, [isSettingsModalOpen, isClearAllConfirmOpen, editConfirmTarget, isGuestLimitModalOpen]);
+  }, [isClearAllConfirmOpen, editConfirmTarget, isGuestLimitModalOpen]);
 
   const closeDesktopAgentMenu = useCallback((restoreFocus = true) => {
     setIsAgentMenuOpen(false);
@@ -5403,42 +5404,44 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Settings Modal (Mobile < md: Full-Screen Native Solid Theme Page | Desktop md+: Floating Popover / Centered Card) */}
-      {shouldRenderSettings && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="settings-modal-title"
-          className={`fixed inset-0 md:top-0 md:left-0 md:right-0 md:bottom-auto md:h-[var(--app-height)] z-50 flex items-stretch justify-center p-0 overflow-hidden ${
-            isSettingsEntered
-              ? "max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] pointer-events-auto"
-              : "max-md:bg-transparent pointer-events-none"
-          }`}
-        >
-          {/* Sibling backdrop (Desktop only: ZERO dark backdrop on mobile so Safari iOS never samples black at top/bottom safe areas) */}
+      {/* Settings Modal via Portal to document.body (Mobile < md: Full-Screen Solid inset-0 with transform: none when open | Desktop md+: Floating Popover / Centered Card) */}
+      {shouldRenderSettings &&
+        typeof document !== "undefined" &&
+        createPortal(
           <div
-            aria-hidden="true"
-            onClick={() => setIsSettingsModalOpen(false)}
-            className={`hidden md:block absolute inset-0 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-              settingsView === "main" ? "md:bg-transparent" : "md:bg-black/60"
-            } ${isSettingsEntered ? "opacity-100" : "opacity-0"}`}
-          />
-          <div
-            style={settingsView === "main" ? settingsPopoverStyle : undefined}
-            className={`fixed z-50 flex flex-col overflow-hidden ${
-              settingsView === "main"
-                ? `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:inset-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:p-2 md:origin-bottom-left transition-[transform,opacity] duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                    isSettingsEntered
-                      ? "translate-y-0 opacity-100 md:scale-100"
-                      : "translate-y-full opacity-0 md:translate-y-0 md:scale-95 pointer-events-none"
-                  }`
-                : `top-0 left-0 right-0 w-full h-[var(--app-height)] rounded-none bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-[transform,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                    isSettingsEntered
-                      ? "translate-y-0 md:-translate-y-1/2 opacity-100 md:scale-100"
-                      : "translate-y-full md:-translate-y-[calc(50%-16px)] opacity-0 md:scale-95 pointer-events-none"
-                  }`
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-modal-title"
+            className={`fixed inset-0 z-50 flex items-stretch justify-center p-0 overflow-hidden ${
+              isSettingsEntered
+                ? "max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] pointer-events-auto"
+                : "max-md:bg-transparent pointer-events-none"
             }`}
           >
+            {/* Sibling backdrop (Desktop only: ZERO dark backdrop on mobile so Safari iOS never samples black at top/bottom safe areas) */}
+            <div
+              aria-hidden="true"
+              onClick={() => setIsSettingsModalOpen(false)}
+              className={`hidden md:block absolute inset-0 transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                settingsView === "main" ? "md:bg-transparent" : "md:bg-black/60"
+              } ${isSettingsEntered ? "opacity-100" : "opacity-0"}`}
+            />
+            <div
+              style={settingsView === "main" ? settingsPopoverStyle : undefined}
+              className={`fixed z-50 flex flex-col overflow-hidden ${
+                settingsView === "main"
+                  ? `inset-0 w-full rounded-none max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:inset-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:p-2 md:origin-bottom-left transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      isSettingsEntered
+                        ? "opacity-100 md:scale-100"
+                        : "max-md:translate-y-4 opacity-0 md:scale-95 pointer-events-none"
+                    }`
+                  : `inset-0 w-full rounded-none bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                      isSettingsEntered
+                        ? "md:-translate-y-1/2 opacity-100 md:scale-100"
+                        : "max-md:translate-y-4 md:-translate-y-[calc(50%-16px)] opacity-0 md:scale-95 pointer-events-none"
+                    }`
+              }`}
+            >
             {settingsView === "about" ? (
               <AboutSettingsView
                 onBack={() => setSettingsView("main")}
@@ -5762,23 +5765,42 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </div>
                       )}
 
-                      {/* Tema (Mobile inline select | Desktop opens flat canvas page) */}
-                      <div className="md:hidden w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left rounded-b-2xl">
-                        <div className="flex items-center min-w-0">
+                      {/* Tema (Mobile monochrome segmented buttons — avoids iOS native <select> UIMenu dimming | Desktop opens flat canvas page) */}
+                      <div className="md:hidden w-full px-5 py-3.5 min-h-[56px] flex items-center justify-between gap-3 text-left rounded-b-2xl">
+                        <div className="flex items-center min-w-0 shrink-0">
                           <Moon className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Tema</span>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <select
-                            value={themeMode}
-                            onChange={(e) => handleSetTheme(e.target.value as "dark" | "light" | "system")}
-                            className="appearance-none bg-transparent text-[13px] leading-relaxed font-normal text-zinc-500 dark:text-zinc-400 border-0 cursor-pointer focus:outline-none pr-1 text-right"
-                          >
-                            <option value="system" className="bg-white text-zinc-900 dark:bg-[#1e1f20] dark:text-white">Default sistem</option>
-                            <option value="dark" className="bg-white text-zinc-900 dark:bg-[#1e1f20] dark:text-white">Gelap</option>
-                            <option value="light" className="bg-white text-zinc-900 dark:bg-[#1e1f20] dark:text-white">Terang</option>
-                          </select>
-                          <ChevronsUpDown className="w-4 h-4 text-zinc-400 shrink-0 pointer-events-none" />
+                        <div
+                          role="radiogroup"
+                          aria-label="Pilih tema tampilan"
+                          className="inline-flex items-center p-0.5 rounded-xl bg-zinc-100 dark:bg-white/[0.06] border border-zinc-200/80 dark:border-white/[0.08] shrink-0"
+                        >
+                          {(
+                            [
+                              { value: "light" as const, label: "Terang" },
+                              { value: "dark" as const, label: "Gelap" },
+                              { value: "system" as const, label: "Sistem" },
+                            ] as const
+                          ).map((opt) => {
+                            const active = themeMode === opt.value;
+                            return (
+                              <button
+                                key={opt.value}
+                                type="button"
+                                role="radio"
+                                aria-checked={active}
+                                onClick={() => handleSetTheme(opt.value)}
+                                className={`px-2.5 py-1.5 rounded-lg text-xs font-medium cursor-pointer ${
+                                  active
+                                    ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shadow-xs"
+                                    : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
+                                }`}
+                              >
+                                {opt.label}
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
                       <button
@@ -5880,9 +5902,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
               </>
             )}
-          </div>
-        </div>
-      )}
+            </div>
+          </div>,
+          document.body
+        )}
 
       {/* Shared Profile Sheet / Desktop Floating Popover (Mobile < md: Bottom Sheet | Desktop md+: Frosted Popover at trigger) */}
       {shouldRenderProfile && !isSettingsModalOpen && (
@@ -7620,6 +7643,32 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         remarkPlugins={[remarkGfm, remarkMath]}
                         rehypePlugins={[rehypeKatex]}
                         components={{
+                          p({ node, children, ...props }) {
+                            const hasBlockChild = (n: any): boolean => {
+                              if (!n || !Array.isArray(n.children)) return false;
+                              return n.children.some((child: any) => {
+                                if (child?.type === "element") {
+                                  const tag = String(child.tagName || "").toLowerCase();
+                                  if (
+                                    tag === "img" ||
+                                    tag === "div" ||
+                                    tag === "video" ||
+                                    tag === "figure" ||
+                                    tag === "pre" ||
+                                    tag === "table"
+                                  ) {
+                                    return true;
+                                  }
+                                  return hasBlockChild(child);
+                                }
+                                return false;
+                              });
+                            };
+                            if (hasBlockChild(node)) {
+                              return <div className="my-2">{children}</div>;
+                            }
+                            return <p {...props}>{children}</p>;
+                          },
                           pre({ children }) {
                             return (
                               <PreBlockContext.Provider value={true}>
