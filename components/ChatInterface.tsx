@@ -8743,71 +8743,57 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
               )}
             </button>
-            <div className={`min-w-0 flex-1 ${isDesktopSidebarCollapsed ? "md:hidden" : ""}`}>
-              <div className="flex items-center gap-1.5 min-w-0">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (typeof window !== "undefined" && window.innerWidth >= 768) {
-                      if (isProfileDropdownOpen && profileAnchor === "sidebar") {
-                        setIsProfileDropdownOpen(false);
-                      } else {
-                        setProfileAnchor("sidebar");
-                        setIsProfileDropdownOpen(true);
-                      }
-                    } else {
-                      setIsSettingsMenuOpen((prev) => !prev);
-                    }
-                  }}
-                  className="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 cursor-pointer font-sans"
-                >
-                  {authUser ? userName : "Mode Tamu"}
-                </button>
-                {authUser &&
-                  (isProPlan ? (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openQuotaSettings();
-                      }}
-                      title="Lihat Batas penggunaan"
-                      aria-label="Status paket PRO, buka Batas penggunaan"
-                      className="bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded shrink-0 transition-colors cursor-pointer font-sans"
-                    >
-                      PRO
-                    </button>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openQuotaSettings();
-                      }}
-                      title="Lihat Batas penggunaan"
-                      aria-label="Status paket FREE, buka Batas penggunaan"
-                      className="border border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-[10px] font-medium uppercase px-1.5 py-0.5 rounded shrink-0 transition-colors cursor-pointer font-sans"
-                    >
-                      FREE
-                    </button>
-                  ))}
-              </div>
+            <div
+              className={`min-w-0 flex-1 flex items-center gap-1.5 ${
+                isDesktopSidebarCollapsed ? "md:hidden" : ""
+              }`}
+            >
               <button
                 type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  openQuotaSettings();
+                onClick={() => {
+                  if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                    if (isProfileDropdownOpen && profileAnchor === "sidebar") {
+                      setIsProfileDropdownOpen(false);
+                    } else {
+                      setProfileAnchor("sidebar");
+                      setIsProfileDropdownOpen(true);
+                    }
+                  } else {
+                    setIsSettingsMenuOpen((prev) => !prev);
+                  }
                 }}
-                title="Buka Batas penggunaan"
-                aria-label="Lihat detail Batas penggunaan dan sisa kredit di Setelan"
-                className="block max-w-full text-left text-[13px] leading-relaxed text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 truncate tabular-nums transition-colors cursor-pointer font-sans"
+                className="min-w-0 flex-1 truncate text-left text-[14.5px] font-medium leading-none text-zinc-900 dark:text-zinc-100 cursor-pointer font-sans"
               >
-                {authUser
-                  ? isProPlan
-                    ? "Axioma Pro"
-                    : `${remainingCreditsCount} kredit tersisa`
-                  : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} pesan tamu tersisa`}
+                {authUser ? userName : "Mode Tamu"}
               </button>
+              {authUser &&
+                (isProPlan ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openQuotaSettings();
+                    }}
+                    title="Lihat Batas penggunaan"
+                    aria-label="Status paket PRO, buka Batas penggunaan"
+                    className="inline-flex items-center bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-[10px] font-semibold leading-none tracking-wider uppercase px-1.5 py-1 rounded shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    PRO
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      openQuotaSettings();
+                    }}
+                    title="Lihat Batas penggunaan"
+                    aria-label="Status paket FREE, buka Batas penggunaan"
+                    className="inline-flex items-center border border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-[10px] font-medium leading-none uppercase px-1.5 py-1 rounded shrink-0 transition-colors cursor-pointer font-sans"
+                  >
+                    FREE
+                  </button>
+                ))}
             </div>
           </div>
 
