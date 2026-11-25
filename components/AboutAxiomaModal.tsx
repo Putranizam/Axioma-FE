@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ChevronLeft,
   X,
@@ -13,8 +13,8 @@ import {
   Send,
   AlertCircle,
 } from "lucide-react";
-import { supabase } from "../lib/supabaseClient";
 import { AxiomaLogoMark } from "./AxiomaLogoMark";
+import { AXIOMA_APP_VERSION } from "@/constants/appInfo";
 
 export const AXIOMA_CREATORS = [
   {
@@ -34,8 +34,7 @@ export const AXIOMA_CREATORS = [
   },
 ] as const;
 
-export const AXIOMA_ABOUT_SYSTEM_IDENTITY =
-  "Axioma Pro (v2.5 Stable) dibuat oleh Muhammad Nizam Putra Rasya, Muhammad Rendy Ramadhani, dan Desbellion Seccar Ramis, dengan kemampuan inti Penalaran & Analisis, Studio Visual Terpadu, Mode Suara Langsung, dan Arsitektur Lintas Perangkat.";
+export const AXIOMA_ABOUT_SYSTEM_IDENTITY = `Axioma (${AXIOMA_APP_VERSION}) dibuat oleh Muhammad Nizam Putra Rasya, Muhammad Rendy Ramadhani, dan Desbellion Seccar Ramis, dengan kemampuan inti Penalaran & Analisis, Studio Visual Terpadu, Mode Suara Langsung, dan Arsitektur Lintas Perangkat.`;
 
 const CORE_CAPABILITIES = [
   {
@@ -68,10 +67,9 @@ const CORE_CAPABILITIES = [
   },
 ] as const;
 
-const TECH_SPECS = [
-  { label: "Engine", value: "Axioma 2.5" },
+const STATIC_TECH_SPECS = [
+  { label: "Versi", value: AXIOMA_APP_VERSION },
   { label: "Mode", value: "Multimodal" },
-  { label: "Status", value: "Optimal" },
 ] as const;
 
 const FEEDBACK_CATEGORIES = [
@@ -123,12 +121,82 @@ function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
 }
 
 interface AboutSettingsViewProps {
+  backendUrl?: string;
   onBack: () => void;
   onClose: () => void;
   inline?: boolean;
 }
 
-export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSettingsViewProps) {
+export function AboutSettingsView({
+  backendUrl = "",
+  onBack,
+  onClose,
+  inline = false,
+}: AboutSettingsViewProps) {
+  const [healthState, setHealthState] = useState<{
+    status: "checking" | "ok" | "degraded";
+    latencyMs?: number;
+  }>({ status: "checking" });
+
+  useEffect(() => {
+    const cleanBase = backendUrl.trim().replace(/\/+$/, "");
+    if (!cleanBase) {
+      setHealthState({ status: "degraded" });
+      return;
+    }
+
+    let cancelled = false;
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 6000);
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+
+    fetch(`${cleanBase}/health`, {
+      method: "GET",
+      cache: "no-store",
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        const elapsedMs = Math.max(
+          1,
+          Math.round((typeof performance !== "undefined" ? performance.now() : Date.now()) - t0)
+        );
+        const json = await res.json().catch(() => null);
+        if (cancelled) return;
+        if (res.ok && json?.status === "ok") {
+          const dbMs =
+            typeof json?.database?.latency_ms === "number" && Number.isFinite(json.database.latency_ms)
+              ? Math.round(json.database.latency_ms)
+              : elapsedMs;
+          setHealthState({ status: "ok", latencyMs: dbMs });
+        } else {
+          setHealthState({ status: "degraded" });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHealthState({ status: "degraded" });
+        }
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
+      });
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      controller.abort();
+    };
+  }, [backendUrl]);
+
+  const statusLabel =
+    healthState.status === "checking"
+      ? "Memeriksa..."
+      : healthState.status === "ok"
+        ? typeof healthState.latencyMs === "number"
+          ? `Optimal (${healthState.latencyMs} ms)`
+          : "Optimal"
+        : "Gangguan";
+
   const content = (
     <>
       {/* a) Hero Banner */}
@@ -140,11 +208,19 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
           <div className={inline ? "min-w-0" : "relative flex flex-col items-center"}>
             <div className={inline ? "flex items-center gap-2.5" : "flex flex-col items-center"}>
               <h2 className="text-[20px] font-semibold tracking-tight text-zinc-900 dark:text-white">
-                Axioma Pro
+                Axioma
               </h2>
-              <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/20 ${inline ? "" : "mt-1.5"}`}>
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 dark:bg-emerald-400" />
-                <span>v2.5 Stable</span>
+              <span className={`inline-flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:border-white/10 ${inline ? "" : "mt-1.5"}`}>
+                <span
+                  className={`w-1.5 h-1.5 rounded-full ${
+                    healthState.status === "ok"
+                      ? "bg-emerald-500 dark:bg-emerald-400"
+                      : healthState.status === "degraded"
+                        ? "bg-red-500 dark:bg-red-400"
+                        : "bg-zinc-400 animate-pulse"
+                  }`}
+                />
+                <span>{AXIOMA_APP_VERSION}</span>
               </span>
             </div>
             <p className={`text-[13px] text-zinc-600 dark:text-zinc-400 leading-relaxed ${inline ? "mt-2" : "mt-3"}`}>
@@ -224,9 +300,9 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
         </p>
       </div>
 
-      {/* d) 3 Spesifikasi Sistem */}
+      {/* d) 3 Spesifikasi Sistem (Status live dari endpoint /health backend) */}
       <div className={inline ? "divide-y divide-zinc-200/70 dark:divide-white/[0.06] border-t border-zinc-200/70 dark:border-white/[0.06]" : "grid grid-cols-3 gap-2 text-center"}>
-        {TECH_SPECS.map((spec) => (
+        {STATIC_TECH_SPECS.map((spec) => (
           <div
             key={spec.label}
             className={
@@ -241,6 +317,26 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
             </div>
           </div>
         ))}
+        <div
+          className={
+            inline
+              ? "py-3 flex items-center justify-between"
+              : "py-2.5 px-2 rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06]"
+          }
+        >
+          <div className={inline ? "text-[13px] text-zinc-500 dark:text-zinc-400" : "text-[10.5px] text-zinc-500"}>Status</div>
+          <div
+            className={`text-[12.5px] font-medium mt-0.5 tabular-nums ${
+              healthState.status === "ok"
+                ? "text-emerald-600 dark:text-emerald-400"
+                : healthState.status === "degraded"
+                  ? "text-red-600 dark:text-red-400"
+                  : "text-zinc-500 dark:text-zinc-400"
+            }`}
+          >
+            {statusLabel}
+          </div>
+        </div>
       </div>
 
       {/* Footer */}
@@ -277,6 +373,8 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
 }
 
 interface FeedbackSettingsViewProps {
+  backendUrl?: string;
+  getAuthHeaders?: () => Promise<Record<string, string>>;
   defaultEmail: string;
   userName: string;
   onBack: () => void;
@@ -285,6 +383,8 @@ interface FeedbackSettingsViewProps {
 }
 
 export function FeedbackSettingsView({
+  backendUrl = "",
+  getAuthHeaders,
   defaultEmail,
   userName,
   onBack,
@@ -315,39 +415,55 @@ export function FeedbackSettingsView({
         typeof navigator !== "undefined" ? navigator.userAgent : "Web Client";
       const finalUserName = userName?.trim() || "Mode Tamu";
       const finalUserEmail = userEmail.trim();
+      const payloadBody = JSON.stringify({
+        category,
+        message: trimmedMessage,
+        userEmail: finalUserEmail,
+        userName: finalUserName,
+        deviceInfo,
+      });
 
-      const supabasePromise = supabase
-        ? Promise.resolve(
-            supabase.from("feedbacks").insert([
-              {
-                category,
-                message: trimmedMessage,
-                user_name: finalUserName,
-                user_email: finalUserEmail || null,
-                device_info: deviceInfo,
+      const cleanBackend = backendUrl.trim().replace(/\/+$/, "");
+
+      // 1. Primary persistence via Axioma Backend -> Supabase `public.app_feedback` (service_role)
+      const backendDbPromise = cleanBackend
+        ? (async () => {
+            const authHeaders = getAuthHeaders ? await getAuthHeaders() : {};
+            const res = await fetch(`${cleanBackend}/api/feedback`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                ...authHeaders,
               },
-            ])
-          )
-        : Promise.resolve({ error: new Error("Supabase belum dikonfigurasi") });
+              body: payloadBody,
+            });
+            const data = (await res.json().catch(() => null)) as {
+              success?: boolean;
+              error?: string;
+            } | null;
+            if (!res.ok || !data?.success) {
+              throw new Error(
+                data?.error || `Gagal menyimpan masukan ke server (HTTP ${res.status}).`
+              );
+            }
+            return data;
+          })()
+        : Promise.reject(new Error("Backend URL belum dikonfigurasi."));
 
+      // 2. Optional SMTP email notification via Next.js `/api/feedback` (returns HTTP 500 if SMTP unavailable/failed)
       const emailPromise = (async () => {
         const res = await fetch("/api/feedback", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            category,
-            message: trimmedMessage,
-            userEmail: finalUserEmail,
-            userName: finalUserName,
-            deviceInfo,
-          }),
+          body: payloadBody,
         });
         const data = (await res.json().catch(() => null)) as {
           success?: boolean;
+          emailDelivered?: boolean;
           error?: string;
         } | null;
 
-        if (!res.ok || !data?.success) {
+        if (!res.ok || !data?.success || data?.emailDelivered !== true) {
           throw new Error(
             data?.error || `Gagal mengirim email masukan (HTTP ${res.status}).`
           );
@@ -355,34 +471,28 @@ export function FeedbackSettingsView({
         return data;
       })();
 
-      const [supabaseRes, emailRes] = await Promise.allSettled([
-        supabasePromise,
+      const [dbRes, emailRes] = await Promise.allSettled([
+        backendDbPromise,
         emailPromise,
       ]);
 
-      const supabaseOk =
-        supabaseRes.status === "fulfilled" && !supabaseRes.value?.error;
-
-      if (!supabaseOk) {
-        console.warn(
-          "[Feedback] Supabase insert notice:",
-          supabaseRes.status === "rejected"
-            ? supabaseRes.reason
-            : supabaseRes.value?.error
-        );
-      }
-
+      const dbOk = dbRes.status === "fulfilled";
       const emailOk = emailRes.status === "fulfilled";
 
+      if (!dbOk) {
+        console.warn("[Feedback] Backend DB save failed:", dbRes.reason);
+      }
       if (!emailOk) {
-        console.warn("[Feedback] Email notification notice:", emailRes.reason);
+        console.warn("[Feedback] SMTP email notice:", emailRes.reason);
       }
 
-      // Jangan pernah tampilkan error email/SMTP ke pengguna jika data sudah tersimpan di database
-      if (!supabaseOk && !emailOk) {
-        throw new Error(
-          "Gagal mengirim masukan. Periksa koneksi internet Anda lalu coba lagi."
-        );
+      // Jujur: hanya tampilkan sukses jika benar-benar tersimpan ke DB backend atau terkirim via SMTP
+      if (!dbOk && !emailOk) {
+        const reasonMsg =
+          dbRes.status === "rejected" && dbRes.reason instanceof Error
+            ? dbRes.reason.message
+            : "Gagal mengirim masukan. Periksa koneksi internet Anda lalu coba lagi.";
+        throw new Error(reasonMsg);
       }
 
       setSubmitSuccess(true);

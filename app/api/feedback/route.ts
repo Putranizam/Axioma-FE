@@ -139,10 +139,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    if (!smtpOk) {
+      return NextResponse.json(
+        {
+          success: false,
+          emailDelivered: false,
+          error:
+            "Layanan pengiriman email masukan sedang tidak tersedia atau belum dikonfigurasi.",
+        },
+        { status: 500 }
+      );
+    }
+
     return NextResponse.json({
       success: true,
-      emailDelivered: smtpOk,
-      delivery: smtpOk ? "smtp" : "stored-only",
+      emailDelivered: true,
+      delivery: "smtp",
       message: "Terima kasih! Masukan Anda telah diterima.",
     });
   } catch (err) {

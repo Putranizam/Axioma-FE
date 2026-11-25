@@ -19,8 +19,24 @@ const jetbrainsMono = JetBrains_Mono({
   weight: ["400", "500"],
 });
 
+const APP_URL = (process.env.NEXT_PUBLIC_APP_URL || "https://axioma.my.id")
+  .trim()
+  .replace(/\/+$/, "");
+
+const BACKEND_ORIGIN = (() => {
+  const raw = (process.env.NEXT_PUBLIC_BACKEND_URL || "https://axioma-be.onrender.com")
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/api$/, "");
+  try {
+    return new URL(raw).origin;
+  } catch {
+    return "https://axioma-be.onrender.com";
+  }
+})();
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://axioma.my.id"),
+  metadataBase: new URL(APP_URL),
   robots: {
     index: true,
     follow: true,
@@ -54,7 +70,7 @@ export const metadata: Metadata = {
     title: "Axioma — Asisten Cerdas & Studio Visual",
     description:
       "Platform asisten AI terpadu untuk penalaran analitis, pemrograman, dan sintesis visual.",
-    url: "https://axioma.my.id",
+    url: APP_URL,
     images: [
       {
         url: "/og-image.png?v=2",
@@ -135,8 +151,8 @@ export default function RootLayout({
     >
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <link rel="preconnect" href="https://axioma-be.onrender.com" crossOrigin="anonymous" />
-        <link rel="dns-prefetch" href="https://axioma-be.onrender.com" />
+        <link rel="preconnect" href={BACKEND_ORIGIN} crossOrigin="anonymous" />
+        <link rel="dns-prefetch" href={BACKEND_ORIGIN} />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var d=document.documentElement;var m=window.matchMedia("(prefers-color-scheme: dark)");function apply(){var t=localStorage.getItem("axioma_theme");var isDark=t==="dark"||((!t||t==="system")&&m.matches);var bg=isDark?"#0e0e10":"#f9f9f8";var bar=isDark?"black-translucent":"default";if(isDark){d.classList.add("dark");d.classList.remove("light");}else{d.classList.remove("dark");d.classList.add("light");}d.style.colorScheme=isDark?"dark":"light";d.style.backgroundColor=bg;if(document.body){document.body.style.backgroundColor=bg;}document.querySelectorAll('meta[name="theme-color"]').forEach(function(el){el.remove();});var el=document.createElement("meta");el.name="theme-color";el.setAttribute("content",bg);document.head.appendChild(el);var ap=document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]');if(ap){ap.setAttribute("content",bar);}else{var apel=document.createElement("meta");apel.name="apple-mobile-web-app-status-bar-style";apel.setAttribute("content",bar);document.head.appendChild(apel);}}apply();if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",apply,{once:true});}if(m&&m.addEventListener){m.addEventListener("change",function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}else if(m&&m.addListener){m.addListener(function(){var t=localStorage.getItem("axioma_theme");if(!t||t==="system"){apply();}});}}catch(e){}})();`,

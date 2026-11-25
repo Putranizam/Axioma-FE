@@ -27,6 +27,7 @@ import {
 } from "./WorkspaceSidebarSection";
 import type { AxiomaLensData } from "./AxiomaLensCard";
 import type { QuotaModalInfo } from "./UpgradeModal";
+import { AXIOMA_APP_VERSION, formatQuotaResetLabel } from "@/constants/appInfo";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ChatEmptyState } from "./chat/ChatEmptyState";
 import { ChatComposer } from "./chat/ChatComposer";
@@ -340,6 +341,7 @@ const STORAGE_KEYS = {
   DEFAULT_AGENT: "axioma_default_agent",
   SIDEBAR_COLLAPSED: "axioma_sidebar_collapsed",
   THEME: "axioma_theme",
+  NOTIFICATIONS_ENABLED: "axioma_notifications_enabled",
   LANGUAGE: "axioma_lang",
   TONE: "axioma_tone",
   THINKING_MODE: "axioma_thinking",
@@ -1110,6 +1112,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isTouchOrMobile, setIsTouchOrMobile] = useState<boolean>(false);
   const [toastNotice, setToastNotice] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(true);
+  const notificationsEnabledRef = useRef<boolean>(true);
 
   const [showThinkingIndicator, setShowThinkingIndicator] = useState<boolean>(false);
   const [isThinkingFadingOut, setIsThinkingFadingOut] = useState<boolean>(false);
@@ -1136,6 +1140,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     : null;
   const rawUserName = authUser
     ? displayName ||
+      authUser.user_metadata?.display_name ||
       authUser.user_metadata?.full_name ||
       authUser.user_metadata?.name ||
       authUser.email?.split("@")[0] ||
@@ -1154,6 +1159,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [isRoleplayModalOpen, setIsRoleplayModalOpen] = useState<boolean>(false);
   const [livePreviewCode, setLivePreviewCode] = useState<string | null>(null);
   const [quotaInfo, setQuotaInfo] = useState<QuotaModalInfo | null>(null);
+  const [quotaFetchStatus, setQuotaFetchStatus] = useState<
+    "idle" | "loading" | "loaded" | "error"
+  >("idle");
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
   const [isLensLoading, setIsLensLoading] = useState<boolean>(false);
   const [isPrivateMode, setIsPrivateMode] = useState<boolean>(false);
@@ -1278,7 +1286,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           openDesktopSettingsPage("about");
           return;
         }
-        if (expandedSection === "account" || expandedSection === "quota" || expandedSection === "agent" || expandedSection === "shortcuts") {
+        if (
+          expandedSection === "account" ||
+          expandedSection === "quota" ||
+          expandedSection === "notifications" ||
+          expandedSection === "agent" ||
+          expandedSection === "storage" ||
+          expandedSection === "shortcuts"
+        ) {
           openDesktopSettingsPage(expandedSection);
           return;
         }
@@ -1550,15 +1565,45 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     return null;
   }, [currentMessages]);
 
-  const showToastNotice = useCallback((message: string, durationMs = 2000) => {
-    setToastNotice(message);
-    if (toastTimerRef.current) {
-      clearTimeout(toastTimerRef.current);
-    }
-    toastTimerRef.current = setTimeout(() => {
+  const showToastNotice = useCallback(
+    (message: string, durationMs = 2000, options?: { critical?: boolean }) => {
+      if (!options?.critical && !notificationsEnabledRef.current) {
+        return;
+      }
+      setToastNotice(message);
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      toastTimerRef.current = setTimeout(() => {
+        setToastNotice(null);
+        toastTimerRef.current = null;
+      }, durationMs);
+    },
+    []
+  );
+
+  const handleToggleNotifications = useCallback((nextValue?: boolean) => {
+    const resolved =
+      typeof nextValue === "boolean" ? nextValue : !notificationsEnabledRef.current;
+    notificationsEnabledRef.current = resolved;
+    setNotificationsEnabled(resolved);
+    safeSetLocalStorage(STORAGE_KEYS.NOTIFICATIONS_ENABLED, String(resolved));
+    if (!resolved) {
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+        toastTimerRef.current = null;
+      }
       setToastNotice(null);
-      toastTimerRef.current = null;
-    }, durationMs);
+    } else {
+      setToastNotice("Notifikasi toast diaktifkan");
+      if (toastTimerRef.current) {
+        clearTimeout(toastTimerRef.current);
+      }
+      toastTimerRef.current = setTimeout(() => {
+        setToastNotice(null);
+        toastTimerRef.current = null;
+      }, 2000);
+    }
   }, []);
 
   const hasLoadedThemeRef = useRef<boolean>(false);
@@ -1718,7 +1763,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }
     }
 
-    // Load saved default & selected agent
+    // Load saved notification toast preference (default true)
+    const savedNotifications = safeGetLocalStorage(STORAGE_KEYS.NOTIFICATIONS_ENABLED);
+    const initialNotificationsEnabled = savedNotifications !== "false";
+    notificationsEnabledRef.current = initialNotificationsEnabled;
+    setNotificationsEnabled(initialNotificationsEnabled);
+
+    // Load saved default & selected agent (prioritize defaultAgentId when opening a fresh session without an active chat URL)
     const savedDefault = safeGetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT);
     const validDefault = AVAILABLE_AGENTS.find((a) => a.id === savedDefault);
     if (validDefault) {
@@ -1726,11 +1777,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setSettingsDefaultAgentInput(validDefault.id);
     }
 
-    const savedSelected =
-      safeGetLocalStorage(STORAGE_KEYS.SELECTED_AGENT) || savedDefault;
-    const validSelected = AVAILABLE_AGENTS.find((a) => a.id === savedSelected);
-    if (validSelected) {
-      setSelectedAgent(validSelected);
+    const hasInitialChatRoute = Boolean(
+      (initialChatId && VALID_UUID_REGEX.test(initialChatId)) ||
+        (typeof window !== "undefined" && UUID_PATH_REGEX.test(window.location.pathname))
+    );
+    const savedSelected = safeGetLocalStorage(STORAGE_KEYS.SELECTED_AGENT);
+    const resolvedInitialAgent = hasInitialChatRoute
+      ? AVAILABLE_AGENTS.find((a) => a.id === savedSelected) ||
+        validDefault ||
+        AVAILABLE_AGENTS[0]
+      : validDefault ||
+        AVAILABLE_AGENTS.find((a) => a.id === savedSelected) ||
+        AVAILABLE_AGENTS[0];
+    if (resolvedInitialAgent) {
+      setSelectedAgent(resolvedInitialAgent);
+      if (!hasInitialChatRoute) {
+        safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, resolvedInitialAgent.id);
+      }
     }
 
     // Load saved tone, thinking mode & answer style preferences (language always uses "auto" mirroring)
@@ -1820,7 +1883,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       const handleOffline = () => {
         wasOfflineRef.current = true;
         setIsOnline(false);
-        showToastNotice("Koneksi terputus — mencoba menyambung kembali...", 3500);
+        showToastNotice("Koneksi terputus — mencoba menyambung kembali...", 3500, {
+          critical: true,
+        });
       };
       window.addEventListener("online", handleOnline);
       window.addEventListener("offline", handleOffline);
@@ -1882,9 +1947,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   }, [initialChatId, showToastNotice]);
 
   // Supabase Auth session detection & auth state subscriber (deduplicated to prevent double initial fetch)
-  const lastAuthIdentityRef = useRef<{ userId: string | null; token: string | null }>({
+  const lastAuthIdentityRef = useRef<{
+    userId: string | null;
+    token: string | null;
+    displayName: string | null;
+  }>({
     userId: null,
     token: null,
+    displayName: null,
   });
 
   useEffect(() => {
@@ -1894,27 +1964,41 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       if (session) {
         const nextUserId = session.user.id || null;
         const nextToken = session.access_token || null;
-        const prev = lastAuthIdentityRef.current;
-        if (prev.userId !== nextUserId || prev.token !== nextToken) {
-          lastAuthIdentityRef.current = { userId: nextUserId, token: nextToken };
-          if (prev.userId !== nextUserId) {
-            setAuthUser(session.user);
-          }
-          setAuthToken(nextToken);
-        }
-        const name =
+        const explicitDisplayName =
+          typeof session.user.user_metadata?.display_name === "string"
+            ? session.user.user_metadata.display_name.trim()
+            : "";
+        const fallbackName =
           session.user.user_metadata?.full_name ||
           session.user.user_metadata?.name ||
           session.user.email?.split("@")[0];
-        if (name) {
-          const formatted = toTitleCase(name);
-          setDisplayName(formatted);
-          setSettingsNameInput(formatted);
-          safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, formatted);
+        const resolvedName = explicitDisplayName || (fallbackName ? toTitleCase(fallbackName) : "");
+        const prev = lastAuthIdentityRef.current;
+        if (
+          prev.userId !== nextUserId ||
+          prev.token !== nextToken ||
+          prev.displayName !== (resolvedName || null)
+        ) {
+          lastAuthIdentityRef.current = {
+            userId: nextUserId,
+            token: nextToken,
+            displayName: resolvedName || null,
+          };
+          if (prev.userId !== nextUserId || prev.displayName !== (resolvedName || null)) {
+            setAuthUser(session.user);
+          }
+          if (prev.token !== nextToken) {
+            setAuthToken(nextToken);
+          }
+        }
+        if (resolvedName) {
+          setDisplayName(resolvedName);
+          setSettingsNameInput(resolvedName);
+          safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, resolvedName);
         }
       } else {
         if (lastAuthIdentityRef.current.userId !== null || lastAuthIdentityRef.current.token !== null) {
-          lastAuthIdentityRef.current = { userId: null, token: null };
+          lastAuthIdentityRef.current = { userId: null, token: null, displayName: null };
           setAuthUser(null);
           setAuthToken(null);
         }
@@ -2248,11 +2332,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   // Fetch daily credit quota status for authenticated users (`GET /api/quota`) with in-flight guard & 30s cooldown
   const quotaInFlightRef = useRef<boolean>(false);
   const lastQuotaFetchedAtRef = useRef<number>(0);
+  const hasQuotaLoadedRef = useRef<boolean>(false);
 
   const fetchUserQuota = useCallback(
     async (options?: { force?: boolean }) => {
       if (!authUser) {
         setQuotaInfo(null);
+        setQuotaFetchStatus("idle");
+        hasQuotaLoadedRef.current = false;
         lastQuotaFetchedAtRef.current = 0;
         return;
       }
@@ -2263,6 +2350,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         return;
       }
       quotaInFlightRef.current = true;
+      if (!hasQuotaLoadedRef.current) {
+        setQuotaFetchStatus("loading");
+      }
       try {
         const headers = await buildAuthHeaders();
         const response = await fetch(`${BACKEND_URL}/api/quota`, {
@@ -2271,14 +2361,46 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           credentials: "include",
           cache: "no-store",
         });
-        if (!response.ok) return;
+        if (!response.ok) {
+          if (!hasQuotaLoadedRef.current) {
+            setQuotaFetchStatus("error");
+          }
+          return;
+        }
         const data = await response.json().catch(() => null);
         if (data && typeof data === "object") {
           lastQuotaFetchedAtRef.current = Date.now();
+          hasQuotaLoadedRef.current = true;
+          setQuotaFetchStatus("loaded");
           const nextCredits =
             typeof data.remainingCredits === "number" && Number.isFinite(data.remainingCredits)
               ? data.remainingCredits
               : undefined;
+          const nextCosts =
+            data.costs && typeof data.costs === "object"
+              ? {
+                  omni:
+                    typeof data.costs.omni === "number" && Number.isFinite(data.costs.omni)
+                      ? data.costs.omni
+                      : undefined,
+                  pro:
+                    typeof data.costs.pro === "number" && Number.isFinite(data.costs.pro)
+                      ? data.costs.pro
+                      : undefined,
+                  architect:
+                    typeof data.costs.architect === "number" &&
+                    Number.isFinite(data.costs.architect)
+                      ? data.costs.architect
+                      : undefined,
+                  media:
+                    typeof data.costs.media === "number" && Number.isFinite(data.costs.media)
+                      ? data.costs.media
+                      : undefined,
+                }
+              : undefined;
+          const nextTiers =
+            data.tiers && typeof data.tiers === "object" ? data.tiers : undefined;
+
           setQuotaInfo((prev) => ({
             ...(prev || {}),
             plan: data.plan === "pro" ? "pro" : "free",
@@ -2292,7 +2414,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             dailyLimit:
               typeof data.dailyLimit === "number" && Number.isFinite(data.dailyLimit)
                 ? data.dailyLimit
-                : prev?.dailyLimit ?? 30,
+                : prev?.dailyLimit,
             usedToday:
               typeof data.usedToday === "number" && Number.isFinite(data.usedToday)
                 ? data.usedToday
@@ -2304,11 +2426,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             resetAt: typeof data.resetAt === "string" ? data.resetAt : prev?.resetAt,
             expiresAt:
               typeof data.expiresAt === "string" ? data.expiresAt : prev?.expiresAt,
+            costs: nextCosts ?? prev?.costs,
+            tiers: nextTiers ?? prev?.tiers,
             triggeredByLimit: prev?.triggeredByLimit ?? false,
           }));
+        } else if (!hasQuotaLoadedRef.current) {
+          setQuotaFetchStatus("error");
         }
       } catch {
         // Non-blocking: ignore transient network errors when refreshing quota badge
+        if (!hasQuotaLoadedRef.current) {
+          setQuotaFetchStatus("error");
+        }
       } finally {
         quotaInFlightRef.current = false;
       }
@@ -2320,6 +2449,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     if (authUser) {
       void fetchUserQuota({ force: true });
     } else {
+      hasQuotaLoadedRef.current = false;
+      setQuotaFetchStatus("idle");
       setQuotaInfo(null);
     }
   }, [authUser, fetchUserQuota]);
@@ -2359,6 +2490,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     fetchUserQuota,
   ]);
 
+  const hasLoadedQuota = Boolean(
+    quotaInfo &&
+      (typeof quotaInfo.remainingCredits === "number" ||
+        typeof quotaInfo.remaining === "number" ||
+        quotaInfo.unlimited)
+  );
+  const isQuotaInitialLoading = Boolean(
+    authUser && !hasLoadedQuota && quotaFetchStatus !== "error"
+  );
   const isProPlan = Boolean(quotaInfo?.plan === "pro" || quotaInfo?.unlimited);
   const dailyCreditLimit =
     typeof quotaInfo?.dailyLimit === "number" &&
@@ -2370,7 +2510,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     typeof quotaInfo?.remainingCredits === "number" &&
     Number.isFinite(quotaInfo.remainingCredits)
       ? Math.max(0, quotaInfo.remainingCredits)
-      : dailyCreditLimit;
+      : 0;
   const rawBonusCredits =
     typeof quotaInfo?.bonusCredits === "number" &&
     Number.isFinite(quotaInfo.bonusCredits)
@@ -2393,6 +2533,33 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const dailyCreditsPercent = isProPlan
     ? 100
     : Math.max(0, Math.min(100, Math.round((dailyCreditsRemaining / dailyCreditLimit) * 100)));
+  const quotaCosts = {
+    omni:
+      typeof quotaInfo?.costs?.omni === "number" && Number.isFinite(quotaInfo.costs.omni)
+        ? quotaInfo.costs.omni
+        : 1,
+    pro:
+      typeof quotaInfo?.costs?.pro === "number" && Number.isFinite(quotaInfo.costs.pro)
+        ? quotaInfo.costs.pro
+        : 3,
+    architect:
+      typeof quotaInfo?.costs?.architect === "number" &&
+      Number.isFinite(quotaInfo.costs.architect)
+        ? quotaInfo.costs.architect
+        : 4,
+    media:
+      typeof quotaInfo?.costs?.media === "number" && Number.isFinite(quotaInfo.costs.media)
+        ? quotaInfo.costs.media
+        : 5,
+  };
+  const quotaTariffCompact = `Omni ${quotaCosts.omni} · Pro ${quotaCosts.pro} · Architect ${quotaCosts.architect} · Media ${quotaCosts.media}`;
+  const quotaResetLabel = formatQuotaResetLabel(quotaInfo?.resetAt);
+  const guestFreeDailyLimit =
+    typeof quotaInfo?.tiers?.free?.credits === "number" &&
+    Number.isFinite(quotaInfo.tiers.free.credits) &&
+    quotaInfo.tiers.free.credits > 0
+      ? quotaInfo.tiers.free.credits
+      : dailyCreditLimit;
 
   const openQuotaSettings = useCallback(() => {
     setIsMobileSidebarOpen(false);
@@ -2410,10 +2577,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     setIsMobileSidebarOpen(false);
     setIsProfileDropdownOpen(false);
     setIsSettingsMenuOpen(false);
-    setQuotaInfo((prev) => ({
-      ...(prev || { plan: "free", remainingCredits: 30, remaining: 30 }),
-      triggeredByLimit: false,
-    }));
+    setQuotaInfo((prev) => (prev ? { ...prev, triggeredByLimit: false } : prev));
     setIsUpgradeModalOpen(true);
     if (authUser) {
       void fetchUserQuota();
@@ -4656,6 +4820,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setIsChatAreaLoading(false);
       focusDesktopTextarea();
 
+      // Always reset active model back to user's Model Default on new session
+      const preferredDefaultAgent =
+        AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId) || AVAILABLE_AGENTS[0];
+      setSelectedAgent(preferredDefaultAgent);
+      safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, preferredDefaultAgent.id);
+
       // If user is not authenticated (Guest Mode), completely clear in-memory messages
       if (!authUser) {
         setChats([]);
@@ -4683,7 +4853,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         syncBrowserUrl("new-chat", "push");
       }
     },
-    [activeChatId, currentSessionChatId, hasMessages, authUser, displayName, syncBrowserUrl, focusDesktopTextarea]
+    [
+      activeChatId,
+      currentSessionChatId,
+      hasMessages,
+      authUser,
+      displayName,
+      defaultAgentId,
+      syncBrowserUrl,
+      focusDesktopTextarea,
+    ]
   );
 
   const loadChatFeedback = useCallback(
@@ -5226,6 +5405,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         // Ignore storage errors
       }
     }
+    if (authUser && supabase && cleanedName !== displayName) {
+      void supabase.auth.updateUser({
+        data: { full_name: cleanedName, display_name: cleanedName },
+      });
+    }
 
     const chosenDefault =
       AVAILABLE_AGENTS.find((a) => a.id === settingsDefaultAgentInput) || AVAILABLE_AGENTS[0];
@@ -5253,11 +5437,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       AVAILABLE_AGENTS.find((a) => a.id === "axioma-omni") || AVAILABLE_AGENTS[0];
     setSelectedAgent(omniAgent);
     safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, omniAgent.id);
-    showToastNotice("Beralih ke Axioma Omni (1 kredit / pesan)", 2200);
-  }, [showToastNotice]);
+    showToastNotice(`Beralih ke Axioma Omni (${quotaCosts.omni} kredit / pesan)`, 2200);
+  }, [quotaCosts.omni, showToastNotice]);
 
-  const handleUpdateDisplayName = (rawName: string) => {
+  const handleUpdateDisplayName = async (
+    rawName: string,
+    options?: { silentIfUnchanged?: boolean }
+  ) => {
     const cleanedName = rawName.replace(/\s+/g, " ").trim();
+    if (options?.silentIfUnchanged && cleanedName === displayName) {
+      return;
+    }
+
     setDisplayName(cleanedName);
     setSettingsNameInput(cleanedName);
     if (cleanedName) {
@@ -5265,6 +5456,35 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     } else {
       safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
     }
+
+    if (authUser && supabase) {
+      try {
+        const { data, error } = await supabase.auth.updateUser({
+          data: {
+            full_name: cleanedName,
+            display_name: cleanedName,
+          },
+        });
+        if (error) {
+          throw error;
+        }
+        if (data?.user) {
+          lastAuthIdentityRef.current = {
+            ...lastAuthIdentityRef.current,
+            displayName: cleanedName || null,
+          };
+          setAuthUser(data.user);
+        }
+        showToastNotice("Nama tampilan disimpan ke akun.");
+      } catch (err) {
+        console.error("Failed to sync display name to Supabase Auth:", err);
+        showToastNotice("Gagal menyinkronkan nama ke akun. Tersimpan secara lokal.", 3000, {
+          critical: true,
+        });
+      }
+      return;
+    }
+
     showToastNotice("Nama tampilan disimpan.");
   };
 
@@ -6063,10 +6283,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               returnedMessageId = realAiId;
             }
             if (typeof payload.remainingCredits === "number" && Number.isFinite(payload.remainingCredits)) {
+              const nextDailyCredits =
+                typeof payload.dailyCredits === "number" && Number.isFinite(payload.dailyCredits)
+                  ? payload.dailyCredits
+                  : undefined;
+              const nextBonusCredits =
+                typeof payload.bonusCredits === "number" && Number.isFinite(payload.bonusCredits)
+                  ? payload.bonusCredits
+                  : undefined;
+              hasQuotaLoadedRef.current = true;
+              setQuotaFetchStatus("loaded");
               setQuotaInfo((prev) => ({
                 ...(prev || {}),
                 remainingCredits: payload.remainingCredits,
                 remaining: payload.remainingCredits,
+                dailyCredits: nextDailyCredits ?? prev?.dailyCredits,
+                bonusCredits: nextBonusCredits ?? prev?.bonusCredits,
                 triggeredByLimit: false,
               }));
             }
@@ -6266,10 +6498,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
 
         if (typeof result?.remainingCredits === "number" && Number.isFinite(result.remainingCredits)) {
+          const nextDailyCredits =
+            typeof result?.dailyCredits === "number" && Number.isFinite(result.dailyCredits)
+              ? result.dailyCredits
+              : undefined;
+          const nextBonusCredits =
+            typeof result?.bonusCredits === "number" && Number.isFinite(result.bonusCredits)
+              ? result.bonusCredits
+              : undefined;
+          hasQuotaLoadedRef.current = true;
+          setQuotaFetchStatus("loaded");
           setQuotaInfo((prev) => ({
             ...(prev || {}),
             remainingCredits: result.remainingCredits,
             remaining: result.remainingCredits,
+            dailyCredits: nextDailyCredits ?? prev?.dailyCredits,
+            bonusCredits: nextBonusCredits ?? prev?.bonusCredits,
             triggeredByLimit: false,
           }));
         }
@@ -7617,11 +7861,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             >
             {settingsView === "about" ? (
               <AboutSettingsView
+                backendUrl={BACKEND_URL}
                 onBack={() => setSettingsView("main")}
                 onClose={() => setIsSettingsModalOpen(false)}
               />
             ) : settingsView === "feedback" ? (
               <FeedbackSettingsView
+                backendUrl={BACKEND_URL}
+                getAuthHeaders={buildAuthHeaders}
                 defaultEmail={authUser?.email || ""}
                 userName={userName}
                 onBack={() => setSettingsView("main")}
@@ -7702,18 +7949,20 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 onKeyDown={(e) => {
                                   if (e.key === "Enter") {
                                     e.preventDefault();
-                                    handleUpdateDisplayName(settingsNameInput);
+                                    void handleUpdateDisplayName(settingsNameInput);
                                   }
                                 }}
                                 onBlur={() => {
-                                  handleUpdateDisplayName(settingsNameInput);
+                                  void handleUpdateDisplayName(settingsNameInput, {
+                                    silentIfUnchanged: true,
+                                  });
                                 }}
                                 placeholder="Masukkan nama tampilan..."
                                 className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3.5 py-2.5 md:px-2.5 md:py-1.5 text-base md:text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors"
                               />
                               <button
                                 type="button"
-                                onClick={() => handleUpdateDisplayName(settingsNameInput)}
+                                onClick={() => void handleUpdateDisplayName(settingsNameInput)}
                                 className="shrink-0 rounded-xl px-4 py-2.5 md:px-3 md:py-1.5 text-[14px] md:text-xs font-medium bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors cursor-pointer active:scale-95"
                               >
                                 Simpan
@@ -7731,7 +7980,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 <span className="text-xs font-medium text-zinc-700 dark:text-zinc-200">
                                   Paket Langganan
                                 </span>
-                                {isProPlan ? (
+                                {isQuotaInitialLoading ? (
+                                  <span className="h-4 w-12 rounded-full bg-zinc-200/80 dark:bg-white/[0.08] animate-pulse" />
+                                ) : isProPlan ? (
                                   <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
                                     Axioma Pro · Aktif
                                   </span>
@@ -7742,9 +7993,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 )}
                               </div>
                               <p className="text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
-                                {isProPlan
-                                  ? "Akses penuh tanpa batas kredit harian untuk seluruh model."
-                                  : `Paket Gratis (Free) · ${remainingCreditsCount} kredit tersisa · Reset pukul 00.00 WIB`}
+                                {isQuotaInitialLoading
+                                  ? "Memuat sisa kuota kredit harian..."
+                                  : !hasLoadedQuota
+                                    ? "Gagal memuat status kuota kredit."
+                                    : isProPlan
+                                      ? "Akses penuh tanpa batas kredit harian untuk seluruh model."
+                                      : `Paket Gratis (Free) · ${remainingCreditsCount} kredit tersisa · Reset ${quotaResetLabel}`}
                               </p>
                               <button
                                 type="button"
@@ -7928,9 +8183,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[12.5px] md:text-xs text-zinc-500 dark:text-zinc-400 tabular-nums whitespace-nowrap">
                             {authUser
-                              ? isProPlan
-                                ? "PRO"
-                                : `${remainingCreditsCount} kredit`
+                              ? isQuotaInitialLoading
+                                ? "..."
+                                : !hasLoadedQuota
+                                  ? "—"
+                                  : isProPlan
+                                    ? "PRO"
+                                    : `${remainingCreditsCount} kredit`
                               : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/${GUEST_MAX_MESSAGES}`}
                           </span>
                           <ChevronRight
@@ -7946,90 +8205,126 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {expandedSettingsSection === "quota" && (
                         <div className="w-full px-4 py-4 bg-zinc-100/60 dark:bg-white/[0.025] md:px-3 md:py-3 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] font-sans">
                           {authUser ? (
-                            <div className="w-full space-y-3.5 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
-                              {/* Status Paket */}
-                              <div className="flex items-center justify-between gap-2">
-                                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                                  Status Paket
-                                </span>
-                                {isProPlan ? (
-                                  <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
-                                    PRO
+                            isQuotaInitialLoading ? (
+                              <div
+                                role="status"
+                                aria-label="Memuat kuota kredit"
+                                className="w-full space-y-3 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4"
+                              >
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                    Status Paket
                                   </span>
-                                ) : (
-                                  <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
-                                    FREE
-                                  </span>
-                                )}
-                              </div>
-
-                              {/* Sisa Kredit Utama */}
-                              <div className="space-y-1">
-                                <div className="text-[18px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
-                                  {isProPlan
-                                    ? "Tanpa batas harian"
-                                    : `${dailyCreditsRemaining} / ${dailyCreditLimit} kredit tersisa hari ini`}
+                                  <span className="h-5 w-14 rounded-full bg-zinc-200/85 dark:bg-white/[0.08] animate-pulse" />
                                 </div>
-                                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
-                                  {isProPlan
-                                    ? "Akses penuh tanpa batas kredit harian untuk seluruh model Axioma."
-                                    : `Sisa kredit hari ini: ${dailyCreditsRemaining} dari ${dailyCreditLimit} kredit`}
+                                <div className="space-y-2">
+                                  <div className="h-6 w-48 rounded-lg bg-zinc-200/85 dark:bg-white/[0.08] animate-pulse" />
+                                  <div className="h-3.5 w-36 rounded bg-zinc-200/70 dark:bg-white/[0.06] animate-pulse" />
+                                </div>
+                                <div className="w-full h-2 rounded-full bg-zinc-200/80 dark:bg-white/[0.08] animate-pulse" />
+                                <p className="text-[11.5px] text-zinc-500 dark:text-zinc-400">
+                                  Memuat sisa kuota kredit harian...
                                 </p>
                               </div>
-
-                              {/* Progress Bar Visual */}
-                              <div className="space-y-1.5">
-                                <div className="w-full h-2 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
-                                  <div
-                                    style={{ width: `${dailyCreditsPercent}%` }}
-                                    className={`h-full rounded-full transition-[width] duration-300 ${
-                                      !isProPlan && dailyCreditsPercent <= 20
-                                        ? "bg-red-500/85 dark:bg-red-400/85"
-                                        : !isProPlan && dailyCreditsPercent <= 40
-                                          ? "bg-amber-500/85 dark:bg-amber-400/85"
-                                          : "bg-zinc-900 dark:bg-zinc-100"
-                                    }`}
-                                  />
-                                </div>
-                                <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
-                                  <span>{dailyCreditsPercent}% tersisa</span>
-                                  <span>Omni 1 · Pro 3 · Architect 4 · Media 5</span>
-                                </div>
+                            ) : !hasLoadedQuota ? (
+                              <div className="w-full space-y-3 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
+                                <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
+                                  Gagal memuat detail kuota kredit dari server.
+                                </p>
+                                <button
+                                  type="button"
+                                  onClick={() => void fetchUserQuota({ force: true })}
+                                  className="w-full h-9 rounded-xl border border-zinc-300 dark:border-white/15 text-xs font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
+                                >
+                                  Muat Ulang Kuota
+                                </button>
                               </div>
-
-                              {/* Kredit Tambahan / Bonus (jika > 0) */}
-                              {bonusCreditsCount > 0 && (
-                                <div className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-3 py-2 text-xs">
-                                  <div className="min-w-0">
-                                    <div className="font-medium text-zinc-800 dark:text-zinc-200">
-                                      Kredit Tambahan / Bonus
-                                    </div>
-                                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                                      Saldo permanen, masa aktif selamanya
-                                    </div>
-                                  </div>
-                                  <span className="font-semibold text-zinc-950 dark:text-white tabular-nums shrink-0">
-                                    +{bonusCreditsCount} kredit
+                            ) : (
+                              <div className="w-full space-y-3.5 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
+                                {/* Status Paket */}
+                                <div className="flex items-center justify-between gap-2">
+                                  <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                    Status Paket
                                   </span>
+                                  {isProPlan ? (
+                                    <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
+                                      PRO
+                                    </span>
+                                  ) : (
+                                    <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
+                                      FREE
+                                    </span>
+                                  )}
                                 </div>
-                              )}
 
-                              {/* Info Reset Harian */}
-                              <div className="flex items-start gap-1.5 text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed pt-1 border-t border-zinc-200/70 dark:border-white/[0.06]">
-                                <Clock className="w-3.5 h-3.5 mt-0.5 shrink-0" strokeWidth={1.5} />
-                                <span>Kuota harian direset otomatis setiap hari pukul 00.00 WIB.</span>
+                                {/* Sisa Kredit Utama */}
+                                <div className="space-y-1">
+                                  <div className="text-[18px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
+                                    {isProPlan
+                                      ? "Tanpa batas harian"
+                                      : `${dailyCreditsRemaining} / ${dailyCreditLimit} kredit tersisa hari ini`}
+                                  </div>
+                                  <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
+                                    {isProPlan
+                                      ? "Akses penuh tanpa batas kredit harian untuk seluruh model Axioma."
+                                      : `Sisa kredit hari ini: ${dailyCreditsRemaining} dari ${dailyCreditLimit} kredit`}
+                                  </p>
+                                </div>
+
+                                {/* Progress Bar Visual */}
+                                <div className="space-y-1.5">
+                                  <div className="w-full h-2 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
+                                    <div
+                                      style={{ width: `${dailyCreditsPercent}%` }}
+                                      className={`h-full rounded-full transition-[width] duration-300 ${
+                                        !isProPlan && dailyCreditsPercent <= 20
+                                          ? "bg-red-500/85 dark:bg-red-400/85"
+                                          : !isProPlan && dailyCreditsPercent <= 40
+                                            ? "bg-amber-500/85 dark:bg-amber-400/85"
+                                            : "bg-zinc-900 dark:bg-zinc-100"
+                                      }`}
+                                    />
+                                  </div>
+                                  <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                    <span>{dailyCreditsPercent}% tersisa</span>
+                                    <span>{quotaTariffCompact}</span>
+                                  </div>
+                                </div>
+
+                                {/* Kredit Tambahan / Bonus (jika > 0) */}
+                                {bonusCreditsCount > 0 && (
+                                  <div className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-3 py-2 text-xs">
+                                    <div className="min-w-0">
+                                      <div className="font-medium text-zinc-800 dark:text-zinc-200">
+                                        Kredit Tambahan / Bonus
+                                      </div>
+                                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                        Saldo permanen, masa aktif selamanya
+                                      </div>
+                                    </div>
+                                    <span className="font-semibold text-zinc-950 dark:text-white tabular-nums shrink-0">
+                                      +{bonusCreditsCount} kredit
+                                    </span>
+                                  </div>
+                                )}
+
+                                {/* Info Reset Harian */}
+                                <div className="flex items-start gap-1.5 text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed pt-1 border-t border-zinc-200/70 dark:border-white/[0.06]">
+                                  <Clock className="w-3.5 h-3.5 mt-0.5 shrink-0" strokeWidth={1.5} />
+                                  <span>Kuota harian direset otomatis setiap hari {quotaResetLabel}.</span>
+                                </div>
+
+                                {/* Aksi Lanjutan */}
+                                <button
+                                  type="button"
+                                  onClick={openSubscriptionModal}
+                                  className="w-full h-9 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98] cursor-pointer"
+                                >
+                                  <span>{isProPlan ? "Lihat Rincian Paket" : "Upgrade ke Pro — Segera Hadir"}</span>
+                                  <ChevronRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                                </button>
                               </div>
-
-                              {/* Aksi Lanjutan */}
-                              <button
-                                type="button"
-                                onClick={openSubscriptionModal}
-                                className="w-full h-9 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98] cursor-pointer"
-                              >
-                                <span>{isProPlan ? "Lihat Rincian Paket" : "Upgrade ke Pro — Segera Hadir"}</span>
-                                <ChevronRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                              </button>
-                            </div>
+                            )
                           ) : (
                             <div className="w-full space-y-3 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
                               <div className="flex items-center justify-between gap-2">
@@ -8062,7 +8357,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 />
                               </div>
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                Masuk ke akun untuk mendapatkan 30 kredit gratis setiap hari yang direset otomatis pukul 00.00 WIB.
+                                Masuk ke akun untuk mendapatkan {guestFreeDailyLimit} kredit gratis setiap hari yang direset otomatis {quotaResetLabel}.
                               </p>
                               <button
                                 type="button"
@@ -8093,16 +8388,70 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onClick={() => {
                           if (typeof window !== "undefined" && window.innerWidth >= 768) {
                             openDesktopSettingsPage("notifications");
+                          } else {
+                            setExpandedSettingsSection((prev) =>
+                              prev === "notifications" ? null : "notifications"
+                            );
                           }
                         }}
-                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between text-left md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:transition-colors md:duration-150 md:cursor-pointer"
+                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
                           <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Notifikasi</span>
                         </div>
-                        <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0" />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                            {notificationsEnabled ? "Aktif" : "Nonaktif"}
+                          </span>
+                          <ChevronRight
+                            className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
+                              expandedSettingsSection === "notifications" ? "rotate-90" : ""
+                            }`}
+                          />
+                        </div>
                       </button>
+
+                      {/* Expandable Notifikasi Toast Toggle (Mobile) */}
+                      {expandedSettingsSection === "notifications" && (
+                        <div className="w-full px-4 py-4 bg-zinc-100/60 dark:bg-white/[0.025] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04]">
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-[14px] font-medium text-zinc-900 dark:text-zinc-100">
+                                Notifikasi Toast
+                              </div>
+                              <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
+                                Tampilkan pemberitahuan singkat untuk salin teks, ganti model, dan status aksi di ruang kerja.
+                              </p>
+                            </div>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={notificationsEnabled}
+                              aria-label="Aktifkan Notifikasi Toast"
+                              onClick={() => handleToggleNotifications()}
+                              className="cursor-pointer shrink-0 p-1"
+                            >
+                              <span
+                                aria-hidden="true"
+                                className={`inline-flex items-center w-10 h-6 rounded-full p-0.5 transition-colors ${
+                                  notificationsEnabled
+                                    ? "bg-zinc-950 dark:bg-white justify-end"
+                                    : "bg-zinc-300 dark:bg-zinc-700 justify-start"
+                                }`}
+                              >
+                                <span
+                                  className={`w-5 h-5 rounded-full transition-transform ${
+                                    notificationsEnabled
+                                      ? "bg-white dark:bg-zinc-950"
+                                      : "bg-white dark:bg-zinc-300"
+                                  }`}
+                                />
+                              </span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Model Default */}
                       <button
@@ -8175,18 +8524,55 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         onClick={() => {
                           if (typeof window !== "undefined" && window.innerWidth >= 768) {
                             openDesktopSettingsPage("storage");
+                          } else {
+                            setExpandedSettingsSection((prev) =>
+                              prev === "storage" ? null : "storage"
+                            );
                           }
                         }}
-                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between gap-3 text-left md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:transition-colors md:duration-150 md:cursor-pointer"
+                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
                           <Database className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Penyimpanan Riwayat</span>
                         </div>
-                        <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap shrink-0 text-right">
-                          {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
-                        </span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap text-right">
+                            {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
+                          </span>
+                          <ChevronRight
+                            className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
+                              expandedSettingsSection === "storage" ? "rotate-90" : ""
+                            }`}
+                          />
+                        </div>
                       </button>
+
+                      {/* Expandable Penyimpanan Riwayat (Mobile) */}
+                      {expandedSettingsSection === "storage" && (
+                        <div className="w-full px-4 py-4 bg-zinc-100/60 dark:bg-white/[0.025] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-3">
+                          <div>
+                            <div className="text-xs font-medium text-zinc-800 dark:text-zinc-200">
+                              Mode Penyimpanan Saat Ini: {authUser ? "Cloud & Lokal" : "Hanya Lokal"}
+                            </div>
+                            <p className="text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
+                              {authUser
+                                ? "Riwayat percakapan disinkronkan secara aman ke cloud dan cache lokal."
+                                : "Riwayat percakapan hanya disimpan di penyimpanan lokal peramban ini."}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setIsSettingsModalOpen(false);
+                              setIsClearAllConfirmOpen(true);
+                            }}
+                            className="w-full h-9 rounded-xl text-xs font-medium text-red-600 dark:text-red-400 border border-red-200 dark:border-red-500/25 bg-white dark:bg-[#141416] hover:bg-red-50 dark:hover:bg-red-500/10 transition-colors cursor-pointer"
+                          >
+                            Hapus semua percakapan
+                          </button>
+                        </div>
+                      )}
 
                       {/* Pintasan Keyboard (Desktop only — tersembunyi di layar mobile) */}
                       <button
@@ -8343,18 +8729,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Tentang Axioma</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">v1.0 Beta</span>
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{AXIOMA_APP_VERSION}</span>
                           <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
                     </div>
                   </div>
 
-                  {/* Stage 10B: Apa yang Baru (v1.0 Beta) */}
+                  {/* Stage 10B: Apa yang Baru */}
                   <div className="w-full rounded-none md:rounded-xl bg-white/80 dark:bg-transparent md:bg-zinc-50/90 md:dark:bg-white/[0.03] border-y md:border border-zinc-200/70 dark:border-white/[0.06] px-4 py-4 md:p-3 space-y-2 md:mx-1 md:w-auto">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
-                        Apa yang Baru (v1.0 Beta)
+                        Apa yang Baru ({AXIOMA_APP_VERSION})
                       </span>
                       <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400">
                         Beta
@@ -8408,7 +8794,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Clean Version Footer (Mobile only) */}
                   <div className="md:hidden px-4 pt-2 pb-1 text-center text-xs text-zinc-500 space-y-1">
-                    <div>Axioma v1.0 Beta</div>
+                    <div>Axioma {AXIOMA_APP_VERSION}</div>
                     <div className="text-[11px] leading-relaxed">
                       Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
                     </div>
@@ -9344,16 +9730,20 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onKeyDown={(e) => {
                             if (e.key === "Enter") {
                               e.preventDefault();
-                              handleUpdateDisplayName(settingsNameInput);
+                              void handleUpdateDisplayName(settingsNameInput);
                             }
                           }}
-                          onBlur={() => handleUpdateDisplayName(settingsNameInput)}
+                          onBlur={() =>
+                            void handleUpdateDisplayName(settingsNameInput, {
+                              silentIfUnchanged: true,
+                            })
+                          }
                           placeholder="Masukkan nama tampilan..."
                           className="flex-1 min-w-0 bg-white dark:bg-[#161618] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 rounded-xl px-3.5 py-2 text-[14px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors"
                         />
                         <button
                           type="button"
-                          onClick={() => handleUpdateDisplayName(settingsNameInput)}
+                          onClick={() => void handleUpdateDisplayName(settingsNameInput)}
                           className="shrink-0 rounded-xl px-4 py-2 text-[13.5px] font-medium bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-black dark:hover:bg-zinc-200 transition-colors cursor-pointer active:scale-[0.96]"
                         >
                           Simpan
@@ -9509,7 +9899,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           )}
                         </div>
                         <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 tabular-nums">
-                          {isProPlan ? (
+                          {isQuotaInitialLoading ? (
+                            "Memuat sisa kuota kredit harian..."
+                          ) : !hasLoadedQuota ? (
+                            "Gagal memuat status kuota kredit."
+                          ) : isProPlan ? (
                             <>
                               Akses penuh tanpa batas kredit harian untuk seluruh model &amp; fitur kreatif.
                               {quotaInfo?.expiresAt
@@ -9522,7 +9916,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             </>
                           ) : (
                             <>
-                              Paket Gratis (Free) · {remainingCreditsCount} kredit tersisa · Reset pukul 00.00 WIB
+                              Paket Gratis (Free) · {remainingCreditsCount} kredit tersisa · Reset {quotaResetLabel}
                             </>
                           )}
                         </div>
@@ -9584,102 +9978,144 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {desktopSettingsPage === "quota" && (
                   <div className="py-4 font-sans space-y-4">
                     {authUser ? (
-                      <div className="rounded-2xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-5 sm:p-6 space-y-5">
-                        {/* Status Paket */}
-                        <div className="flex items-center justify-between gap-3">
-                          <div>
-                            <div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                              Status Paket
+                      isQuotaInitialLoading ? (
+                        <div
+                          role="status"
+                          aria-label="Memuat kuota kredit"
+                          className="rounded-2xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-5 sm:p-6 space-y-5"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="space-y-1.5">
+                              <div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                Status Paket
+                              </div>
+                              <div className="h-4 w-24 rounded bg-zinc-200/80 dark:bg-white/[0.08] animate-pulse" />
                             </div>
-                            <div className="mt-0.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                              {isProPlan ? "Axioma Pro" : "Paket Free"}
-                            </div>
+                            <span className="h-6 w-14 rounded-full bg-zinc-200/80 dark:bg-white/[0.08] animate-pulse shrink-0" />
                           </div>
-                          {isProPlan ? (
-                            <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shrink-0">
-                              PRO
-                            </span>
-                          ) : (
-                            <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shrink-0">
-                              FREE
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Sisa Kredit Utama */}
-                        <div className="space-y-1">
-                          <div className="text-2xl sm:text-[26px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
-                            {isProPlan
-                              ? "Tanpa batas harian"
-                              : `${dailyCreditsRemaining} / ${dailyCreditLimit} kredit tersisa hari ini`}
+                          <div className="space-y-2">
+                            <div className="h-7 w-64 rounded-lg bg-zinc-200/80 dark:bg-white/[0.08] animate-pulse" />
+                            <div className="h-4 w-48 rounded bg-zinc-200/65 dark:bg-white/[0.06] animate-pulse" />
                           </div>
-                          <p className="text-[13.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
-                            {isProPlan
-                              ? "Langganan Axioma Pro aktif dengan akses penuh untuk seluruh model."
-                              : `Sisa kredit hari ini: ${dailyCreditsRemaining} dari ${dailyCreditLimit} kredit`}
+                          <div className="w-full h-2.5 rounded-full bg-zinc-200/80 dark:bg-white/[0.08] animate-pulse" />
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            Memuat sisa kuota kredit harian...
                           </p>
                         </div>
-
-                        {/* Progress Bar Visual */}
-                        <div className="space-y-2">
-                          <div className="w-full h-2.5 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
-                            <div
-                              style={{ width: `${dailyCreditsPercent}%` }}
-                              className={`h-full rounded-full transition-[width] duration-300 ${
-                                !isProPlan && dailyCreditsPercent <= 20
-                                  ? "bg-red-500/85 dark:bg-red-400/85"
-                                  : !isProPlan && dailyCreditsPercent <= 40
-                                    ? "bg-amber-500/85 dark:bg-amber-400/85"
-                                    : "bg-zinc-900 dark:bg-zinc-100"
-                              }`}
-                            />
+                      ) : !hasLoadedQuota ? (
+                        <div className="rounded-2xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-5 sm:p-6 space-y-4">
+                          <div className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                            Gagal memuat data kuota kredit
                           </div>
-                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
-                            <span>{dailyCreditsPercent}% kuota harian tersisa</span>
-                            <span>Tarif: Omni 1 · Pro 3 · Architect 4 · Media 5 kredit</span>
-                          </div>
-                        </div>
-
-                        {/* Kredit Tambahan / Bonus (hanya bila > 0) */}
-                        {bonusCreditsCount > 0 && (
-                          <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-4 py-3">
-                            <div className="min-w-0">
-                              <div className="text-[13.5px] font-medium text-zinc-900 dark:text-zinc-100">
-                                Kredit Tambahan / Bonus
-                              </div>
-                              <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                Saldo permanen, tidak ter-reset saat pergantian hari
-                              </div>
-                            </div>
-                            <span className="text-sm font-semibold text-zinc-950 dark:text-white tabular-nums shrink-0">
-                              +{bonusCreditsCount} kredit
-                            </span>
-                          </div>
-                        )}
-
-                        {/* Info Reset Harian */}
-                        <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 pt-3 border-t border-zinc-200/70 dark:border-white/[0.06]">
-                          <Clock className="w-4 h-4 shrink-0" strokeWidth={1.5} />
-                          <span>Kuota harian direset otomatis setiap hari pukul 00.00 WIB.</span>
-                        </div>
-
-                        {/* Aksi Lanjutan */}
-                        <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                          <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                            {isProPlan
-                              ? "Lihat detail seluruh paket dan kapasitas Axioma."
-                              : "Butuh kapasitas lebih besar? Lihat paket Pro & Top-Up."}
-                          </span>
+                          <p className="text-[13.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                            Tidak dapat mengambil status kuota terbaru dari server. Silakan coba lagi.
+                          </p>
                           <button
                             type="button"
-                            onClick={openSubscriptionModal}
-                            className="h-9 px-4 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98] cursor-pointer shrink-0"
+                            onClick={() => void fetchUserQuota({ force: true })}
+                            className="h-9 px-4 rounded-xl border border-zinc-300 dark:border-white/15 text-[13px] font-medium text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors cursor-pointer"
                           >
-                            <span>{isProPlan ? "Lihat Rincian Paket" : "Upgrade ke Pro — Segera Hadir"}</span>
-                            <ChevronRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                            Muat Ulang Kuota
                           </button>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="rounded-2xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-5 sm:p-6 space-y-5">
+                          {/* Status Paket */}
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                                Status Paket
+                              </div>
+                              <div className="mt-0.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                                {isProPlan ? "Axioma Pro" : "Paket Free"}
+                              </div>
+                            </div>
+                            {isProPlan ? (
+                              <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shrink-0">
+                                PRO
+                              </span>
+                            ) : (
+                              <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shrink-0">
+                                FREE
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Sisa Kredit Utama */}
+                          <div className="space-y-1">
+                            <div className="text-2xl sm:text-[26px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
+                              {isProPlan
+                                ? "Tanpa batas harian"
+                                : `${dailyCreditsRemaining} / ${dailyCreditLimit} kredit tersisa hari ini`}
+                            </div>
+                            <p className="text-[13.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
+                              {isProPlan
+                                ? "Langganan Axioma Pro aktif dengan akses penuh untuk seluruh model."
+                                : `Sisa kredit hari ini: ${dailyCreditsRemaining} dari ${dailyCreditLimit} kredit`}
+                            </p>
+                          </div>
+
+                          {/* Progress Bar Visual */}
+                          <div className="space-y-2">
+                            <div className="w-full h-2.5 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
+                              <div
+                                style={{ width: `${dailyCreditsPercent}%` }}
+                                className={`h-full rounded-full transition-[width] duration-300 ${
+                                  !isProPlan && dailyCreditsPercent <= 20
+                                    ? "bg-red-500/85 dark:bg-red-400/85"
+                                    : !isProPlan && dailyCreditsPercent <= 40
+                                      ? "bg-amber-500/85 dark:bg-amber-400/85"
+                                      : "bg-zinc-900 dark:bg-zinc-100"
+                                }`}
+                              />
+                            </div>
+                            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+                              <span>{dailyCreditsPercent}% kuota harian tersisa</span>
+                              <span>Tarif: {quotaTariffCompact} kredit</span>
+                            </div>
+                          </div>
+
+                          {/* Kredit Tambahan / Bonus (hanya bila > 0) */}
+                          {bonusCreditsCount > 0 && (
+                            <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-4 py-3">
+                              <div className="min-w-0">
+                                <div className="text-[13.5px] font-medium text-zinc-900 dark:text-zinc-100">
+                                  Kredit Tambahan / Bonus
+                                </div>
+                                <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                  Saldo permanen, tidak ter-reset saat pergantian hari
+                                </div>
+                              </div>
+                              <span className="text-sm font-semibold text-zinc-950 dark:text-white tabular-nums shrink-0">
+                                +{bonusCreditsCount} kredit
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Info Reset Harian */}
+                          <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 pt-3 border-t border-zinc-200/70 dark:border-white/[0.06]">
+                            <Clock className="w-4 h-4 shrink-0" strokeWidth={1.5} />
+                            <span>Kuota harian direset otomatis setiap hari {quotaResetLabel}.</span>
+                          </div>
+
+                          {/* Aksi Lanjutan */}
+                          <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                              {isProPlan
+                                ? "Lihat detail seluruh paket dan kapasitas Axioma."
+                                : "Butuh kapasitas lebih besar? Lihat paket Pro & Top-Up."}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={openSubscriptionModal}
+                              className="h-9 px-4 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98] cursor-pointer shrink-0"
+                            >
+                              <span>{isProPlan ? "Lihat Rincian Paket" : "Upgrade ke Pro — Segera Hadir"}</span>
+                              <ChevronRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                            </button>
+                          </div>
+                        </div>
+                      )
                     ) : (
                       <div className="rounded-2xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-5 sm:p-6 space-y-4">
                         <div className="flex items-center justify-between gap-3">
@@ -9712,7 +10148,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           />
                         </div>
                         <p className="text-[13.5px] text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                          Mode Tamu dibatasi maksimal {GUEST_MAX_MESSAGES} pesan gratis. Masuk ke akun Anda untuk mendapatkan 30 kredit harian yang direset otomatis pukul 00.00 WIB.
+                          Mode Tamu dibatasi maksimal {GUEST_MAX_MESSAGES} pesan gratis. Masuk ke akun Anda untuk mendapatkan {guestFreeDailyLimit} kredit harian yang direset otomatis {quotaResetLabel}.
                         </p>
                         <button
                           type="button"
@@ -9731,15 +10167,42 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="py-4 flex items-center justify-between gap-4">
                       <div>
                         <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
-                          Notifikasi Dalam Aplikasi
+                          Notifikasi Toast
                         </div>
                         <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 mt-0.5">
-                          Umpan balik singkat seperti penyalinan teks, penghapusan sesi, dan status mikrofon ditampilkan langsung di ruang kerja.
+                          Umpan balik singkat seperti penyalinan teks, penggantian model, dan status aksi non-kritis di ruang kerja.
                         </div>
                       </div>
-                      <span className="text-[13px] font-medium text-zinc-600 dark:text-zinc-300 shrink-0">
-                        Aktif
-                      </span>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className="text-[13px] font-medium text-zinc-600 dark:text-zinc-300">
+                          {notificationsEnabled ? "Aktif" : "Nonaktif"}
+                        </span>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={notificationsEnabled}
+                          aria-label="Aktifkan Notifikasi Toast"
+                          onClick={() => handleToggleNotifications()}
+                          className="cursor-pointer"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`inline-flex items-center w-10 h-6 rounded-full p-0.5 transition-colors ${
+                              notificationsEnabled
+                                ? "bg-zinc-950 dark:bg-white justify-end"
+                                : "bg-zinc-300 dark:bg-zinc-700 justify-start"
+                            }`}
+                          >
+                            <span
+                              className={`w-5 h-5 rounded-full transition-transform ${
+                                notificationsEnabled
+                                  ? "bg-white dark:bg-zinc-950"
+                                  : "bg-white dark:bg-zinc-300"
+                              }`}
+                            />
+                          </span>
+                        </button>
+                      </div>
                     </div>
                   </div>
                 )}
@@ -9874,6 +10337,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {desktopSettingsPage === "feedback" && (
                   <FeedbackSettingsView
                     inline
+                    backendUrl={BACKEND_URL}
+                    getAuthHeaders={buildAuthHeaders}
                     defaultEmail={authUser?.email || ""}
                     userName={userName}
                     onBack={() => setDesktopSettingsPage(null)}
@@ -9884,6 +10349,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {desktopSettingsPage === "about" && (
                   <AboutSettingsView
                     inline
+                    backendUrl={BACKEND_URL}
                     onBack={() => setDesktopSettingsPage(null)}
                     onClose={() => setDesktopSettingsPage(null)}
                   />

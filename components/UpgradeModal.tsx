@@ -3,6 +3,27 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Check, ArrowRight, Clock } from "lucide-react";
+import { formatQuotaResetLabel } from "@/constants/appInfo";
+
+export { formatQuotaResetLabel };
+
+export interface QuotaModelCosts {
+  omni?: number;
+  pro?: number;
+  architect?: number;
+  media?: number;
+}
+
+export interface QuotaTierDefinition {
+  id?: string;
+  name?: string;
+  priceIdr?: number;
+  priceLabel?: string;
+  billingCycle?: string;
+  credits?: number | "unlimited";
+  description?: string;
+  highlights?: readonly string[];
+}
 
 export interface QuotaModalInfo {
   plan?: "free" | "pro";
@@ -19,6 +40,16 @@ export interface QuotaModalInfo {
   suggestedModel?: string;
   message?: string;
   triggeredByLimit?: boolean;
+  costs?: QuotaModelCosts;
+  tiers?: {
+    free?: QuotaTierDefinition;
+    pro?: QuotaTierDefinition;
+    topup?: QuotaTierDefinition;
+  };
+}
+
+export function formatIdrCurrency(amount: number): string {
+  return `Rp ${Math.max(0, Math.round(amount)).toLocaleString("id-ID")}`;
 }
 
 export interface UpgradeModalProps {
@@ -75,6 +106,13 @@ export function UpgradeModal({
   }, [isOpen, onClose]);
 
   const isProPlan = Boolean(quotaInfo?.plan === "pro" || quotaInfo?.unlimited);
+  const isQuotaLoaded = Boolean(
+    quotaInfo &&
+      (typeof quotaInfo.remainingCredits === "number" ||
+        typeof quotaInfo.remaining === "number" ||
+        typeof quotaInfo.dailyLimit === "number" ||
+        quotaInfo.unlimited)
+  );
   const effectiveTriggerReason: "manual" | "quota_exceeded" =
     triggerReason ?? (quotaInfo?.triggeredByLimit ? "quota_exceeded" : "manual");
   const isLimitTriggered = effectiveTriggerReason === "quota_exceeded";
@@ -83,6 +121,57 @@ export function UpgradeModal({
     typeof quotaInfo?.dailyLimit === "number" && Number.isFinite(quotaInfo.dailyLimit)
       ? Math.max(0, quotaInfo.dailyLimit)
       : 30;
+
+  const omniCost =
+    typeof quotaInfo?.costs?.omni === "number" && Number.isFinite(quotaInfo.costs.omni)
+      ? quotaInfo.costs.omni
+      : 1;
+  const proCost =
+    typeof quotaInfo?.costs?.pro === "number" && Number.isFinite(quotaInfo.costs.pro)
+      ? quotaInfo.costs.pro
+      : 3;
+  const architectCost =
+    typeof quotaInfo?.costs?.architect === "number" && Number.isFinite(quotaInfo.costs.architect)
+      ? quotaInfo.costs.architect
+      : 4;
+  const mediaCost =
+    typeof quotaInfo?.costs?.media === "number" && Number.isFinite(quotaInfo.costs.media)
+      ? quotaInfo.costs.media
+      : 5;
+
+  const resetTimeLabel = formatQuotaResetLabel(quotaInfo?.resetAt);
+
+  const freeTier = quotaInfo?.tiers?.free;
+  const proTier = quotaInfo?.tiers?.pro;
+  const topupTier = quotaInfo?.tiers?.topup;
+
+  const freeTierName = freeTier?.name || "Paket Free";
+  const freeTierPrice =
+    typeof freeTier?.priceIdr === "number" ? formatIdrCurrency(freeTier.priceIdr) : "Rp 0";
+  const freeBenefitsList =
+    Array.isArray(freeTier?.highlights) && freeTier.highlights.length > 0
+      ? freeTier.highlights
+      : FREE_BENEFITS;
+
+  const proTierName = proTier?.name || "Paket Pro";
+  const proTierPrice =
+    typeof proTier?.priceIdr === "number" ? formatIdrCurrency(proTier.priceIdr) : "Rp 49.000";
+  const proBenefitsList =
+    Array.isArray(proTier?.highlights) && proTier.highlights.length > 0
+      ? proTier.highlights
+      : PRO_BENEFITS;
+
+  const dynamicTopupOptions =
+    topupTier && typeof topupTier.credits === "number" && typeof topupTier.priceIdr === "number"
+      ? [
+          {
+            id: "topup-primary",
+            creditsLabel: `+${topupTier.credits} Kredit`,
+            priceLabel: formatIdrCurrency(topupTier.priceIdr),
+          },
+          TOPUP_OPTIONS[1],
+        ]
+      : TOPUP_OPTIONS;
 
   const effectiveRemaining =
     typeof quotaInfo?.remaining === "number" && Number.isFinite(quotaInfo.remaining)
@@ -137,7 +226,7 @@ export function UpgradeModal({
   }
 
   const canContinueWithOmni =
-    isLimitTriggered && !isProPlan && effectiveRemaining >= 1;
+    isLimitTriggered && !isProPlan && effectiveRemaining >= omniCost;
 
   if (!isOpen || typeof document === "undefined") {
     return null;
@@ -185,18 +274,22 @@ export function UpgradeModal({
               <>
                 {isLimitTriggered && (
                   <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                    Kuota harian Anda untuk model ini telah habis. Reset otomatis pukul 00.00 WIB.
+                    Kuota harian Anda untuk model ini telah habis. Reset otomatis {resetTimeLabel}.
                   </p>
                 )}
 
-                {showSeparatedBalances ? (
+                {!isQuotaLoaded ? (
+                  <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 animate-pulse">
+                    Memuat sisa kuota kredit harian...
+                  </p>
+                ) : showSeparatedBalances ? (
                   <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap gap-1.5 sm:gap-2">
                     <div className="inline-flex items-baseline flex-wrap gap-x-1.5 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-2.5 py-1 text-[12px]">
                       <span className="font-medium text-zinc-900 dark:text-zinc-100 tabular-nums">
                         Kuota Harian: {dailyRemaining}/{dailyLimit} kredit
                       </span>
                       <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                        (Reset otomatis 00.00 WIB)
+                        (Reset otomatis {resetTimeLabel})
                       </span>
                     </div>
                     <div className="inline-flex items-baseline flex-wrap gap-x-1.5 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-2.5 py-1 text-[12px]">
@@ -214,15 +307,15 @@ export function UpgradeModal({
                       <span className="font-medium text-zinc-800 dark:text-zinc-200 tabular-nums">
                         Kuota Harian: {dailyRemaining}/{dailyLimit} kredit
                       </span>{" "}
-                      <span>(Reset otomatis 00.00 WIB)</span>
+                      <span>(Reset otomatis {resetTimeLabel})</span>
                     </p>
                   )
                 )}
               </>
             )}
 
-            <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              Tarif penggunaan: Omni 1 kredit · Pro 3 kredit · Architect 4 kredit · Media 5 kredit
+            <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+              Tarif penggunaan: Omni {omniCost} kredit · Pro {proCost} kredit · Architect {architectCost} kredit · Media {mediaCost} kredit
             </p>
           </div>
           <button
@@ -244,7 +337,7 @@ export function UpgradeModal({
               <div>
                 <div className="flex items-center justify-between gap-2">
                   <h3 className="text-[15.5px] font-semibold text-zinc-950 dark:text-white">
-                    Paket Free
+                    {freeTierName}
                   </h3>
                   {!isProPlan && (
                     <span className="text-[10.5px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 shrink-0">
@@ -255,7 +348,7 @@ export function UpgradeModal({
 
                 <div className="mt-3 flex items-baseline gap-1.5">
                   <span className="text-[24px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
-                    Rp 0
+                    {freeTierPrice}
                   </span>
                   <span className="text-[12.5px] text-zinc-500 dark:text-zinc-400">
                     / selamanya
@@ -263,7 +356,7 @@ export function UpgradeModal({
                 </div>
 
                 <ul className="mt-4 space-y-2.5">
-                  {FREE_BENEFITS.map((benefit) => (
+                  {freeBenefitsList.map((benefit) => (
                     <li
                       key={benefit}
                       className="flex items-start gap-2 text-[12.5px] leading-snug text-zinc-600 dark:text-zinc-300"
@@ -300,7 +393,7 @@ export function UpgradeModal({
               <div>
                 <div className="flex items-center justify-between gap-2 flex-wrap">
                   <h3 className="text-[15.5px] font-semibold text-zinc-950 dark:text-white">
-                    Paket Pro
+                    {proTierName}
                   </h3>
                   <span className="text-[10.5px] font-medium uppercase tracking-wider px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-700 border border-zinc-200 dark:bg-white/[0.08] dark:text-zinc-200 dark:border-white/10 shrink-0">
                     Harga Perkenalan
@@ -308,12 +401,9 @@ export function UpgradeModal({
                 </div>
 
                 <div className="mt-3 space-y-0.5">
-                  <div className="text-[12.5px] text-zinc-400 dark:text-zinc-500 line-through tabular-nums">
-                    Rp 79.000
-                  </div>
                   <div className="flex items-baseline gap-1">
                     <span className="text-[24px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
-                      Rp 49.000
+                      {proTierPrice}
                     </span>
                     <span className="text-[12.5px] text-zinc-500 dark:text-zinc-400">
                       / bulan
@@ -322,7 +412,7 @@ export function UpgradeModal({
                 </div>
 
                 <ul className="mt-4 space-y-2.5">
-                  {PRO_BENEFITS.map((benefit) => (
+                  {proBenefitsList.map((benefit) => (
                     <li
                       key={benefit}
                       className="flex items-start gap-2 text-[12.5px] leading-snug text-zinc-600 dark:text-zinc-300"
@@ -372,7 +462,7 @@ export function UpgradeModal({
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {TOPUP_OPTIONS.map((option) => (
+              {dynamicTopupOptions.map((option) => (
                 <div
                   key={option.id}
                   className="min-w-0 flex items-center justify-between gap-3 rounded-xl border border-zinc-200/90 dark:border-white/[0.08] bg-white dark:bg-[#111113] px-3.5 py-3"
@@ -408,7 +498,7 @@ export function UpgradeModal({
         <footer className="shrink-0 border-t border-zinc-200/80 dark:border-white/[0.08] bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-white md:dark:bg-[#141416] px-4 md:px-6 pt-3.5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
           <div className="inline-flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
             <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-            <span>Kuota gratis direset otomatis setiap pukul 00.00 WIB</span>
+            <span>Kuota gratis direset otomatis setiap hari {resetTimeLabel}</span>
           </div>
 
           {canContinueWithOmni && (
@@ -420,7 +510,7 @@ export function UpgradeModal({
               }}
               className="inline-flex items-center justify-center sm:justify-end gap-1.5 text-[12.5px] font-medium text-zinc-800 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white py-1.5 px-3 rounded-lg bg-zinc-100 hover:bg-zinc-200/80 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] transition-colors cursor-pointer active:scale-[0.98]"
             >
-              <span>Lanjut dengan Axioma Omni (1 kredit)</span>
+              <span>Lanjut dengan Axioma Omni ({omniCost} kredit)</span>
               <ArrowRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
             </button>
           )}
