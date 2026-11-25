@@ -91,7 +91,7 @@ export default function PrivasiPage() {
                 dengan masa kedaluwarsa 10 menit.
               </li>
               <li>
-                <strong className="text-text-primary">Masukan Kualitas (Feedback 👍/👎):</strong>{" "}
+                <strong className="text-text-primary">Masukan Kualitas (Feedback Positif/Negatif):</strong>{" "}
                 Penilaian suka/tidak suka beserta catatan opsional yang Anda berikan pada balasan AI
                 disimpan secara internal untuk membantu meningkatkan mutu dan akurasi jawaban asisten.
               </li>

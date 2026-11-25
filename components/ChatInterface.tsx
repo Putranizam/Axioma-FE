@@ -6,7 +6,49 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { AxiomaLogoMark } from "./AxiomaLogoMark";
 import { syncIosSafariTheme } from "@/lib/themeSync";
-import { APP_BADGE_LABEL, APP_FULL_VERSION } from "@/lib/appMeta";
+import {
+  LanguageToneSelector,
+  ContextControlState,
+  DEFAULT_CONTEXT_CONTROL,
+} from "./LanguageToneSelector";
+import {
+  ContextCheckpointModal,
+  ChatContextState,
+  loadChatContextState,
+  saveChatContextState,
+  hasActiveChatContext,
+} from "./ContextCheckpointModal";
+import {
+  WorkspaceSidebarSection,
+  WorkspaceItem,
+  loadWorkspaces,
+  saveWorkspaces,
+  loadActiveWorkspaceId,
+  saveActiveWorkspaceId,
+} from "./WorkspaceSidebarSection";
+import { AxiomaLensCard, AxiomaLensData } from "./AxiomaLensCard";
+import { RoleplayModal } from "./RoleplayModal";
+import { LivePreviewModal } from "./LivePreviewModal";
+import { UpgradeModal, type QuotaModalInfo } from "./UpgradeModal";
+import {
+  DEFAULT_LANGUAGE,
+  DEFAULT_TONE,
+  DEFAULT_THINKING_MODE,
+  DEFAULT_ANSWER_STYLE,
+  DEFAULT_SOCIAL_TARGET,
+  ADAPTIVE_ANSWER_ACTIONS,
+  LanguageCode,
+  ToneStyle,
+  ThinkingMode,
+  AnswerStyle,
+  SocialTarget,
+  isValidLanguageCode,
+  isValidToneStyle,
+  isValidThinkingMode,
+  isValidAnswerStyle,
+  isValidSocialTarget,
+} from "@/constants/language";
+import { formatForWhatsApp } from "@/utils/whatsappFormat";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
@@ -72,6 +114,17 @@ import {
   Video,
   Info,
   MessageSquarePlus,
+  Bookmark,
+  GitBranch,
+  Clapperboard,
+  PenLine,
+  Users,
+  MoreHorizontal,
+  CornerDownRight,
+  Lock,
+  Scale,
+  ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import {
   AttachmentItem,
@@ -217,6 +270,10 @@ export function generateId(requireUuid = false): string {
   return `${Date.now().toString(36)}${Math.random().toString(36).slice(2)}`;
 }
 
+export function generateSafeId(): string {
+  return generateId(true);
+}
+
 declare global {
   interface Window {
     turnstile?: {
@@ -249,6 +306,16 @@ const STORAGE_KEYS = {
   DEFAULT_AGENT: "axioma_default_agent",
   SIDEBAR_COLLAPSED: "axioma_sidebar_collapsed",
   THEME: "axioma_theme",
+  LANGUAGE: "axioma_lang",
+  TONE: "axioma_tone",
+  THINKING_MODE: "axioma_thinking",
+  ANSWER_STYLE: "axioma_style",
+  SOCIAL_TARGET: "axioma_social_target",
+  USER_PROFILE: "axioma_user_profile",
+  CONTEXT_CONTROL: "axioma_context_control",
+  CHECKLIST_STATE: "axioma_checklist_state",
+  REQUIREMENT_LOCK: "axioma_requirement_lock",
+  REQUIREMENT_LOCK_ENABLED: "axioma_requirement_lock_enabled",
   PENDING_DELETES: "axioma_pending_deletes",
   DRAFT_PREFIX: "axioma_draft_",
   GUEST_CHATS: "axioma_guest_chats",
@@ -370,6 +437,12 @@ interface Message {
   isError?: boolean;
   errorDetail?: string;
   retryPayload?: RetryPayload;
+  lensData?: AxiomaLensData;
+  imageUrl?: string;
+  videoUrl?: string;
+  mediaType?: "image" | "video";
+  mediaTitle?: string;
+  revisedPrompt?: string;
 }
 
 interface ChatSession {
@@ -407,85 +480,37 @@ const TIME_GROUP_ORDER: TimeGroupLabel[] = [
   "Lebih lama",
 ];
 
-type EngineMode = "auto" | "fast" | "pro";
-
 interface Agent {
-  id: EngineMode | string;
+  id: "axioma-pro" | "axioma-omni" | "axioma-architect";
   name: string;
   shortName: string;
   tag: string;
   description: string;
-  isDefault?: boolean;
-  backendAgentId: "axioma-pro" | "axioma-omni" | "axioma-architect";
 }
 
-const FALLBACK_ENGINES: Agent[] = [
+const AVAILABLE_AGENTS: Agent[] = [
   {
-    id: "auto",
-    name: "Axioma Auto",
-    shortName: "Auto",
-    tag: "Dinamis",
-    description:
-      "Otomatis menyesuaikan kompleksitas pertanyaan (ringan vs mendalam/PDF/Lens)",
-    isDefault: true,
-    backendAgentId: "axioma-pro",
-  },
-  {
-    id: "fast",
-    name: "Axioma Fast",
-    shortName: "Fast",
-    tag: "Cepat",
-    description: "Respons instan dan ringan untuk obrolan harian dan ringkasan cepat",
-    isDefault: false,
-    backendAgentId: "axioma-omni",
-  },
-  {
-    id: "pro",
+    id: "axioma-pro",
     name: "Axioma Pro",
     shortName: "Pro",
     tag: "Mendalam",
-    description: "Penalaran mendalam untuk analisis kritis, pemrograman, dan dokumen",
-    isDefault: false,
-    backendAgentId: "axioma-pro",
+    description: "Logika kompleks dan penalaran analitis",
+  },
+  {
+    id: "axioma-omni",
+    name: "Axioma Omni",
+    shortName: "Omni",
+    tag: "Multimodal",
+    description: "Multimodal cepat untuk analisis foto, dokumen PDF, dan obrolan harian",
+  },
+  {
+    id: "axioma-architect",
+    name: "Axioma Architect",
+    shortName: "Architect",
+    tag: "Kode",
+    description: "Desain sistem dan sintesis kode",
   },
 ];
-
-function mapRemoteEngineOption(raw: any): Agent | null {
-  if (!raw || typeof raw !== "object") return null;
-  const id = typeof raw.id === "string" ? raw.id.trim().toLowerCase() : "";
-  if (!id) return null;
-
-  const fallbackMatch = FALLBACK_ENGINES.find((item) => item.id === id);
-  const rawLabel = typeof raw.label === "string" ? raw.label.trim() : "";
-  const rawDesc = typeof raw.description === "string" ? raw.description.trim() : "";
-  const isDefault = Boolean(raw.isDefault);
-
-  if (fallbackMatch) {
-    return {
-      ...fallbackMatch,
-      tag: rawLabel && !/^axioma\s+/i.test(rawLabel) ? rawLabel : fallbackMatch.tag,
-      description: rawDesc || fallbackMatch.description,
-      isDefault,
-    };
-  }
-
-  const displayName = rawLabel
-    ? /^axioma\s+/i.test(rawLabel)
-      ? rawLabel
-      : `Axioma ${rawLabel}`
-    : `Axioma ${id}`;
-  const shortName = displayName.replace(/^axioma\s+/i, "").trim() || id;
-
-  return {
-    id,
-    name: displayName,
-    shortName,
-    tag: isDefault ? "Default" : "Engine",
-    description: rawDesc || "Engine dinamis Axioma",
-    isDefault,
-    backendAgentId: id === "fast" ? "axioma-omni" : "axioma-pro",
-  };
-}
 
 const DYNAMIC_PLACEHOLDERS = [
   "Tulis pesan ke Axioma...",
@@ -789,60 +814,166 @@ function getAvatarInitials(fullName: string): string {
   return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase();
 }
 
-function detectMediaIntent(text: string): { type: "image" | "video" | null; visualPrompt: string } {
-  if (!text || typeof text !== "string") return { type: null, visualPrompt: "" };
+function detectMediaIntent(
+  text: string,
+  hasAttachment = false
+): { type: "image" | "video" | null; visualPrompt: string } {
+  if (hasAttachment || !text || typeof text !== "string") {
+    return { type: null, visualPrompt: "" };
+  }
   const raw = text.trim();
-  const lower = raw.toLowerCase();
+  if (!raw || /^\s*\/[a-z0-9_-]+/i.test(raw)) {
+    return { type: null, visualPrompt: raw };
+  }
 
-  // Negative checks: educational/explanatory questions about images/art should NOT trigger generation
+  // Negative checks: exclude theory, tutorials, explanations, and text/prompt-only requests
+  const negativeExclusions = [
+    /\b(cara\s+(mem)?buat(kan)?|cara\s+bikin(in)?|cara\s+menggambar|cara\s+melukis|cara\s+(meng)?edit|cara\s+(mem)?foto|cara\s+memotret|cara\s+(me)?rekam)\b/i,
+    /\b(tips|tutorial|panduan|step\s*by\s*step|langkah[\s-]langkah)\b/i,
+    /\b(jelaskan|penjelasan|definisi|pengertian|sejarah|perbedaan\s+antara|apa\s+bedanya)\b/i,
+    /^(apa\s+itu|apa\s+arti|apa\s+fungsi|mengapa|kenapa|bagaimana\s+cara|gimana\s+cara|rekomendasi\s+(aplikasi|software|tools?))\b/i,
+    /\b(buatkan|buatin|buat|bikin|bikinin|tulis|tuliskan|kasih|berikan|generate)\s+(dong\s+|saya\s+|aku\s+|gue\s+|me\s+)?(sebuah\s+|beberapa\s+|contoh\s+|ide\s+|teks\s+|draf\s+|draft\s+)?(prompt|skrip|script|naskah|storyboard|caption|ide\s+konten)\b/i,
+    /\bprompt\s+(gambar|foto|image|video|animasi|ilustrasi|poster|logo|midjourney|dall-?e|flux|imagen|veo|sora|runway)\b/i,
+    /\b(konsep|naskah|skrip|script|storyboard|ide)\s+(untuk\s+)?(video|foto|gambar|poster|ilustrasi|iklan)\b/i,
+  ];
+  if (negativeExclusions.some((rgx) => rgx.test(raw))) {
+    return { type: null, visualPrompt: raw };
+  }
+
+  // Explicit video triggers (checked first for phrases like "animasi video")
+  const videoKeywords = [
+    /\b(buatin|buatkan|buat|bikin|bikinin|generate|render|ciptakan|hadirkan)\s+(dong\s+|saya\s+|aku\s+|gue\s+|me\s+)?(sebuah\s+|satu\s+|1\s+|a\s+|an\s+)?(animasi\s+video|video\s+animasi|klip\s+video|video\s+klip|video\s+sinematik|motion\s+video|video|klip|clip|animasi)\b/i,
+    /\b(tolong|coba|bisa(?:\s+tolong)?)\s+(buatin|buatkan|buat|bikin|bikinin|generate|render)\s+(dong\s+|saya\s+|aku\s+|gue\s+)?(sebuah\s+|satu\s+|1\s+|a\s+|an\s+)?(animasi\s+video|video\s+animasi|klip\s+video|video|animasi|klip)\b/i,
+    /\b(animasikan|videokan)\b/i,
+    /^\s*\[mode:\s*(video|animasi|klip)\]/i,
+    /^\s*(video|animasi\s+video)\s*:\s*\S+/i,
+  ];
+
+  if (videoKeywords.some((rgx) => rgx.test(raw))) {
+    let cleaned = raw;
+    cleaned = cleaned.replace(/^\[mode:\s*(video|animasi|klip)\]\s*:?/i, "");
+    cleaned = cleaned.replace(
+      /^(tolong|coba|bisa(?:\s+kamu|\s+tolong)?)?\s*(buatin|buatkan|buat|bikin|bikinin|generate|animasikan|videokan|render|ciptakan|hadirkan)\s*(dong|saya|aku|gue)?\s*(animasi\s+video|video\s+animasi|klip\s+video|video|animasi|klip|clip|motion|sinematik)?\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /^(video|animasi\s+video|animasi|klip|sinematik)\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i,
+      ""
+    );
+    return { type: "video", visualPrompt: cleaned.trim() || raw };
+  }
+
+  // Guard figurative uses of "gambarkan" (e.g. "gambarkan konsep ekonomi")
+  const isAbstractGambarkan =
+    /\bgambarkan\s+(secara\s+(singkat|jelas|ringkas|umum)|bagaimana|cara|konsep|proses|alur|perbedaan|hubungan|dampak|situasi\s+ekonomi|kondisi\s+pasar)\b/i.test(
+      raw
+    );
   if (
-    /^(apa|kenapa|mengapa|bagaimana|jelaskan|apakah|siapa|kapan|di mana|dimana)\b/i.test(lower) &&
-    /\b(cara\s+menggambar|cara\s+melukis|cara\s+membuat\s+video|definisi|pengertian|sejarah|arti|fungsi|maksud)\b/i.test(lower)
+    isAbstractGambarkan &&
+    !/\b(buatin|buatkan|bikin|bikinin|generate|desainkan|fotokan|lukiskan)\b/i.test(raw)
   ) {
     return { type: null, visualPrompt: raw };
   }
 
-  // Video triggers
-  const videoKeywords = [
-    /\b(buatkan|buat|bikin|generate|render|ciptakan|hadirkan|desainkan)\s+(video|animasi|klip|clip|motion|sinematik)\b/i,
-    /\b(animasikan|videokan)\b/i,
-    /\b(minta|mau|ingin|butuh|perlu|tolong|coba|bisa\s+(tolong\s+)?(buatkan|bikin|buat)?)\s+(video|animasi|klip|sinematik)\b/i,
-    /^(video|animasi|klip|sinematik)\s+(tentang|dari|bertema|sebuah|seekor|seorang|suatu|suasana|pemandangan|karakter|[a-zA-Z0-9\s]+)$/i,
-    /\b(dalam bentuk|sebagai|berupa|menjadi)\s+(video|animasi|klip)\b/i,
-    /\[mode:\s*(video|animasi|klip)\]/i,
-    /^(video|animasi|klip)\s*:\s*.+/i,
-  ];
-
-  const isVideo = videoKeywords.some((rgx) => rgx.test(lower));
-  if (isVideo) {
-    let cleaned = raw;
-    cleaned = cleaned.replace(/^\[mode:\s*(video|animasi|klip)\]\s*:?/i, "");
-    cleaned = cleaned.replace(/^(tolong|coba|bisa\s+(kamu\s+)?)?\s*(buatkan|buat|bikin|generate|animasikan|videokan|render|ciptakan|hadirkan)\s*(video|animasi|klip|clip|motion|sinematik)?\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i, "");
-    cleaned = cleaned.replace(/^(video|animasi|klip|sinematik)\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i, "");
-    return { type: "video", visualPrompt: cleaned.trim() || raw };
-  }
-
-  // Image triggers
+  // Explicit image triggers
   const imageKeywords = [
-    /\b(buatkan|buat|bikin|generate|lukiskan|lukis|gambarkan|gambari|gambarin|fotokan|render|ciptakan|hadirkan|desainkan)\s+(gambar|foto|lukisan|ilustrasi|visual|image|artwork|wallpaper|poster)\b/i,
-    /\b(lukiskan|gambarkan|gambari|gambarin|fotokan)\b/i,
-    /\b(minta|mau|ingin|butuh|perlu|tolong|coba|bisa\s+(tolong\s+)?(buatkan|bikin|buat)?)\s+(gambar|foto|lukisan|ilustrasi|visual)\b/i,
-    /^(gambar|foto|lukisan|ilustrasi|visual)\s+(tentang|dari|bertema|sebuah|seekor|seorang|suatu|suasana|pemandangan|karakter|[a-zA-Z0-9\s]+)$/i,
-    /\b(dalam bentuk|sebagai|berupa|menjadi)\s+(gambar|foto|lukisan|ilustrasi|visual)\b/i,
-    /\[mode:\s*(gambar|image|foto|visual)\]/i,
-    /^(gambar|foto|lukisan|ilustrasi|visual)\s*:\s*.+/i,
+    /\b(buatin|buatkan|buat|bikin|bikinin|generate|render|ciptakan|hadirkan|lukis|lukiskan|gambarin|gambari|gambarkan|fotokan|desain|desainkan|desainin|rancangkan)\s+(dong\s+|saya\s+|aku\s+|gue\s+|me\s+)?(sebuah\s+|satu\s+|1\s+|seekor\s+|seorang\s+|a\s+|an\s+)?(foto|gambar|ilustrasi|lukisan|visual|image|photo|picture|artwork|wallpaper|poster|logo|banner|thumbnail|karikatur|sketsa|potret|portrait|stiker|avatar)\b/i,
+    /\b(desainkan|desainin)\s+(dong\s+|saya\s+|aku\s+|gue\s+)?(sebuah\s+|satu\s+|1\s+)?(poster|logo|banner|flyer|brosur|spanduk|thumbnail|kemasan|packaging|kaos|baju)\b/i,
+    /\b(gambarkan|gambarin|gambari|lukiskan|fotokan)\s+\S+/i,
+    /^\s*\[mode:\s*(gambar|image|foto|visual)\]/i,
+    /^\s*(gambar|foto|ilustrasi|poster|logo)\s*:\s*\S+/i,
   ];
 
-  const isImage = imageKeywords.some((rgx) => rgx.test(lower));
-  if (isImage) {
+  if (imageKeywords.some((rgx) => rgx.test(raw))) {
     let cleaned = raw;
     cleaned = cleaned.replace(/^\[mode:\s*(gambar|image|foto|visual)\]\s*:?/i, "");
-    cleaned = cleaned.replace(/^(tolong|coba|bisa\s+(kamu\s+)?)?\s*(buatkan|buat|bikin|generate|lukiskan|lukis|gambarkan|gambari|gambarin|fotokan|render|ciptakan|hadirkan)\s*(gambar|foto|lukisan|ilustrasi|visual|image|artwork|wallpaper|poster)?\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i, "");
-    cleaned = cleaned.replace(/^(gambar|foto|lukisan|ilustrasi|visual)\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i, "");
+    cleaned = cleaned.replace(
+      /^(tolong|coba|bisa(?:\s+kamu|\s+tolong)?)?\s*(buatin|buatkan|buat|bikin|bikinin|generate|lukiskan|lukis|gambarkan|gambari|gambarin|fotokan|desainkan|desainin|render|ciptakan|hadirkan)\s*(dong|saya|aku|gue)?\s*(gambar|foto|lukisan|ilustrasi|visual|image|photo|artwork|wallpaper|poster|logo)?\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|berupa|:)?\s*/i,
+      ""
+    );
+    cleaned = cleaned.replace(
+      /^(gambar|foto|lukisan|ilustrasi|visual|poster|logo)\s*(bertema|dengan tema|tema|topik|tentang|dari|sebuah|seekor|seorang|suatu|:)\s*/i,
+      ""
+    );
     return { type: "image", visualPrompt: cleaned.trim() || raw };
   }
 
   return { type: null, visualPrompt: raw };
+}
+
+function extractStructuredMediaPayload(payload: any): {
+  imageUrl?: string;
+  videoUrl?: string;
+  mediaType?: "image" | "video";
+  mediaTitle?: string;
+  revisedPrompt?: string;
+} {
+  if (!payload || typeof payload !== "object") return {};
+
+  const rawType = String(payload.mediaType || payload.media_type || payload.type || "")
+    .trim()
+    .toLowerCase();
+  const genericMediaUrl =
+    typeof payload.mediaUrl === "string" && payload.mediaUrl.trim()
+      ? payload.mediaUrl.trim()
+      : typeof payload.media_url === "string" && payload.media_url.trim()
+        ? payload.media_url.trim()
+        : undefined;
+  const isGenericMediaVideo =
+    Boolean(genericMediaUrl) &&
+    (rawType === "video" || /\.(mp4|webm|mov)(\?.*)?$/i.test(genericMediaUrl || ""));
+
+  const explicitImageUrl =
+    typeof payload.imageUrl === "string" && payload.imageUrl.trim()
+      ? payload.imageUrl.trim()
+      : typeof payload.image_url === "string" && payload.image_url.trim()
+        ? payload.image_url.trim()
+        : rawType === "image" && typeof payload.url === "string" && payload.url.trim()
+          ? payload.url.trim()
+          : genericMediaUrl && !isGenericMediaVideo
+            ? genericMediaUrl
+            : undefined;
+  const explicitVideoUrl =
+    typeof payload.videoUrl === "string" && payload.videoUrl.trim()
+      ? payload.videoUrl.trim()
+      : typeof payload.video_url === "string" && payload.video_url.trim()
+        ? payload.video_url.trim()
+        : rawType === "video" && typeof payload.url === "string" && payload.url.trim()
+          ? payload.url.trim()
+          : genericMediaUrl && isGenericMediaVideo
+            ? genericMediaUrl
+            : undefined;
+  const mediaType: "image" | "video" | undefined = explicitImageUrl
+    ? "image"
+    : explicitVideoUrl
+      ? "video"
+      : rawType === "image" || rawType === "video"
+        ? rawType
+        : undefined;
+  const revisedPrompt =
+    typeof payload.revisedPrompt === "string" && payload.revisedPrompt.trim()
+      ? payload.revisedPrompt.trim()
+      : typeof payload.revised_prompt === "string" && payload.revised_prompt.trim()
+        ? payload.revised_prompt.trim()
+        : typeof payload.enhanced_prompt === "string" && payload.enhanced_prompt.trim()
+          ? payload.enhanced_prompt.trim()
+          : undefined;
+  const mediaTitle =
+    typeof payload.mediaTitle === "string" && payload.mediaTitle.trim()
+      ? payload.mediaTitle.trim()
+      : typeof payload.title === "string" && payload.title.trim()
+        ? payload.title.trim()
+        : typeof payload.original_prompt === "string" && payload.original_prompt.trim()
+          ? payload.original_prompt.trim()
+          : undefined;
+
+  return {
+    imageUrl: explicitImageUrl,
+    videoUrl: explicitVideoUrl,
+    mediaType,
+    mediaTitle,
+    revisedPrompt,
+  };
 }
 
 function sanitizeAxiomaMessageContent(raw: string): string {
@@ -971,8 +1102,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   // Client-only clock & loading skeleton states (#5, #6, #7, #10)
   const [clientNow, setClientNow] = useState<Date | null>(null);
-  const [isSidebarLoading, setIsSidebarLoading] = useState<boolean>(true);
-  const [isChatAreaLoading, setIsChatAreaLoading] = useState<boolean>(true);
+  const [isSidebarLoading, setIsSidebarLoading] = useState<boolean>(false);
+  const [isChatAreaLoading, setIsChatAreaLoading] = useState<boolean>(
+    Boolean(initialChatId && initialChatId.trim().length > 0)
+  );
   const [isTouchOrMobile, setIsTouchOrMobile] = useState<boolean>(false);
   const [toastNotice, setToastNotice] = useState<string | null>(null);
   const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1009,9 +1142,74 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     : "Mode Tamu";
   const userName = toTitleCase(rawUserName);
 
-  const [availableEngines, setAvailableEngines] = useState<Agent[]>(FALLBACK_ENGINES);
-  const [defaultAgentId, setDefaultAgentId] = useState<Agent["id"]>("auto");
-  const [selectedAgent, setSelectedAgent] = useState<Agent>(FALLBACK_ENGINES[0]);
+  const [defaultAgentId, setDefaultAgentId] = useState<Agent["id"]>("axioma-pro");
+  const [selectedAgent, setSelectedAgent] = useState<Agent>(AVAILABLE_AGENTS[0]);
+  const language: LanguageCode = "auto";
+  const [tone, setTone] = useState<ToneStyle>(DEFAULT_TONE);
+  const [thinkingMode, setThinkingMode] = useState<ThinkingMode>(DEFAULT_THINKING_MODE);
+  const [answerStyle, setAnswerStyle] = useState<AnswerStyle>(DEFAULT_ANSWER_STYLE);
+  const [socialTarget, setSocialTarget] = useState<SocialTarget>(DEFAULT_SOCIAL_TARGET);
+  const [isCheckpointModalOpen, setIsCheckpointModalOpen] = useState<boolean>(false);
+  const [isRoleplayModalOpen, setIsRoleplayModalOpen] = useState<boolean>(false);
+  const [livePreviewCode, setLivePreviewCode] = useState<string | null>(null);
+  const [quotaInfo, setQuotaInfo] = useState<QuotaModalInfo | null>(null);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState<boolean>(false);
+  const [isLensLoading, setIsLensLoading] = useState<boolean>(false);
+  const [isPrivateMode, setIsPrivateMode] = useState<boolean>(false);
+  const [requirementLockItems, setRequirementLockItems] = useState<string[]>([]);
+  const [isRequirementLockEnabled, setIsRequirementLockEnabled] = useState<boolean>(false);
+  const [settingsReqDraft, setSettingsReqDraft] = useState<string>("");
+  const [openAiActionMenuId, setOpenAiActionMenuId] = useState<string | null>(null);
+  const [isVisionLoading, setIsVisionLoading] = useState<boolean>(false);
+  const [activeLoadingContext, setActiveLoadingContext] = useState<
+    "chat" | "lens" | "pdf" | "vision" | "image" | "video" | null
+  >(null);
+  const [pendingVisionPhoto, setPendingVisionPhoto] = useState<{
+    previewUrl: string;
+    base64: string;
+    mimeType: "image/jpeg" | "image/png" | "image/webp";
+    name: string;
+    mode: "notes" | "table" | "quiz" | "tasks";
+  } | null>(null);
+  const [pendingPdfDoc, setPendingPdfDoc] = useState<{
+    base64: string;
+    fileName: string;
+    fileSizeBytes: number;
+    mode: "summary" | "glossary" | "critical_questions" | "ask";
+  } | null>(null);
+  const visionInputRef = useRef<HTMLInputElement>(null);
+  const smartPdfInputRef = useRef<HTMLInputElement>(null);
+  const [checklistState, setChecklistState] = useState<
+    Record<string, Record<number, boolean>>
+  >({});
+  const [selectionEdit, setSelectionEdit] = useState<{
+    messageId: string;
+    selectedText: string;
+    fullContext: string;
+    top: number;
+    left: number;
+    revisedText: string | null;
+    isLoading: boolean;
+    error: string | null;
+  } | null>(null);
+  const [userProfile, setUserProfile] = useState<string>("");
+  const [contextControl, setContextControl] = useState<ContextControlState>(
+    DEFAULT_CONTEXT_CONTROL
+  );
+  const [pendingTaskBreakdown, setPendingTaskBreakdown] = useState<boolean>(false);
+  const [slashMenuIndex, setSlashMenuIndex] = useState<number>(0);
+  const [enhancedPromptPreview, setEnhancedPromptPreview] = useState<string | null>(null);
+  const [isEnhancingPrompt, setIsEnhancingPrompt] = useState<boolean>(false);
+  const [structuredFeedbackThanksId, setStructuredFeedbackThanksId] = useState<string | null>(
+    null
+  );
+  const [chatContextState, setChatContextState] = useState<ChatContextState>({
+    checkpoint: null,
+    contextCorrection: "",
+    decisions: [],
+  });
+  const [workspaces, setWorkspaces] = useState<WorkspaceItem[]>([]);
+  const [activeWorkspaceId, setActiveWorkspaceId] = useState<string | null>(null);
   const [isAgentMenuOpen, setIsAgentMenuOpen] = useState<boolean>(false);
   const [isHeaderAgentMenuOpen, setIsHeaderAgentMenuOpen] = useState<boolean>(false);
   const [headerMenuTop, setHeaderMenuTop] = useState<number | null>(null);
@@ -1023,7 +1221,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const [settingsNameInput, setSettingsNameInput] = useState<string>(DEFAULT_DISPLAY_NAME);
   const [settingsNameError, setSettingsNameError] = useState<string | null>(null);
   const [settingsDefaultAgentInput, setSettingsDefaultAgentInput] =
-    useState<Agent["id"]>("auto");
+    useState<Agent["id"]>("axioma-pro");
   const [themeMode, setThemeMode] = useState<"dark" | "light" | "system">("system");
   const [expandedSettingsSection, setExpandedSettingsSection] = useState<string | null>(null);
   const [desktopSettingsPage, setDesktopSettingsPage] = useState<
@@ -1089,8 +1287,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setSettingsDefaultAgentInput(defaultAgentId);
       setExpandedSettingsSection(expandedSection);
       setSettingsView(view);
-      setIsMobileSidebarOpen(false);
-      setIsProfileDropdownOpen(false);
       setIsSettingsModalOpen(true);
     },
     [displayName, defaultAgentId, openDesktopSettingsPage]
@@ -1188,14 +1384,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   // Voice Mode & Dictation states
   const [isVoiceModeOpen, setIsVoiceModeOpen] = useState<boolean>(false);
-
-  const activeAboutModeLabel = useMemo(() => {
-    if (isVoiceModeOpen) return "Mode Suara";
-    if (activeMediaMode === "image") return "Multimodal · Gambar";
-    if (activeMediaMode === "video") return "Multimodal · Video";
-    const engineTag = selectedAgent?.tag?.trim();
-    return engineTag ? `Multimodal · ${engineTag}` : "Multimodal";
-  }, [isVoiceModeOpen, activeMediaMode, selectedAgent?.tag]);
   const [showVoiceTranscript, setShowVoiceTranscript] = useState<boolean>(true);
   const [voiceSpeechRate, setVoiceSpeechRate] = useState<number>(1.08);
   const [voiceNeuralName, setVoiceNeuralName] = useState<"id-ID-ArdiNeural" | "id-ID-GadisNeural">("id-ID-ArdiNeural");
@@ -1373,8 +1561,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       root.classList.add("light");
     }
 
-    // Force real-time Safari iOS status bar & bottom toolbar repaint synchronously + rAF nudge
-    // (syncs classList, colorScheme, html/body background, theme-color, and apple status bar style)
+    // Sync html/body surface, color-scheme, apple-mobile-web-app-status-bar-style, and theme-color synchronously + 1 rAF confirmation
     syncIosSafariTheme(isDark);
   }, []);
 
@@ -1428,50 +1615,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       window.removeEventListener("pageshow", handlePageShow);
     };
   }, [themeMode, applyTheme]);
-
-  // Dynamically fetch available AI engines from GET /api/engines on mount (fallback to FALLBACK_ENGINES if offline)
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch(`${BACKEND_URL}/api/engines`, {
-          method: "GET",
-          headers: { Accept: "application/json" },
-        });
-        if (!res.ok) return;
-        const payload = await res.json().catch(() => null);
-        const rawList = Array.isArray(payload?.engines) ? payload.engines : [];
-        const parsed = rawList
-          .map(mapRemoteEngineOption)
-          .filter((item: Agent | null): item is Agent => Boolean(item));
-        if (cancelled || parsed.length === 0) return;
-
-        setAvailableEngines(parsed);
-
-        const remoteDefault =
-          parsed.find((item: Agent) => item.isDefault) ||
-          parsed.find((item: Agent) => item.id === "auto") ||
-          parsed[0];
-        const persistedDefaultId = safeGetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT);
-        const persistedSelectedId =
-          safeGetLocalStorage(STORAGE_KEYS.SELECTED_AGENT) || persistedDefaultId;
-
-        const resolvedDefault =
-          parsed.find((item: Agent) => item.id === persistedDefaultId) || remoteDefault;
-        const resolvedSelected =
-          parsed.find((item: Agent) => item.id === persistedSelectedId) || resolvedDefault;
-
-        setDefaultAgentId(resolvedDefault.id);
-        setSettingsDefaultAgentInput(resolvedDefault.id);
-        setSelectedAgent(resolvedSelected);
-      } catch {
-        // Offline or network error: retain FALLBACK_ENGINES silently
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   const isModalActiveRef = useRef<boolean>(false);
   useEffect(() => {
@@ -1555,9 +1698,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }
     }
 
-    // Load saved default & selected engine (defaults to Axioma Auto for dynamic routing)
+    // Load saved default & selected agent
     const savedDefault = safeGetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT);
-    const validDefault = FALLBACK_ENGINES.find((a) => a.id === savedDefault);
+    const validDefault = AVAILABLE_AGENTS.find((a) => a.id === savedDefault);
     if (validDefault) {
       setDefaultAgentId(validDefault.id);
       setSettingsDefaultAgentInput(validDefault.id);
@@ -1565,9 +1708,35 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
     const savedSelected =
       safeGetLocalStorage(STORAGE_KEYS.SELECTED_AGENT) || savedDefault;
-    const validSelected = FALLBACK_ENGINES.find((a) => a.id === savedSelected);
+    const validSelected = AVAILABLE_AGENTS.find((a) => a.id === savedSelected);
     if (validSelected) {
       setSelectedAgent(validSelected);
+    }
+
+    // Load saved tone, thinking mode & answer style preferences (language always uses "auto" mirroring)
+    const savedTone = safeGetLocalStorage(STORAGE_KEYS.TONE);
+    if (isValidToneStyle(savedTone)) {
+      setTone(savedTone);
+    }
+    const savedThinkingMode = safeGetLocalStorage(STORAGE_KEYS.THINKING_MODE);
+    if (isValidThinkingMode(savedThinkingMode)) {
+      setThinkingMode(savedThinkingMode);
+    }
+    const savedAnswerStyle = safeGetLocalStorage(STORAGE_KEYS.ANSWER_STYLE);
+    if (isValidAnswerStyle(savedAnswerStyle)) {
+      setAnswerStyle(savedAnswerStyle);
+    }
+    const savedSocialTarget = safeGetLocalStorage(STORAGE_KEYS.SOCIAL_TARGET);
+    if (isValidSocialTarget(savedSocialTarget)) {
+      setSocialTarget(savedSocialTarget);
+    }
+
+    // Load saved Workspaces / Project Spaces (SSR-safe localStorage)
+    const savedWorkspaces = loadWorkspaces();
+    setWorkspaces(savedWorkspaces);
+    const savedActiveWsId = loadActiveWorkspaceId();
+    if (savedActiveWsId && savedWorkspaces.some((w) => w.id === savedActiveWsId)) {
+      setActiveWorkspaceId(savedActiveWsId);
     }
 
     // Remove legacy localStorage feedback cache so feedback is strictly server-backed (#4)
@@ -1757,16 +1926,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, [authUser]);
 
-  // Guest Mode: Persist chat history metadata in localStorage
+  // Guest Mode: Persist chat history metadata in localStorage (skipped in Mode Privat)
   useEffect(() => {
-    if (!authUser && chatHistory.length > 0) {
+    if (!authUser && !isPrivateMode && chatHistory.length > 0) {
       saveGuestChats(chatHistory);
     }
-  }, [chatHistory, authUser]);
+  }, [chatHistory, authUser, isPrivateMode]);
 
-  // Guest Mode: Debounced persist chat session messages in localStorage
+  // Guest Mode: Debounced persist chat session messages in localStorage (skipped in Mode Privat)
   useEffect(() => {
-    if (!authUser && chats.length > 0) {
+    if (!authUser && !isPrivateMode && chats.length > 0) {
       const timer = setTimeout(() => {
         for (const c of chats) {
           if (c.messages && c.messages.length > 0) {
@@ -1776,7 +1945,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [chats, authUser]);
+  }, [chats, authUser, isPrivateMode]);
 
   // Handle click outside Profile Dropdown
   useEffect(() => {
@@ -1983,15 +2152,36 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
     };
-    const isValidToken =
+
+    let activeToken =
       typeof authToken === "string" &&
       authToken.trim() !== "" &&
       authToken !== "null" &&
-      authToken !== "undefined";
+      authToken !== "undefined"
+        ? authToken.trim()
+        : "";
+    let activeUserId = authUser?.id ? authUser.id.trim() : "";
 
-    if (isValidToken && authUser && authUser.id) {
-      headers["Authorization"] = `Bearer ${authToken.trim()}`;
-      headers["X-User-Id"] = authUser.id;
+    if (supabase && (!activeToken || !activeUserId)) {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        if (session?.access_token && session.user?.id) {
+          activeToken = session.access_token.trim();
+          activeUserId = session.user.id.trim();
+        }
+      } catch {
+        // Fallback to local state below
+      }
+    }
+
+    if (activeToken && activeUserId) {
+      headers["Authorization"] = `Bearer ${activeToken}`;
+      headers["X-User-Id"] = activeUserId;
+    } else if (activeUserId) {
+      headers["X-User-Id"] = activeUserId;
+      delete headers["Authorization"];
     } else {
       headers["X-Guest-Mode"] = "true";
       const effectiveUserId =
@@ -2025,6 +2215,120 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       return null;
     }
   }, [authUser, buildAuthHeaders]);
+
+  // Fetch daily credit quota status for authenticated users (`GET /api/quota`)
+  const fetchUserQuota = useCallback(async () => {
+    if (!authUser) {
+      setQuotaInfo(null);
+      return;
+    }
+    try {
+      const headers = await buildAuthHeaders();
+      const response = await fetch(`${BACKEND_URL}/api/quota`, {
+        method: "GET",
+        headers,
+        credentials: "include",
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const data = await response.json().catch(() => null);
+      if (data && typeof data === "object") {
+        const nextCredits =
+          typeof data.remainingCredits === "number" && Number.isFinite(data.remainingCredits)
+            ? data.remainingCredits
+            : undefined;
+        setQuotaInfo((prev) => ({
+          ...(prev || {}),
+          plan: data.plan === "pro" ? "pro" : "free",
+          unlimited: Boolean(data.unlimited),
+          remainingCredits: nextCredits ?? prev?.remainingCredits,
+          remaining: nextCredits ?? prev?.remaining,
+          dailyCredits:
+            typeof data.dailyCredits === "number" && Number.isFinite(data.dailyCredits)
+              ? data.dailyCredits
+              : prev?.dailyCredits,
+          dailyLimit:
+            typeof data.dailyLimit === "number" && Number.isFinite(data.dailyLimit)
+              ? data.dailyLimit
+              : prev?.dailyLimit ?? 30,
+          usedToday:
+            typeof data.usedToday === "number" && Number.isFinite(data.usedToday)
+              ? data.usedToday
+              : prev?.usedToday,
+          bonusCredits:
+            typeof data.bonusCredits === "number" && Number.isFinite(data.bonusCredits)
+              ? data.bonusCredits
+              : prev?.bonusCredits,
+          resetAt: typeof data.resetAt === "string" ? data.resetAt : prev?.resetAt,
+          expiresAt:
+            typeof data.expiresAt === "string" ? data.expiresAt : prev?.expiresAt,
+          triggeredByLimit: prev?.triggeredByLimit ?? false,
+        }));
+      }
+    } catch {
+      // Non-blocking: ignore transient network errors when refreshing quota badge
+    }
+  }, [authUser, buildAuthHeaders]);
+
+  useEffect(() => {
+    if (authUser) {
+      void fetchUserQuota();
+    } else {
+      setQuotaInfo(null);
+    }
+  }, [authUser, fetchUserQuota]);
+
+  // Real-time quota sync when returning to the browser tab or opening Kelola Akun / Pengaturan
+  useEffect(() => {
+    if (!authUser || typeof document === "undefined") return;
+    const handleVisibilityOrFocus = () => {
+      if (document.visibilityState === "visible") {
+        void fetchUserQuota();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    return () => {
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+    };
+  }, [authUser, fetchUserQuota]);
+
+  useEffect(() => {
+    if (
+      authUser &&
+      (desktopSettingsPage === "account" ||
+        desktopSettingsPage === "quota" ||
+        expandedSettingsSection === "account" ||
+        isSettingsModalOpen)
+    ) {
+      void fetchUserQuota();
+    }
+  }, [
+    authUser,
+    desktopSettingsPage,
+    expandedSettingsSection,
+    isSettingsModalOpen,
+    fetchUserQuota,
+  ]);
+
+  const isProPlan = Boolean(quotaInfo?.plan === "pro" || quotaInfo?.unlimited);
+  const remainingCreditsCount = quotaInfo?.remainingCredits ?? 30;
+
+  const openSubscriptionModal = useCallback(() => {
+    setIsSettingsModalOpen(false);
+    setIsMobileSidebarOpen(false);
+    setIsProfileDropdownOpen(false);
+    setIsSettingsMenuOpen(false);
+    setQuotaInfo((prev) => ({
+      ...(prev || { plan: "free", remainingCredits: 30, remaining: 30 }),
+      triggeredByLimit: false,
+    }));
+    setIsUpgradeModalOpen(true);
+    if (authUser) {
+      void fetchUserQuota();
+    }
+  }, [authUser, fetchUserQuota]);
 
   // Re-reads the chat list while preserving local activity timestamps so recently replied chats stay on top
   const refreshChatHistory = useCallback(async () => {
@@ -2172,9 +2476,1000 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, [activeChatId, currentMessages.length]);
 
-  // Smooth fade-in and fade-out for the AI thinking indicator
+  // Sync per-chat Checkpoint & Context Correction from localStorage (SSR-safe)
+  const effectiveContextChatId =
+    activeChatId && activeChatId !== "new-chat" ? activeChatId : currentSessionChatId;
+
   useEffect(() => {
-    if (isLoading) {
+    setChatContextState(loadChatContextState(effectiveContextChatId));
+  }, [effectiveContextChatId]);
+
+  const handleUpdateChatContextState = useCallback(
+    (next: ChatContextState) => {
+      setChatContextState(next);
+      saveChatContextState(effectiveContextChatId, next);
+    },
+    [effectiveContextChatId]
+  );
+
+  const activeWorkspace = useMemo(
+    () => workspaces.find((w) => w.id === activeWorkspaceId) || null,
+    [workspaces, activeWorkspaceId]
+  );
+
+  const handleSelectWorkspace = useCallback((id: string | null) => {
+    setActiveWorkspaceId(id);
+    saveActiveWorkspaceId(id);
+  }, []);
+
+  const handleCreateWorkspace = useCallback((name: string, instructions: string) => {
+    const newWs: WorkspaceItem = {
+      id: `ws-${Date.now()}`,
+      name,
+      instructions,
+      createdAt: new Date().toISOString(),
+    };
+    setWorkspaces((prev) => {
+      const next = [newWs, ...prev];
+      saveWorkspaces(next);
+      return next;
+    });
+    setActiveWorkspaceId(newWs.id);
+    saveActiveWorkspaceId(newWs.id);
+    showToastNotice(`Ruang "${name}" aktif`, 2000);
+  }, [showToastNotice]);
+
+  const handleDeleteWorkspace = useCallback(
+    (id: string) => {
+      setWorkspaces((prev) => {
+        const next = prev.filter((w) => w.id !== id);
+        saveWorkspaces(next);
+        return next;
+      });
+      if (activeWorkspaceId === id) {
+        setActiveWorkspaceId(null);
+        saveActiveWorkspaceId(null);
+      }
+    },
+    [activeWorkspaceId]
+  );
+
+  // Stage 6: Hydrate User Profile, Context Control & Saved Answers from localStorage (SSR-safe)
+  useEffect(() => {
+    try {
+      const storedProfile = window.localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
+      if (typeof storedProfile === "string") {
+        setUserProfile(storedProfile.slice(0, 500));
+      }
+      const storedControl = window.localStorage.getItem(STORAGE_KEYS.CONTEXT_CONTROL);
+      if (storedControl) {
+        const parsed = JSON.parse(storedControl) as Partial<ContextControlState>;
+        if (parsed && typeof parsed === "object") {
+          setContextControl({
+            useHistory: parsed.useHistory !== false,
+            useProject: parsed.useProject !== false,
+            useProfile: parsed.useProfile !== false,
+          });
+        }
+      }
+      const storedChecklist = window.localStorage.getItem(STORAGE_KEYS.CHECKLIST_STATE);
+      if (storedChecklist) {
+        const parsedChecklist = JSON.parse(storedChecklist);
+        if (parsedChecklist && typeof parsedChecklist === "object" && !Array.isArray(parsedChecklist)) {
+          setChecklistState(parsedChecklist as Record<string, Record<number, boolean>>);
+        }
+      }
+      const storedReqLock = window.localStorage.getItem(STORAGE_KEYS.REQUIREMENT_LOCK);
+      if (storedReqLock) {
+        const parsedReqs = JSON.parse(storedReqLock);
+        if (Array.isArray(parsedReqs)) {
+          const validReqs = parsedReqs
+            .filter((r): r is string => typeof r === "string" && Boolean(r.trim()))
+            .map((r) => r.trim())
+            .slice(0, 5);
+          setRequirementLockItems(validReqs);
+          const storedReqEnabled = window.localStorage.getItem(
+            STORAGE_KEYS.REQUIREMENT_LOCK_ENABLED
+          );
+          if (storedReqEnabled !== null) {
+            setIsRequirementLockEnabled(storedReqEnabled === "true");
+          } else if (validReqs.length > 0) {
+            setIsRequirementLockEnabled(true);
+          }
+        }
+      }
+    } catch {
+      // Ignore storage access errors
+    }
+  }, []);
+
+  const handleUpdateRequirementLockItems = useCallback((items: string[]) => {
+    const clean = items.map((s) => s.trim()).filter(Boolean).slice(0, 5);
+    setRequirementLockItems(clean);
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.REQUIREMENT_LOCK, JSON.stringify(clean));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  const handleUpdateRequirementLockEnabled = useCallback((enabled: boolean) => {
+    setIsRequirementLockEnabled(enabled);
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.REQUIREMENT_LOCK_ENABLED, String(enabled));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  const handleAddRequirementLockItem = useCallback(() => {
+    const clean = settingsReqDraft.trim();
+    if (!clean || requirementLockItems.length >= 5) return;
+    handleUpdateRequirementLockItems([...requirementLockItems, clean]);
+    if (!isRequirementLockEnabled) {
+      handleUpdateRequirementLockEnabled(true);
+    }
+    setSettingsReqDraft("");
+  }, [
+    settingsReqDraft,
+    requirementLockItems,
+    isRequirementLockEnabled,
+    handleUpdateRequirementLockItems,
+    handleUpdateRequirementLockEnabled,
+  ]);
+
+  // Close AI message overflow popover on outside click or Escape (zero backdrop)
+  useEffect(() => {
+    if (!openAiActionMenuId) return;
+    const handlePointerDownOutside = (event: MouseEvent | TouchEvent) => {
+      const target = event.target as Element | null;
+      if (!target?.closest('[data-ai-action-menu="true"]')) {
+        setOpenAiActionMenuId(null);
+      }
+    };
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpenAiActionMenuId(null);
+      }
+    };
+    document.addEventListener("mousedown", handlePointerDownOutside);
+    document.addEventListener("touchstart", handlePointerDownOutside, { passive: true });
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDownOutside);
+      document.removeEventListener("touchstart", handlePointerDownOutside);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [openAiActionMenuId]);
+
+  const handleToggleChecklistItem = useCallback(
+    (messageId: string, itemIdx: number, currentChecked: boolean) => {
+      setChecklistState((prev) => {
+        const nextMsgMap = { ...(prev[messageId] || {}), [itemIdx]: !currentChecked };
+        const next = { ...prev, [messageId]: nextMsgMap };
+        try {
+          window.localStorage.setItem(STORAGE_KEYS.CHECKLIST_STATE, JSON.stringify(next));
+        } catch {
+          // Ignore storage quota errors
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  const handleAiMessageTextSelect = useCallback(
+    (messageId: string, fullContext: string) => {
+      if (typeof window === "undefined") return;
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) return;
+      const selectedText = sel.toString().trim();
+      if (selectedText.length < 8) return;
+      try {
+        const range = sel.getRangeAt(0);
+        const rect = range.getBoundingClientRect();
+        if (!rect || (rect.width === 0 && rect.height === 0)) return;
+        const viewportW = window.innerWidth;
+        const toolbarWidth = 310;
+        const left = Math.max(
+          12,
+          Math.min(rect.left + rect.width / 2 - toolbarWidth / 2, viewportW - toolbarWidth - 12)
+        );
+        const top = Math.max(64, rect.top - 48);
+        setSelectionEdit({
+          messageId,
+          selectedText,
+          fullContext,
+          top,
+          left,
+          revisedText: null,
+          isLoading: false,
+          error: null,
+        });
+      } catch {
+        // Ignore invalid selection range
+      }
+    },
+    []
+  );
+
+  const handleRunSelectionEdit = useCallback(
+    async (action: "shorten" | "soften" | "formal" | "assertive" | "translate_en" | "translate_id") => {
+      if (!selectionEdit || selectionEdit.isLoading) return;
+      setSelectionEdit((prev) =>
+        prev ? { ...prev, isLoading: true, error: null, revisedText: null } : null
+      );
+
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/chat/edit-selection`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            selectedText: selectionEdit.selectedText,
+            action,
+            fullContext: selectionEdit.fullContext,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        const revised =
+          typeof payload?.revisedText === "string"
+            ? payload.revisedText.trim()
+            : typeof payload?.data?.revisedText === "string"
+            ? payload.data.revisedText.trim()
+            : "";
+        if (!response.ok || !revised) {
+          throw new Error(payload?.error || "Gagal merevisi teks terpilih.");
+        }
+        setSelectionEdit((prev) =>
+          prev ? { ...prev, isLoading: false, revisedText: revised, error: null } : null
+        );
+      } catch (err: any) {
+        setSelectionEdit((prev) =>
+          prev
+            ? {
+                ...prev,
+                isLoading: false,
+                error: err?.message || "Gagal merevisi teks terpilih.",
+              }
+            : null
+        );
+      }
+    },
+    [selectionEdit]
+  );
+
+  const handleReplaceSelectedText = useCallback(() => {
+    if (!selectionEdit || !selectionEdit.revisedText) return;
+    const { messageId, selectedText, revisedText } = selectionEdit;
+    setChats((prev) =>
+      prev.map((chat) => ({
+        ...chat,
+        messages: chat.messages.map((m) => {
+          if (m.id !== messageId) return m;
+          const nextContent = m.content.includes(selectedText)
+            ? m.content.replace(selectedText, revisedText)
+            : `${m.content}\n\n${revisedText}`;
+          return { ...m, content: nextContent };
+        }),
+      }))
+    );
+    setSelectionEdit(null);
+    if (typeof window !== "undefined") {
+      window.getSelection()?.removeAllRanges();
+    }
+    showToastNotice("Teks berhasil diperbarui", 1800);
+  }, [selectionEdit, showToastNotice]);
+
+  const handleRunAxiomaLens = useCallback(
+    async (rawTopic: string) => {
+      const topic = rawTopic.trim();
+      if (!topic || isLoading || isGenerating || isLensLoading) return;
+
+      const targetChatId =
+        activeChatId === "new-chat" ? currentSessionChatId : activeChatId;
+      const userMsgId = generateSafeId();
+      const aiMsgId = generateSafeId();
+      const nowIso = new Date().toISOString();
+
+      const userMsg: Message = {
+        id: userMsgId,
+        sender: "user",
+        content: `/lens ${topic}`,
+        created_at: nowIso,
+      };
+
+      setInputText("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "28px";
+      }
+
+      setChats((prev) => {
+        const exists = prev.some((c) => c.id === targetChatId);
+        if (exists) {
+          return prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, userMsg] } : c
+          );
+        }
+        return [
+          {
+            id: targetChatId,
+            title: `Lens: ${topic}`.slice(0, 48),
+            dateCategory: "TODAY",
+            messages: [userMsg],
+          },
+          ...prev,
+        ];
+      });
+      if (activeChatId === "new-chat") {
+        setActiveChatId(targetChatId);
+      }
+
+      setIsLensLoading(true);
+      setActiveLoadingContext("lens");
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/chat/lens`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            topic,
+            contextSummary: chatContextState.checkpoint?.summary || undefined,
+            language,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.status === 429 || payload?.code === "RATE_LIMIT_EXCEEDED") {
+          throw new Error(
+            payload?.message ||
+              "Kuota pemakaian sementara tercapai. Coba lagi beberapa saat lagi atau besok."
+          );
+        }
+        if (!response.ok || !payload?.success) {
+          throw new Error(payload?.message || payload?.error || "Gagal menjalankan Axioma Lens.");
+        }
+        const data = payload.data || payload;
+        const lensData: AxiomaLensData = {
+          topic: typeof data.topic === "string" ? data.topic : topic,
+          pros: Array.isArray(data.pros) ? data.pros : [],
+          cons: Array.isArray(data.cons) ? data.cons : [],
+          blindspots: Array.isArray(data.blindspots) ? data.blindspots : [],
+          axioma: typeof data.axioma === "string" ? data.axioma : "",
+        };
+
+        const markdownFallback = [
+          `**Axioma Lens — ${lensData.topic}**`,
+          "",
+          "**Peluang / Pro:**",
+          ...lensData.pros.map((p) => `- ${p}`),
+          "",
+          "**Celah / Kontra:**",
+          ...lensData.cons.map((c) => `- ${c}`),
+          "",
+          `**AKSIOMA:** ${lensData.axioma}`,
+          ...(lensData.blindspots.length > 0
+            ? [`\n*Asumsi Tersembunyi:* ${lensData.blindspots.join(" · ")}`]
+            : []),
+        ].join("\n");
+
+        const aiMsg: Message = {
+          id: aiMsgId,
+          sender: "ai",
+          content: markdownFallback,
+          lensData,
+          created_at: new Date().toISOString(),
+          agentId: selectedAgent.id,
+          agentName: selectedAgent.name,
+        };
+
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, aiMsg] } : c
+          )
+        );
+      } catch (err: any) {
+        const friendlyMsg = err?.message || "Gagal menjalankan Axioma Lens.";
+        const errMsg: Message = {
+          id: aiMsgId,
+          sender: "ai",
+          content: "Axioma Lens belum dapat diproses",
+          errorDetail: friendlyMsg,
+          isError: true,
+          created_at: new Date().toISOString(),
+        };
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, errMsg] } : c
+          )
+        );
+        showToastNotice(friendlyMsg, 2600);
+      } finally {
+        setIsLensLoading(false);
+        setActiveLoadingContext(null);
+      }
+    },
+    [
+      isLoading,
+      isGenerating,
+      isLensLoading,
+      activeChatId,
+      currentSessionChatId,
+      chatContextState.checkpoint?.summary,
+      language,
+      selectedAgent.id,
+      selectedAgent.name,
+      showToastNotice,
+    ]
+  );
+
+  // Stage 8 & 9: Unified Multimodal Vision (Image <= 4MB) & Smart PDF (<= 8MB) File Handler
+  const handleVisionFileChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      e.target.value = "";
+      if (!file) return;
+
+      const isPdf =
+        file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+
+      if (isPdf) {
+        const MAX_PDF_BYTES = 8 * 1024 * 1024; // 8MB client-side cap
+        if (file.size > MAX_PDF_BYTES) {
+          showToastNotice("Ukuran dokumen PDF maksimal 8 MB.", 2400);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUrl = typeof reader.result === "string" ? reader.result : "";
+          if (!dataUrl) return;
+          const commaIdx = dataUrl.indexOf(",");
+          const base64 = commaIdx !== -1 ? dataUrl.slice(commaIdx + 1) : dataUrl;
+          setPendingVisionPhoto(null);
+          setPendingPdfDoc({
+            base64,
+            fileName: file.name,
+            fileSizeBytes: file.size,
+            mode: "summary",
+          });
+        };
+        reader.readAsDataURL(file);
+        return;
+      }
+
+      const allowedMimes = ["image/jpeg", "image/png", "image/webp"] as const;
+      if (!allowedMimes.includes(file.type as (typeof allowedMimes)[number])) {
+        showToastNotice("Format file harus JPG, PNG, WEBP, atau PDF.", 2400);
+        return;
+      }
+
+      const MAX_BYTES = 4 * 1024 * 1024; // 4MB client-side cap
+      if (file.size > MAX_BYTES) {
+        showToastNotice("Ukuran foto maksimal 4 MB.", 2400);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = typeof reader.result === "string" ? reader.result : "";
+        if (!dataUrl) return;
+        const commaIdx = dataUrl.indexOf(",");
+        const base64 = commaIdx !== -1 ? dataUrl.slice(commaIdx + 1) : dataUrl;
+        setPendingPdfDoc(null);
+        setPendingVisionPhoto({
+          previewUrl: dataUrl,
+          base64,
+          mimeType: file.type as "image/jpeg" | "image/png" | "image/webp",
+          name: file.name,
+          mode: "notes",
+        });
+      };
+      reader.readAsDataURL(file);
+    },
+    [showToastNotice]
+  );
+
+  const handleSendPdfDocument = useCallback(
+    async (questionText: string) => {
+      if (!pendingPdfDoc || isVisionLoading) return;
+      const doc = pendingPdfDoc;
+      const question = questionText.trim();
+
+      if (doc.mode === "ask" && !question) {
+        showToastNotice("Tulis pertanyaan untuk PDF terlebih dahulu.", 2200);
+        return;
+      }
+
+      const modeLabels: Record<typeof doc.mode, string> = {
+        summary: "Ringkas Eksekutif",
+        glossary: "Istilah Kunci",
+        critical_questions: "Prediksi Pertanyaan",
+        ask: "Tanya PDF",
+      };
+
+      const targetChatId =
+        activeChatId === "new-chat" ? currentSessionChatId : activeChatId;
+      const userMsgId = generateSafeId();
+      const aiMsgId = generateSafeId();
+      const nowIso = new Date().toISOString();
+
+      const userPromptDisplay = question
+        ? `[PDF · ${modeLabels[doc.mode]} · ${doc.fileName}] ${question}`
+        : `[PDF · ${modeLabels[doc.mode]}] ${doc.fileName}`;
+
+      const userMsg: Message = {
+        id: userMsgId,
+        sender: "user",
+        content: userPromptDisplay,
+        created_at: nowIso,
+      };
+
+      setPendingPdfDoc(null);
+      setInputText("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "28px";
+      }
+
+      setChats((prev) => {
+        const exists = prev.some((c) => c.id === targetChatId);
+        if (exists) {
+          return prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, userMsg] } : c
+          );
+        }
+        return [
+          {
+            id: targetChatId,
+            title: `PDF: ${doc.fileName}`.slice(0, 48),
+            dateCategory: "TODAY",
+            messages: [userMsg],
+          },
+          ...prev,
+        ];
+      });
+      if (activeChatId === "new-chat") {
+        setActiveChatId(targetChatId);
+      }
+
+      setIsVisionLoading(true);
+      setActiveLoadingContext("pdf");
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/chat/analyze-pdf`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            pdfBase64: doc.base64,
+            fileName: doc.fileName,
+            mode: doc.mode,
+            question: question || undefined,
+            language,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.status === 429 || payload?.code === "RATE_LIMIT_EXCEEDED") {
+          throw new Error(
+            payload?.message ||
+              "Kuota pemakaian sementara tercapai. Coba lagi beberapa saat lagi atau besok."
+          );
+        }
+        const resultText =
+          typeof payload?.result === "string"
+            ? payload.result.trim()
+            : typeof payload?.data?.result === "string"
+            ? payload.data.result.trim()
+            : "";
+
+        if (!response.ok || !resultText) {
+          throw new Error(
+            payload?.message || payload?.error || "Gagal membedah dokumen PDF. Silakan coba lagi."
+          );
+        }
+
+        const aiMsg: Message = {
+          id: aiMsgId,
+          sender: "ai",
+          content: resultText,
+          created_at: new Date().toISOString(),
+          agentId: selectedAgent.id,
+          agentName: selectedAgent.name,
+        };
+
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, aiMsg] } : c
+          )
+        );
+      } catch (err: any) {
+        const errMsg: Message = {
+          id: aiMsgId,
+          sender: "ai",
+          content: "Gagal membedah dokumen PDF",
+          errorDetail: err?.message || "Terjadi kendala saat menganalisis PDF.",
+          isError: true,
+          created_at: new Date().toISOString(),
+        };
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, errMsg] } : c
+          )
+        );
+      } finally {
+        setIsVisionLoading(false);
+        setActiveLoadingContext(null);
+      }
+    },
+    [
+      pendingPdfDoc,
+      isVisionLoading,
+      activeChatId,
+      currentSessionChatId,
+      language,
+      selectedAgent.id,
+      selectedAgent.name,
+      showToastNotice,
+    ]
+  );
+
+  const handleSendVisionPhoto = useCallback(
+    async (instructionText: string) => {
+      if (!pendingVisionPhoto || isVisionLoading) return;
+      const photo = pendingVisionPhoto;
+      const instruction = instructionText.trim();
+      const modeLabels: Record<typeof photo.mode, string> = {
+        notes: "Ringkas Catatan",
+        table: "Buat Tabel",
+        quiz: "Soal Latihan",
+        tasks: "Ekstrak Tugas",
+      };
+
+      const targetChatId =
+        activeChatId === "new-chat" ? currentSessionChatId : activeChatId;
+      const userMsgId = generateSafeId();
+      const aiMsgId = generateSafeId();
+      const nowIso = new Date().toISOString();
+
+      const userPromptDisplay = instruction
+        ? `[Foto · ${modeLabels[photo.mode]}] ${instruction}`
+        : `[Foto · ${modeLabels[photo.mode]}] ${photo.name}`;
+
+      const userMsg: Message = {
+        id: userMsgId,
+        sender: "user",
+        content: userPromptDisplay,
+        created_at: nowIso,
+      };
+
+      setPendingVisionPhoto(null);
+      setInputText("");
+      if (textareaRef.current) {
+        textareaRef.current.style.height = "28px";
+      }
+
+      setChats((prev) => {
+        const exists = prev.some((c) => c.id === targetChatId);
+        if (exists) {
+          return prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, userMsg] } : c
+          );
+        }
+        return [
+          {
+            id: targetChatId,
+            title: `${modeLabels[photo.mode]} · Foto`.slice(0, 48),
+            dateCategory: "TODAY",
+            messages: [userMsg],
+          },
+          ...prev,
+        ];
+      });
+      if (activeChatId === "new-chat") {
+        setActiveChatId(targetChatId);
+      }
+
+      setIsVisionLoading(true);
+      setActiveLoadingContext("vision");
+      try {
+        const response = await fetch(`${BACKEND_URL}/api/chat/vision`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            imageBase64: photo.base64,
+            mimeType: photo.mimeType,
+            mode: photo.mode,
+            instruction: instruction || undefined,
+            language,
+          }),
+        });
+        const payload = await response.json().catch(() => ({}));
+        if (response.status === 429 || payload?.code === "RATE_LIMIT_EXCEEDED") {
+          throw new Error(
+            payload?.message ||
+              "Kuota pemakaian sementara tercapai. Coba lagi beberapa saat lagi atau besok."
+          );
+        }
+        const resultText =
+          typeof payload?.result === "string"
+            ? payload.result.trim()
+            : typeof payload?.data?.result === "string"
+            ? payload.data.result.trim()
+            : "";
+
+        if (!response.ok || !resultText) {
+          throw new Error(
+            payload?.message || payload?.error || "Gagal memproses foto. Silakan coba lagi."
+          );
+        }
+
+        const aiMsg: Message = {
+          id: aiMsgId,
+          sender: "ai",
+          content: resultText,
+          created_at: new Date().toISOString(),
+          agentId: selectedAgent.id,
+          agentName: selectedAgent.name,
+        };
+
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, aiMsg] } : c
+          )
+        );
+      } catch (err: any) {
+        const errMsg: Message = {
+          id: aiMsgId,
+          sender: "ai",
+          content: "Gagal memproses foto",
+          errorDetail: err?.message || "Terjadi kendala saat menganalisis gambar.",
+          isError: true,
+          created_at: new Date().toISOString(),
+        };
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === targetChatId ? { ...c, messages: [...c.messages, errMsg] } : c
+          )
+        );
+      } finally {
+        setIsVisionLoading(false);
+        setActiveLoadingContext(null);
+      }
+    },
+    [
+      pendingVisionPhoto,
+      isVisionLoading,
+      activeChatId,
+      currentSessionChatId,
+      language,
+      selectedAgent.id,
+      selectedAgent.name,
+    ]
+  );
+
+  const handleUpdateUserProfile = useCallback((nextValue: string) => {
+    const trimmed = nextValue.slice(0, 500);
+    setUserProfile(trimmed);
+    safeSetLocalStorage(STORAGE_KEYS.USER_PROFILE, trimmed);
+  }, []);
+
+  const handleUpdateContextControl = useCallback((next: ContextControlState) => {
+    setContextControl(next);
+    try {
+      window.localStorage.setItem(STORAGE_KEYS.CONTEXT_CONTROL, JSON.stringify(next));
+    } catch {
+      // Ignore storage errors
+    }
+  }, []);
+
+  // Stage 6: Slash Commands definitions & matching
+  const SLASH_COMMANDS = useMemo(
+    () => [
+      {
+        cmd: "/wa",
+        label: "Format WhatsApp / Kalibrasi Sosial",
+      },
+      {
+        cmd: "/kritis",
+        label: "Mode berpikir kritis",
+      },
+      {
+        cmd: "/tabel",
+        label: "Format tabel perbandingan",
+      },
+      {
+        cmd: "/ringkas",
+        label: "Gaya jawaban ringkas",
+      },
+      {
+        cmd: "/langkah",
+        label: "Pecah jadi langkah terstruktur",
+      },
+      {
+        cmd: "/lens",
+        label: "Analisis 2 sisi (Axioma Lens)",
+      },
+    ],
+    []
+  );
+
+  const matchingSlashCommands = useMemo(() => {
+    const trimmed = inputText.trimStart();
+    if (!trimmed.startsWith("/")) return [];
+    const firstToken = trimmed.split(/\s+/)[0].toLowerCase();
+    // Only show menu while typing the slash command token (no space after it yet)
+    if (trimmed.includes(" ")) return [];
+    return SLASH_COMMANDS.filter((item) => item.cmd.startsWith(firstToken));
+  }, [inputText, SLASH_COMMANDS]);
+
+  useEffect(() => {
+    if (slashMenuIndex >= matchingSlashCommands.length) {
+      setSlashMenuIndex(0);
+    }
+  }, [matchingSlashCommands.length, slashMenuIndex]);
+
+  const handleApplySlashCommand = useCallback(
+    (cmd: string) => {
+      const remaining = inputText.replace(/^\s*\/\S*\s*/, "");
+      if (cmd === "/wa") {
+        const nextSocial = socialTarget === "none" ? "teman" : socialTarget;
+        setSocialTarget(nextSocial);
+        safeSetLocalStorage(STORAGE_KEYS.SOCIAL_TARGET, nextSocial);
+        setInputText(remaining);
+        showToastNotice("Kalibrasi Sosial / format WhatsApp aktif", 2000);
+      } else if (cmd === "/kritis") {
+        setThinkingMode("critical");
+        safeSetLocalStorage(STORAGE_KEYS.THINKING_MODE, "critical");
+        setInputText(remaining);
+        showToastNotice("Mode Berpikir: Kritis", 2000);
+      } else if (cmd === "/tabel") {
+        const prefix = "Sajikan dalam format tabel perbandingan yang rapi: ";
+        setInputText(remaining ? `${prefix}${remaining}` : prefix);
+      } else if (cmd === "/ringkas") {
+        setAnswerStyle("ringkas");
+        safeSetLocalStorage(STORAGE_KEYS.ANSWER_STYLE, "ringkas");
+        setInputText(remaining);
+        showToastNotice("Gaya Jawaban: Ringkas", 2000);
+      } else if (cmd === "/langkah") {
+        setPendingTaskBreakdown(true);
+        setInputText(remaining);
+        showToastNotice("Mode Pecah Langkah aktif untuk pesan berikutnya", 2000);
+      } else if (cmd === "/lens") {
+        setInputText(remaining ? `/lens ${remaining}` : "/lens ");
+      }
+      setSlashMenuIndex(0);
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          adjustTextareaHeight();
+        }
+      });
+    },
+    [inputText, socialTarget, showToastNotice]
+  );
+
+  const handleEnhancePrompt = useCallback(async () => {
+    const draft = inputText.trim();
+    if (draft.length < 12 || isEnhancingPrompt) return;
+
+    setIsEnhancingPrompt(true);
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/chat/enhance-prompt`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ draft, language }),
+      });
+      const payload = await response.json().catch(() => ({}));
+      const enhanced =
+        typeof payload?.enhancedPrompt === "string"
+          ? payload.enhancedPrompt.trim()
+          : typeof payload?.data?.enhancedPrompt === "string"
+          ? payload.data.enhancedPrompt.trim()
+          : "";
+      if (!response.ok || !enhanced) {
+        throw new Error(payload?.error || "Gagal merapikan prompt.");
+      }
+      setEnhancedPromptPreview(enhanced);
+    } catch (err: any) {
+      showToastNotice(err?.message || "Gagal merapikan prompt.", 2200);
+    } finally {
+      setIsEnhancingPrompt(false);
+    }
+  }, [inputText, isEnhancingPrompt, language, showToastNotice]);
+
+  const handleSendStructuredFeedback = useCallback(
+    async (messageId: string, rating: "up" | "down", reason?: string) => {
+      const chatId = activeChatId === "new-chat" ? currentSessionChatId : activeChatId;
+      try {
+        await fetch(`${BACKEND_URL}/api/chat/feedback`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chatId: chatId || undefined,
+            messageId,
+            rating,
+            reason: reason || undefined,
+            meta: {
+              language,
+              tone,
+              thinkingMode,
+              answerStyle,
+            },
+          }),
+        });
+      } catch {
+        // Non-blocking feedback logging
+      }
+      if (rating === "down" && reason) {
+        setOpenFeedbackCommentId(null);
+        setStructuredFeedbackThanksId(messageId);
+        window.setTimeout(() => {
+          setStructuredFeedbackThanksId((curr) => (curr === messageId ? null : curr));
+        }, 2500);
+      }
+    },
+    [activeChatId, currentSessionChatId, language, tone, thinkingMode, answerStyle]
+  );
+
+  const handleBranchFromMessage = useCallback(
+    (messageId: string) => {
+      const idx = currentMessages.findIndex((m) => m.id === messageId);
+      if (idx === -1) return;
+
+      const slicedMessages = currentMessages.slice(0, idx + 1).map((m, i) => ({
+        ...m,
+        id: `branch-${Date.now()}-${i}`,
+      }));
+
+      const newChatId = generateId(true);
+      const currentChatObj = chats.find((c) => c.id === activeChatId);
+      const rawBaseTitle =
+        currentChatObj?.title ||
+        chatHistory.find((h) => h.id === activeChatId)?.title ||
+        "Percakapan";
+      const cleanBaseTitle = rawBaseTitle.replace(/^\[Cabang\]\s*/i, "").trim();
+      const branchTitle = `[Cabang] ${cleanBaseTitle}`.slice(0, 60);
+      const nowIso = new Date().toISOString();
+
+      const branchedChat: ChatSession = {
+        id: newChatId,
+        title: branchTitle,
+        dateCategory: "TODAY",
+        messages: slicedMessages,
+      };
+
+      setChats((prev) => [branchedChat, ...prev]);
+      setChatHistory((prev) => [
+        {
+          id: newChatId,
+          title: branchTitle,
+          created_at: nowIso,
+          last_activity_at: nowIso,
+        },
+        ...prev,
+      ]);
+
+      // Carry over current Checkpoint / Context / Decisions to the new branch
+      if (hasActiveChatContext(chatContextState)) {
+        saveChatContextState(newChatId, chatContextState);
+      }
+
+      setCurrentSessionChatId(newChatId);
+      setActiveChatId(newChatId);
+      setHasMessages(slicedMessages.length > 0);
+      setIsChatAreaLoading(false);
+      syncBrowserUrl(newChatId, "push");
+      showToastNotice("Cabang percakapan dibuat", 2000);
+    },
+    [
+      activeChatId,
+      chatContextState,
+      chatHistory,
+      chats,
+      currentMessages,
+      showToastNotice,
+      syncBrowserUrl,
+    ]
+  );
+
+  // Smooth fade-in and fade-out for the AI thinking indicator (covers Chat, Lens, PDF & Vision)
+  useEffect(() => {
+    if (isLoading || isLensLoading || isVisionLoading) {
       setShowThinkingIndicator(true);
       setIsThinkingFadingOut(false);
       return;
@@ -2187,7 +3482,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }, 180);
       return () => clearTimeout(timer);
     }
-  }, [isLoading, showThinkingIndicator]);
+  }, [isLoading, isLensLoading, isVisionLoading, showThinkingIndicator]);
 
   const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current;
@@ -2799,25 +4094,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     if (isAgentMenuOpen) {
       const activeIdx = Math.max(
         0,
-        availableEngines.findIndex((a) => a.id === selectedAgent.id)
+        AVAILABLE_AGENTS.findIndex((a) => a.id === selectedAgent.id)
       );
       requestAnimationFrame(() => {
         desktopAgentItemRefs.current[activeIdx]?.focus();
       });
     }
-  }, [isAgentMenuOpen, selectedAgent.id, availableEngines]);
+  }, [isAgentMenuOpen, selectedAgent.id]);
 
   useEffect(() => {
     if (isHeaderAgentMenuOpen) {
       const activeIdx = Math.max(
         0,
-        availableEngines.findIndex((a) => a.id === selectedAgent.id)
+        AVAILABLE_AGENTS.findIndex((a) => a.id === selectedAgent.id)
       );
       requestAnimationFrame(() => {
         headerAgentItemRefs.current[activeIdx]?.focus();
       });
     }
-  }, [isHeaderAgentMenuOpen, selectedAgent.id, availableEngines]);
+  }, [isHeaderAgentMenuOpen, selectedAgent.id]);
 
   useEffect(() => {
     if (openChatMenuId) {
@@ -3818,9 +5113,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
 
     const chosenDefault =
-      availableEngines.find((a) => a.id === settingsDefaultAgentInput) ||
-      availableEngines[0] ||
-      FALLBACK_ENGINES[0];
+      AVAILABLE_AGENTS.find((a) => a.id === settingsDefaultAgentInput) || AVAILABLE_AGENTS[0];
     setDefaultAgentId(chosenDefault.id);
     setSelectedAgent(chosenDefault);
     safeSetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT, chosenDefault.id);
@@ -3831,16 +5124,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   const handleSelectDefaultAgent = (agentId: string) => {
     const chosenDefault =
-      availableEngines.find((a) => a.id === agentId) ||
-      availableEngines[0] ||
-      FALLBACK_ENGINES[0];
+      AVAILABLE_AGENTS.find((a) => a.id === agentId) || AVAILABLE_AGENTS[0];
     setSettingsDefaultAgentInput(chosenDefault.id);
     setDefaultAgentId(chosenDefault.id);
     setSelectedAgent(chosenDefault);
     safeSetLocalStorage(STORAGE_KEYS.DEFAULT_AGENT, chosenDefault.id);
     safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, chosenDefault.id);
-    showToastNotice(`Engine default diubah ke ${chosenDefault.name}`);
+    showToastNotice(`Model default diubah ke ${chosenDefault.name}`);
   };
+
+  const handleSwitchToOmni = useCallback(() => {
+    const omniAgent =
+      AVAILABLE_AGENTS.find((a) => a.id === "axioma-omni") || AVAILABLE_AGENTS[0];
+    setSelectedAgent(omniAgent);
+    safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, omniAgent.id);
+    showToastNotice("Beralih ke Axioma Omni (1 kredit / pesan)", 2200);
+  }, [showToastNotice]);
 
   const handleUpdateDisplayName = (rawName: string) => {
     const cleanedName = rawName.replace(/\s+/g, " ").trim();
@@ -3924,13 +5223,42 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           chat_id: sessionPayloadId,
           content: userText,
           stream: true,
-          engine_mode: selectedAgent.id,
-          agent_id: selectedAgent.backendAgentId,
+          agent_id: selectedAgent.id,
+          language,
+          tone,
+          thinkingMode,
+          answerStyle,
+          socialTarget,
+          contextSummary: chatContextState.checkpoint?.summary || undefined,
+          checkpoint: chatContextState.checkpoint || undefined,
+          contextCorrection: chatContextState.contextCorrection.trim() || undefined,
+          workspaceContext:
+            !isPrivateMode && activeWorkspace
+              ? { name: activeWorkspace.name, instructions: activeWorkspace.instructions }
+              : undefined,
+          decisionHistory:
+            chatContextState.decisions.length > 0
+              ? chatContextState.decisions.slice(-5).map((d) => ({
+                  decision: d.decision,
+                  reason: d.reason,
+                  date: d.date,
+                }))
+              : undefined,
+          userProfile: !isPrivateMode ? userProfile.trim() || undefined : undefined,
+          contextControl: isPrivateMode
+            ? { useProject: false, useProfile: false, useHistory: true }
+            : contextControl,
+          requirementLock:
+            isRequirementLockEnabled && requirementLockItems.length > 0
+              ? requirementLockItems
+              : undefined,
           turnstile_token: turnstileToken || undefined,
           attachment_ids: attachmentIds.length > 0 ? attachmentIds : undefined,
           voice_mode: voiceMode,
           history: !authUser
-            ? (chats.find((c) => c.id === targetChatId)?.messages || [])
+            ? !contextControl.useHistory
+              ? []
+              : (chats.find((c) => c.id === targetChatId)?.messages || [])
                 .filter((m) => !m.isError && m.content.trim())
                 .map((m) => ({
                   id: m.id,
@@ -3969,6 +5297,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       activeChatId,
       currentSessionChatId,
       selectedAgent,
+      language,
+      tone,
+      thinkingMode,
+      answerStyle,
+      socialTarget,
+      chatContextState,
+      activeWorkspace,
       buildAuthHeaders,
       getTurnstileToken,
       authUser,
@@ -4159,7 +5494,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     targetChatId: string,
     sessionPayloadId: string,
     userText: string,
-    options?: { regenerate?: boolean; tempUserMsgId?: string; attachmentIds?: string[]; mediaMode?: "image" | "video" }
+    options?: {
+      regenerate?: boolean;
+      tempUserMsgId?: string;
+      attachmentIds?: string[];
+      mediaMode?: "image" | "video";
+      taskBreakdownMode?: boolean;
+    }
   ) => {
     setChatLoading(targetChatId, true);
     setChatGenerating(targetChatId, true);
@@ -4237,14 +5578,44 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             chat_id: sessionPayloadId,
             content: userText,
             stream: true,
-            engine_mode: activeAgentSnapshot.id,
-            agent_id: activeAgentSnapshot.backendAgentId,
+            agent_id: activeAgentSnapshot.id,
+            language,
+            tone,
+            thinkingMode,
+            answerStyle,
+            socialTarget,
+            taskBreakdownMode: options?.taskBreakdownMode || undefined,
+            contextSummary: chatContextState.checkpoint?.summary || undefined,
+            checkpoint: chatContextState.checkpoint || undefined,
+            contextCorrection: chatContextState.contextCorrection.trim() || undefined,
+            workspaceContext:
+              !isPrivateMode && activeWorkspace
+                ? { name: activeWorkspace.name, instructions: activeWorkspace.instructions }
+                : undefined,
+            decisionHistory:
+              chatContextState.decisions.length > 0
+                ? chatContextState.decisions.slice(-5).map((d) => ({
+                    decision: d.decision,
+                    reason: d.reason,
+                    date: d.date,
+                  }))
+                : undefined,
+            userProfile: !isPrivateMode ? userProfile.trim() || undefined : undefined,
+            contextControl: isPrivateMode
+              ? { useProject: false, useProfile: false, useHistory: true }
+              : contextControl,
+            requirementLock:
+              isRequirementLockEnabled && requirementLockItems.length > 0
+                ? requirementLockItems
+                : undefined,
             regenerate: Boolean(options?.regenerate),
             turnstile_token: currentTurnstileToken || undefined,
             attachment_ids: options?.attachmentIds?.length ? options.attachmentIds : undefined,
             media_mode: options?.mediaMode || undefined,
             history: !authUser
-              ? (chats.find((c) => c.id === targetChatId)?.messages || [])
+              ? !contextControl.useHistory
+                ? []
+                : (chats.find((c) => c.id === targetChatId)?.messages || [])
                   .filter((m) => !m.isError && m.content.trim())
                   .map((m) => ({
                     id: m.id,
@@ -4291,9 +5662,29 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         initialTimeoutId = null;
       }
 
-      const contentType = (response.headers.get("content-type") || "").toLowerCase();
+      // Sync remaining credits immediately when exposed by backend header
+      const remainingCreditsHeader = response.headers.get("X-Axioma-Remaining-Credits");
+      if (remainingCreditsHeader !== null && remainingCreditsHeader.trim() !== "") {
+        const parsedCredits = Number(remainingCreditsHeader);
+        if (Number.isFinite(parsedCredits) && parsedCredits >= 0) {
+          setQuotaInfo((prev) => ({
+            ...(prev || {}),
+            remainingCredits: parsedCredits,
+            remaining: parsedCredits,
+            triggeredByLimit: false,
+          }));
+        }
+      }
 
-      if (response.ok && contentType.includes("text/event-stream") && response.body) {
+      const contentType = (response.headers.get("content-type") || "").toLowerCase();
+      const isJsonResponse = contentType.includes("application/json");
+      const isSseResponse =
+        response.ok &&
+        !isJsonResponse &&
+        contentType.includes("text/event-stream") &&
+        Boolean(response.body);
+
+      if (isSseResponse && response.body) {
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";
@@ -4301,20 +5692,103 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         let returnedAgentName = activeAgentSnapshot.name;
         let returnedAgentId: string = activeAgentSnapshot.id;
         let returnedMessageId: string | undefined;
+        let returnedImageUrl: string | undefined;
+        let returnedVideoUrl: string | undefined;
+        let returnedMediaType: "image" | "video" | undefined;
+        let returnedMediaTitle: string | undefined;
+        let returnedRevisedPrompt: string | undefined;
+        let hasReceivedContent = false;
 
         // Initialize 30s idle timeout for active streaming (#1)
         resetIdleTimeout();
+
+        const upsertStreamMediaBubble = () => {
+          const fallbackCaption =
+            accumulatedText.trim() || "Berikut visualisasi untuk permintaan Anda:";
+          if (!streamBubbleCreated) {
+            streamBubbleCreated = true;
+            setChatLoading(targetChatId, false);
+            setChatStreamingMsgId(targetChatId, activeAiMsgId);
+            appendMessageToChat(targetChatId, {
+              id: activeAiMsgId,
+              sender: "ai",
+              content: fallbackCaption,
+              agentId: returnedAgentId,
+              agentName: returnedAgentName,
+              imageUrl: returnedImageUrl,
+              videoUrl: returnedVideoUrl,
+              mediaType: returnedMediaType,
+              mediaTitle: returnedMediaTitle,
+              revisedPrompt: returnedRevisedPrompt,
+            });
+            scrollToBottom(false);
+          } else {
+            const targetMsgId = activeAiMsgId;
+            setChats((prev) =>
+              prev.map((chat) =>
+                chat.id === targetChatId
+                  ? {
+                      ...chat,
+                      messages: chat.messages.map((m) =>
+                        m.id === targetMsgId
+                          ? {
+                              ...m,
+                              content: accumulatedText || m.content || fallbackCaption,
+                              imageUrl: returnedImageUrl ?? m.imageUrl,
+                              videoUrl: returnedVideoUrl ?? m.videoUrl,
+                              mediaType: returnedMediaType ?? m.mediaType,
+                              mediaTitle: returnedMediaTitle ?? m.mediaTitle,
+                              revisedPrompt: returnedRevisedPrompt ?? m.revisedPrompt,
+                            }
+                          : m
+                      ),
+                    }
+                  : chat
+              )
+            );
+            scrollToBottom(false);
+          }
+        };
 
         const processRawSseEvent = (rawEvent: string) => {
           const line = rawEvent.split(/\r?\n/).find((l) => l.startsWith("data:"));
           if (!line) return;
           const jsonStr = line.slice(5).trim();
-          if (!jsonStr) return;
+          if (!jsonStr || jsonStr === "[DONE]") return;
 
           let payload: any;
           try {
             payload = JSON.parse(jsonStr);
-          } catch {
+          } catch (parseErr) {
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("[SSE_PARSE_WARNING]", { rawEvent, parseErr });
+            }
+            return;
+          }
+
+          if (!payload || typeof payload !== "object") {
+            return;
+          }
+
+          const extractedMedia = extractStructuredMediaPayload(payload);
+          const hasEventMedia = Boolean(extractedMedia.imageUrl || extractedMedia.videoUrl);
+          if (extractedMedia.imageUrl) returnedImageUrl = extractedMedia.imageUrl;
+          if (extractedMedia.videoUrl) returnedVideoUrl = extractedMedia.videoUrl;
+          if (extractedMedia.mediaType) returnedMediaType = extractedMedia.mediaType;
+          if (extractedMedia.mediaTitle) returnedMediaTitle = extractedMedia.mediaTitle;
+          if (extractedMedia.revisedPrompt) returnedRevisedPrompt = extractedMedia.revisedPrompt;
+
+          if (hasEventMedia) {
+            hasReceivedContent = true;
+          }
+
+          if (payload.type === "status" && typeof payload.text === "string") {
+            const lowerStatus = payload.text.toLowerCase();
+            if (lowerStatus.includes("gambar") || lowerStatus.includes("foto")) {
+              setActiveLoadingContext("image");
+            } else if (lowerStatus.includes("video")) {
+              setActiveLoadingContext("video");
+            }
             return;
           }
 
@@ -4336,7 +5810,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             if (typeof payload.agent_name === "string") returnedAgentName = payload.agent_name;
             if (typeof payload.agent_id === "string") returnedAgentId = payload.agent_id;
             if (payload.chat) returnedChat = payload.chat;
+            if (hasEventMedia) {
+              upsertStreamMediaBubble();
+            }
+          } else if (
+            payload.type === "image" ||
+            payload.type === "video" ||
+            payload.type === "media"
+          ) {
+            if (typeof payload.text === "string" && payload.text.trim() && !accumulatedText) {
+              accumulatedText = payload.text;
+            }
+            if (hasEventMedia) {
+              upsertStreamMediaBubble();
+            }
           } else if (payload.type === "chunk" && typeof payload.text === "string") {
+            if (payload.text.length > 0) {
+              hasReceivedContent = true;
+            }
             accumulatedText += payload.text;
             if (!streamBubbleCreated) {
               streamBubbleCreated = true;
@@ -4348,6 +5839,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 content: accumulatedText,
                 agentId: returnedAgentId,
                 agentName: returnedAgentName,
+                imageUrl: returnedImageUrl,
+                videoUrl: returnedVideoUrl,
+                mediaType: returnedMediaType,
+                mediaTitle: returnedMediaTitle,
+                revisedPrompt: returnedRevisedPrompt,
               });
               scrollToBottom(false);
             } else {
@@ -4359,7 +5855,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     ? {
                         ...chat,
                         messages: chat.messages.map((m) =>
-                          m.id === targetMsgId ? { ...m, content: currentText } : m
+                          m.id === targetMsgId
+                            ? {
+                                ...m,
+                                content: currentText,
+                                imageUrl: returnedImageUrl ?? m.imageUrl,
+                                videoUrl: returnedVideoUrl ?? m.videoUrl,
+                                mediaType: returnedMediaType ?? m.mediaType,
+                                mediaTitle: returnedMediaTitle ?? m.mediaTitle,
+                                revisedPrompt: returnedRevisedPrompt ?? m.revisedPrompt,
+                              }
+                            : m
                         ),
                       }
                     : chat
@@ -4373,6 +5879,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               payload.data.length > accumulatedText.length
             ) {
               accumulatedText = payload.data;
+              if (payload.data.trim()) {
+                hasReceivedContent = true;
+              }
             }
             if (typeof payload.agent_name === "string") returnedAgentName = payload.agent_name;
             if (typeof payload.agent_id === "string") returnedAgentId = payload.agent_id;
@@ -4386,9 +5895,37 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             if (typeof realAiId === "string" && realAiId) {
               returnedMessageId = realAiId;
             }
+            if (typeof payload.remainingCredits === "number" && Number.isFinite(payload.remainingCredits)) {
+              setQuotaInfo((prev) => ({
+                ...(prev || {}),
+                remainingCredits: payload.remainingCredits,
+                remaining: payload.remainingCredits,
+                triggeredByLimit: false,
+              }));
+            }
             if (payload.chat) returnedChat = payload.chat;
+            if (hasEventMedia) {
+              upsertStreamMediaBubble();
+            }
           } else if (payload.type === "error") {
-            throw new Error(payload.error || "Gagal menerima streaming balasan dari server.");
+            if (process.env.NODE_ENV !== "production") {
+              console.warn("[SSE_EVENT_ERROR]", { rawEvent, payload });
+            }
+            // If media was already delivered cleanly, do not discard it with a trailing error
+            if (hasReceivedContent && (returnedImageUrl || returnedVideoUrl)) {
+              return;
+            }
+            const serverErrorMessage =
+              (typeof payload.error === "string" && payload.error.trim()) ||
+              (typeof payload.message === "string" && payload.message.trim()) ||
+              "Gagal menerima streaming balasan dari server.";
+            throw new Error(serverErrorMessage);
+          } else if (hasEventMedia) {
+            // Handle untyped SSE media payload gracefully
+            if (typeof payload.text === "string" && payload.text.trim() && !accumulatedText) {
+              accumulatedText = payload.text;
+            }
+            upsertStreamMediaBubble();
           }
         };
 
@@ -4423,8 +5960,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }
         }
 
+        const hasStructuredMedia = Boolean(returnedImageUrl || returnedVideoUrl);
+        if (hasStructuredMedia) {
+          hasReceivedContent = true;
+        }
         const finalContent =
-          accumulatedText.trim() || "Pesan Anda diterima, tetapi tidak ada balasan yang valid.";
+          accumulatedText.trim() ||
+          (hasStructuredMedia
+            ? "Berikut visualisasi untuk permintaan Anda:"
+            : hasReceivedContent
+              ? accumulatedText
+              : "Pesan Anda diterima, tetapi tidak ada balasan yang valid.");
         const finalMsgId = returnedMessageId || activeAiMsgId;
 
         setChatStreamingMsgId(targetChatId, null);
@@ -4436,6 +5982,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             content: finalContent,
             agentId: returnedAgentId,
             agentName: returnedAgentName,
+            imageUrl: returnedImageUrl,
+            videoUrl: returnedVideoUrl,
+            mediaType: returnedMediaType,
+            mediaTitle: returnedMediaTitle,
+            revisedPrompt: returnedRevisedPrompt,
           });
         } else {
           if (activeAiMsgId !== finalMsgId) {
@@ -4454,6 +6005,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             content: finalContent,
                             agentId: returnedAgentId,
                             agentName: returnedAgentName,
+                            imageUrl: returnedImageUrl ?? m.imageUrl,
+                            videoUrl: returnedVideoUrl ?? m.videoUrl,
+                            mediaType: returnedMediaType ?? m.mediaType,
+                            mediaTitle: returnedMediaTitle ?? m.mediaTitle,
+                            revisedPrompt: returnedRevisedPrompt ?? m.revisedPrompt,
                           }
                         : m
                     ),
@@ -4470,8 +6026,44 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         );
       } else {
         const result = await response.json().catch(() => null);
+        const jsonMedia = extractStructuredMediaPayload(result);
+        const hasJsonMedia = Boolean(jsonMedia.imageUrl || jsonMedia.videoUrl);
 
-        if (!response.ok || !result?.success) {
+        if (!response.ok || (!result?.success && !hasJsonMedia)) {
+          if (response.status === 429 && result?.code === "QUOTA_EXCEEDED") {
+            const nextRemaining =
+              typeof result?.remaining === "number" && Number.isFinite(result.remaining)
+                ? result.remaining
+                : 0;
+            setQuotaInfo((prev) => ({
+              ...(prev || {}),
+              remainingCredits: nextRemaining,
+              remaining: nextRemaining,
+              required:
+                typeof result?.required === "number" && Number.isFinite(result.required)
+                  ? result.required
+                  : undefined,
+              resetAt:
+                typeof result?.resetAt === "string" ? result.resetAt : prev?.resetAt,
+              suggestedModel:
+                typeof result?.suggestedModel === "string"
+                  ? result.suggestedModel
+                  : "omni",
+              message:
+                typeof result?.message === "string"
+                  ? result.message
+                  : typeof result?.error === "string"
+                    ? result.error
+                    : undefined,
+              triggeredByLimit: true,
+            }));
+            setIsUpgradeModalOpen(true);
+            if (authUser) {
+              void fetchUserQuota();
+            }
+            return;
+          }
+
           console.error("[AXIOMA_BACKEND_HTTP_ERROR]", {
             status: response.status,
             statusText: response.statusText,
@@ -4479,17 +6071,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             body: result,
           });
 
+          if (response.status === 429 || result?.code === "RATE_LIMIT_EXCEEDED") {
+            throw new Error(
+              result?.message ||
+                result?.error ||
+                "Kuota pemakaian sementara tercapai. Coba lagi beberapa saat lagi atau besok."
+            );
+          }
           if (
             response.status === 503 ||
             result?.code === "daily_quota_exceeded" ||
-            (result?.error && result.error.includes("Kuota"))
+            (result?.error && result.error.includes("Kuota AI hari ini"))
           ) {
             throw new Error("Kuota AI hari ini sudah habis. Tersedia lagi pukul 07.00 WIB.");
-          }
-          if (response.status === 429) {
-            throw new Error(
-              result?.error || "Terlalu banyak permintaan pesan. Silakan tunggu sebentar lalu coba lagi."
-            );
           }
           const errorDetail =
             result?.error ||
@@ -4498,21 +6092,34 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           throw new Error(errorDetail);
         }
 
-        if (typeof result.user_message_id === "string" && result.user_message_id && currentUserMsgId) {
+        if (typeof result?.remainingCredits === "number" && Number.isFinite(result.remainingCredits)) {
+          setQuotaInfo((prev) => ({
+            ...(prev || {}),
+            remainingCredits: result.remainingCredits,
+            remaining: result.remainingCredits,
+            triggeredByLimit: false,
+          }));
+        }
+
+        if (typeof result?.user_message_id === "string" && result.user_message_id && currentUserMsgId) {
           replaceMessageIdInState(targetChatId, currentUserMsgId, result.user_message_id);
           currentUserMsgId = result.user_message_id;
         }
 
         const aiResponseContent =
-          result.data || "Pesan Anda diterima, tetapi tidak ada balasan yang valid.";
+          (typeof result?.data === "string" && result.data.trim()) ||
+          (typeof result?.text === "string" && result.text.trim()) ||
+          (hasJsonMedia
+            ? "Berikut visualisasi untuk permintaan Anda:"
+            : "Pesan Anda diterima, tetapi tidak ada balasan yang valid.");
         const finalMsgId =
-          typeof (result.ai_message_id || result.message_id) === "string"
+          typeof (result?.ai_message_id || result?.message_id) === "string"
             ? result.ai_message_id || result.message_id
             : activeAiMsgId;
         const returnedAgentName =
-          typeof result.agent_name === "string" ? result.agent_name : activeAgentSnapshot.name;
+          typeof result?.agent_name === "string" ? result.agent_name : activeAgentSnapshot.name;
         const returnedAgentId =
-          typeof result.agent_id === "string" ? result.agent_id : activeAgentSnapshot.id;
+          typeof result?.agent_id === "string" ? result.agent_id : activeAgentSnapshot.id;
 
         const newAiMsg: Message = {
           id: finalMsgId,
@@ -4520,6 +6127,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           content: aiResponseContent,
           agentId: returnedAgentId,
           agentName: returnedAgentName,
+          imageUrl: jsonMedia.imageUrl,
+          videoUrl: jsonMedia.videoUrl,
+          mediaType: jsonMedia.mediaType,
+          mediaTitle: jsonMedia.mediaTitle,
+          revisedPrompt: jsonMedia.revisedPrompt,
         };
 
         appendMessageToChat(targetChatId, newAiMsg);
@@ -4675,11 +6287,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setChatLoading(targetChatId, false);
       setChatGenerating(targetChatId, false);
       setChatStreamingMsgId(targetChatId, null);
+      setActiveLoadingContext((prev) =>
+        prev === "image" || prev === "video" || prev === "chat" ? null : prev
+      );
       isSubmittingRef.current = false;
       setIsSubmitting(false);
       focusDesktopTextarea();
-      // Sync sidebar with backend so new/updated chat titles are reflected
+      // Sync sidebar & daily credit quota with backend after AI reply completes
       void refreshChatHistory();
+      if (authUser) {
+        void fetchUserQuota();
+      }
     }
   };
 
@@ -4990,7 +6608,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   const sendTextMessage = async (
     rawText: string,
     attachedItems?: AttachmentItem[],
-    mediaModeOverride?: "image" | "video"
+    mediaModeOverride?: "image" | "video",
+    extraOptions?: { taskBreakdownMode?: boolean }
   ) => {
     const userText = rawText.trim();
     const effectiveAttachments = attachedItems || [];
@@ -5099,18 +6718,32 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       appendMessageToChat(activeChatId, newUserMsg);
     }
 
-    const detectedIntent = detectMediaIntent(userText);
-    const mediaModeToSend = mediaModeOverride || (activeMediaModeRef.current ? activeMediaModeRef.current : detectedIntent.type);
+    const hasAttachment = effectiveAttachments.length > 0;
+    const detectedIntent = detectMediaIntent(userText, hasAttachment);
+    const mediaModeToSend =
+      mediaModeOverride ||
+      (activeMediaModeRef.current ? activeMediaModeRef.current : detectedIntent.type);
 
+    setActiveLoadingContext(
+      mediaModeToSend === "image"
+        ? "image"
+        : mediaModeToSend === "video"
+          ? "video"
+          : "chat"
+    );
     setChatLoading(targetChatId, true);
     await requestAiReply(targetChatId, sessionPayloadId, userText, {
       tempUserMsgId,
       attachmentIds: effectiveAttachments.map((a) => a.id),
       mediaMode: mediaModeToSend || undefined,
+      taskBreakdownMode: extraOptions?.taskBreakdownMode,
     });
   };
 
-  const handleSendMessage = async (textOverride?: string) => {
+  const handleSendMessage = async (
+    textOverride?: string,
+    sendOptions?: { taskBreakdownMode?: boolean }
+  ) => {
     // Prevent duplicate sending: block if request is running (#3)
     if (isLoading || isGenerating || isSubmittingRef.current) {
       return;
@@ -5132,7 +6765,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         ? textareaRef.current.value
         : inputText;
 
+    // Stage 8 & 9: Intercept Multimodal Vision Photo or Smart PDF before standard chat flow
+    if (pendingPdfDoc) {
+      await handleSendPdfDocument(rawInput);
+      return;
+    }
+    if (pendingVisionPhoto) {
+      await handleSendVisionPhoto(rawInput);
+      return;
+    }
+
     if (!rawInput.trim() && pendingAttachments.length === 0) {
+      return;
+    }
+
+    // Stage 7: Intercept `/lens <topic>` to render Axioma Lens 2-sided card
+    const lensMatch = rawInput.trim().match(/^\/lens\s+(.+)$/i);
+    if (lensMatch && lensMatch[1].trim()) {
+      await handleRunAxiomaLens(lensMatch[1].trim());
       return;
     }
 
@@ -5141,10 +6791,25 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       .map((a) => a.serverAttachment!);
 
     const currentMediaMode = activeMediaModeRef.current || activeMediaMode;
+    const effectiveTaskBreakdownOpt = Boolean(
+      sendOptions?.taskBreakdownMode || pendingTaskBreakdown
+    );
+    if (pendingTaskBreakdown) {
+      setPendingTaskBreakdown(false);
+    }
+    setEnhancedPromptPreview(null);
     setActiveMediaMode(null);
     activeMediaModeRef.current = null;
     setPendingAttachments([]);
-    await sendTextMessage(rawInput, readyServerAttachments, currentMediaMode || undefined);
+    await sendTextMessage(
+      rawInput,
+      readyServerAttachments,
+      currentMediaMode || undefined,
+      {
+        ...sendOptions,
+        taskBreakdownMode: effectiveTaskBreakdownOpt || undefined,
+      }
+    );
   };
 
   useEffect(() => {
@@ -5155,6 +6820,35 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     // 1. Ignore IME composition events (Gboard, Samsung keyboard, etc.)
     if (e.nativeEvent.isComposing || e.keyCode === 229) {
       return;
+    }
+
+    // 1b. Slash Commands keyboard navigation & Enter selection
+    if (matchingSlashCommands.length > 0) {
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSlashMenuIndex((prev) => (prev + 1) % matchingSlashCommands.length);
+        return;
+      }
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSlashMenuIndex(
+          (prev) => (prev - 1 + matchingSlashCommands.length) % matchingSlashCommands.length
+        );
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setInputText("");
+        return;
+      }
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        const chosen = matchingSlashCommands[slashMenuIndex] || matchingSlashCommands[0];
+        if (chosen) {
+          handleApplySlashCommand(chosen.cmd);
+        }
+        return;
+      }
     }
 
     // 2. Enter sends (Shift+Enter inserts newline), works on desktop and mobile virtual keyboard
@@ -5245,6 +6939,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setOpenFeedbackCommentId(null);
     }
 
+    // Stage 6: Fire lightweight structured feedback on thumbs up
+    if (type === "up") {
+      void handleSendStructuredFeedback(messageId, "up");
+    }
+
     if (!VALID_UUID_REGEX.test(messageId)) return;
 
     try {
@@ -5323,7 +7022,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-app-shell"
       style={{ transform: "translate3d(0, var(--app-offset-top), 0)" }}
-      className="fixed top-0 left-0 right-0 h-[var(--app-height,100dvh)] w-full pb-0 flex flex-col justify-between md:flex-row bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed top-0 left-0 right-0 h-[var(--app-height)] w-full pb-0 flex flex-col justify-between md:flex-row bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -5416,7 +7115,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         <aside
           role="status"
           aria-live="polite"
-          className="ios-glass fixed bottom-[calc(7.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:bottom-28 [[data-kb='open']_&]:bottom-24 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-full text-zinc-900 dark:text-zinc-100 animate-axioma-scale-in text-xs max-w-[calc(100vw-2rem)]"
+          className="fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 px-4 py-2.5 rounded-2xl bg-bg-elevated border border-border-strong text-text-primary shadow-2xl animate-user-bubble text-xs"
         >
           <span className="font-medium">Percakapan dihapus</span>
           <span className="text-text-muted select-none">·</span>
@@ -5538,12 +7237,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               style={settingsView === "main" ? settingsPopoverStyle : undefined}
               className={`fixed z-50 flex flex-col overflow-hidden ${
                 settingsView === "main"
-                  ? `inset-0 w-full rounded-none max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:inset-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:p-2 md:origin-bottom-left transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  ? `inset-0 w-full rounded-none max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:inset-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[80dvh] md:overflow-y-auto md:rounded-2xl md:p-2 md:origin-bottom-left transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                       isSettingsEntered
                         ? "opacity-100 md:scale-100"
                         : "max-md:translate-y-4 opacity-0 md:scale-95 pointer-events-none"
                     }`
-                  : `inset-0 w-full rounded-none bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[82vh] md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  : `inset-0 w-full rounded-none bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[80dvh] md:overflow-y-auto md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                       isSettingsEntered
                         ? "md:-translate-y-1/2 opacity-100 md:scale-100"
                         : "max-md:translate-y-4 md:-translate-y-[calc(50%-16px)] opacity-0 md:scale-95 pointer-events-none"
@@ -5552,9 +7251,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             >
             {settingsView === "about" ? (
               <AboutSettingsView
-                activeEngine={selectedAgent.name}
-                activeMode={activeAboutModeLabel}
-                backendUrl={BACKEND_URL}
                 onBack={() => setSettingsView("main")}
                 onClose={() => setIsSettingsModalOpen(false)}
               />
@@ -5568,10 +7264,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) : (
               <>
                 {/* Sticky Top Navigation Bar (Mobile only; hidden on Desktop Popover) */}
-                <div className="md:hidden relative z-30 shrink-0 pt-[calc(var(--safe-top,env(safe-area-inset-top,0px))+14px)] pb-3 px-5 bg-[#f9f9f8] dark:bg-[#0e0e10] border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between">
-                  <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
-                    Setelan
-                  </h1>
+                <div className="md:hidden relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] pb-3 px-5 bg-[#f9f9f8] dark:bg-[#0e0e10] border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
+                      Setelan
+                    </h1>
+                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400">
+                      Beta
+                    </span>
+                  </div>
                   <button
                     type="button"
                     onClick={() => setIsSettingsModalOpen(false)}
@@ -5583,7 +7284,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
 
                 {/* Scrollable Body Area */}
-                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] px-5 pt-5 pb-[calc(var(--safe-bottom,env(safe-area-inset-bottom,0px))+28px)] space-y-5 md:p-0 md:space-y-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] px-5 pt-5 pb-[calc(var(--safe-bottom)+28px)] space-y-5 md:p-0 md:space-y-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
                   {/* Grup 1: Akun */}
                   <div>
                     <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2 md:pb-1 md:mb-0">
@@ -5659,12 +7360,190 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             )}
                           </div>
                           {authUser && (
-                            <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                              Email terhubung: <span className="font-mono text-zinc-800 dark:text-zinc-200">{authUser.email}</span>
+                            <div className="pt-2 border-t border-zinc-200/70 dark:border-white/[0.06] space-y-2">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                                  Paket Langganan
+                                </span>
+                                {isProPlan ? (
+                                  <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
+                                    Axioma Pro · Aktif
+                                  </span>
+                                ) : (
+                                  <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-[10px] font-medium uppercase px-1.5 py-0.5 rounded">
+                                    FREE
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
+                                {isProPlan
+                                  ? "Akses penuh tanpa batas kredit harian untuk seluruh model."
+                                  : `Paket Gratis (Free) · ${remainingCreditsCount} kredit tersisa · Reset pukul 00.00 WIB`}
+                              </p>
+                              <button
+                                type="button"
+                                onClick={openSubscriptionModal}
+                                className={`w-full h-9 rounded-xl text-xs font-medium transition-colors cursor-pointer ${
+                                  isProPlan
+                                    ? "border border-zinc-300 dark:border-white/15 text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.06]"
+                                    : "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                                }`}
+                              >
+                                {isProPlan ? "Kelola Paket" : "Upgrade ke Pro"}
+                              </button>
                             </div>
                           )}
+                          {authUser && (
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400 break-words">
+                              Email terhubung: <span className="font-mono text-zinc-800 dark:text-zinc-200 break-all">{authUser.email}</span>
+                            </div>
+                          )}
+
+                          {/* Stage 6: Tentang Saya (Profil Singkat) */}
+                          <div className="pt-2 border-t border-zinc-200/70 dark:border-white/[0.06] space-y-1.5">
+                            <div className="flex items-center justify-between">
+                              <label
+                                htmlFor="settings-user-profile"
+                                className="block text-xs font-medium text-zinc-600 dark:text-zinc-300"
+                              >
+                                Tentang Saya (Profil Singkat)
+                              </label>
+                              <span className="text-[10px] text-zinc-400">
+                                {userProfile.length}/500
+                              </span>
+                            </div>
+                            <textarea
+                              id="settings-user-profile"
+                              rows={3}
+                              maxLength={500}
+                              value={userProfile}
+                              onChange={(e) => handleUpdateUserProfile(e.target.value)}
+                              placeholder="Contoh: Mahasiswa TI, suka penjelasan to-the-point pakai analogi sederhana..."
+                              className="w-full bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3 py-2 text-[16px] md:text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-none transition-colors"
+                            />
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                              Tersimpan lokal &amp; dapat dinonaktifkan kapan saja di Kontrol Konteks.
+                            </p>
+                          </div>
+
+                          {/* Stage 10A: Kunci Syarat Proyek (Requirement Lock) */}
+                          <div className="pt-2.5 border-t border-zinc-200/70 dark:border-white/[0.06] space-y-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="inline-flex items-center gap-1.5 text-xs font-medium text-zinc-700 dark:text-zinc-200">
+                                <Lock className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400" strokeWidth={1.5} />
+                                <span>Kunci Syarat Proyek ({requirementLockItems.length}/5)</span>
+                              </span>
+                              <button
+                                type="button"
+                                role="switch"
+                                aria-checked={isRequirementLockEnabled}
+                                aria-label="Aktifkan kunci syarat proyek"
+                                onClick={() =>
+                                  handleUpdateRequirementLockEnabled(!isRequirementLockEnabled)
+                                }
+                                className="cursor-pointer"
+                              >
+                                <span
+                                  aria-hidden="true"
+                                  className={`inline-flex items-center w-8 h-[18px] rounded-full p-0.5 transition-colors ${
+                                    isRequirementLockEnabled
+                                      ? "bg-zinc-950 dark:bg-white justify-end"
+                                      : "bg-zinc-300 dark:bg-zinc-700 justify-start"
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-3.5 h-3.5 rounded-full ${
+                                      isRequirementLockEnabled
+                                        ? "bg-white dark:bg-zinc-950"
+                                        : "bg-white dark:bg-zinc-300"
+                                    }`}
+                                  />
+                                </span>
+                              </button>
+                            </div>
+
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="text"
+                                maxLength={200}
+                                value={settingsReqDraft}
+                                disabled={requirementLockItems.length >= 5}
+                                onChange={(e) => setSettingsReqDraft(e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") {
+                                    e.preventDefault();
+                                    handleAddRequirementLockItem();
+                                  }
+                                }}
+                                placeholder={
+                                  requirementLockItems.length >= 5
+                                    ? "Maksimal 5 syarat terkunci"
+                                    : "Tambah syarat wajib proyek..."
+                                }
+                                className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3 py-1.5 text-[16px] md:text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none disabled:opacity-45"
+                              />
+                              <button
+                                type="button"
+                                disabled={!settingsReqDraft.trim() || requirementLockItems.length >= 5}
+                                onClick={handleAddRequirementLockItem}
+                                aria-label="Tambah syarat proyek"
+                                className="w-8 h-8 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 inline-flex items-center justify-center shrink-0 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                              >
+                                <Plus className="w-4 h-4" strokeWidth={1.75} />
+                              </button>
+                            </div>
+
+                            {requirementLockItems.length > 0 && (
+                              <ul className="space-y-1.5">
+                                {requirementLockItems.map((rule, idx) => (
+                                  <li
+                                    key={`${rule}-${idx}`}
+                                    className="flex items-start justify-between gap-2 rounded-xl border border-zinc-200/80 dark:border-white/[0.06] bg-white dark:bg-[#141416] px-2.5 py-1.5 text-xs text-zinc-800 dark:text-zinc-200"
+                                  >
+                                    <span className="leading-snug break-words min-w-0 flex-1">
+                                      {idx + 1}. {rule}
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() =>
+                                        handleUpdateRequirementLockItems(
+                                          requirementLockItems.filter((_, i) => i !== idx)
+                                        )
+                                      }
+                                      aria-label="Hapus syarat"
+                                      className="p-0.5 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100 cursor-pointer shrink-0"
+                                    >
+                                      <X className="w-3.5 h-3.5" strokeWidth={1.5} />
+                                    </button>
+                                  </li>
+                                ))}
+                              </ul>
+                            )}
+
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                              Syarat wajib ini otomatis dipatuhi di setiap jawaban saat aktif.
+                            </p>
+                          </div>
                         </div>
                       )}
+
+                      {/* Paket & Langganan (terpusat di antara Kelola Akun dan Batas penggunaan) */}
+                      <button
+                        type="button"
+                        onClick={openSubscriptionModal}
+                        className="w-full flex items-center justify-between gap-3 px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                      >
+                        <div className="flex items-center min-w-0">
+                          <CreditCard className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.5} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Paket &amp; Langganan</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
+                            {isProPlan ? "Axioma Pro" : "Free"}
+                          </span>
+                          <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0" strokeWidth={1.5} />
+                        </div>
+                      </button>
 
                       {/* Batas penggunaan */}
                       <button
@@ -5757,7 +7636,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
                           <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap max-w-[140px] md:max-w-[90px] truncate">
-                            {availableEngines.find((a) => a.id === defaultAgentId)?.name || "Axioma Auto"}
+                            {AVAILABLE_AGENTS.find((a) => a.id === defaultAgentId)?.name || "Axioma Pro"}
                           </span>
                           <ChevronRight
                             className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
@@ -5770,7 +7649,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       {/* Expandable Model Selector */}
                       {expandedSettingsSection === "agent" && (
                         <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-2 md:py-2 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2">
-                          {availableEngines.map((agent) => {
+                          {AVAILABLE_AGENTS.map((agent) => {
                             const isChecked = defaultAgentId === agent.id;
                             return (
                               <label
@@ -5978,11 +7857,49 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Tentang Axioma</span>
                         </div>
                         <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">{APP_BADGE_LABEL}</span>
+                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">v1.0 Beta</span>
                           <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 group-hover:text-zinc-700 dark:text-zinc-500 dark:group-hover:text-zinc-300 transition-colors shrink-0" />
                         </div>
                       </button>
                     </div>
+                  </div>
+
+                  {/* Stage 10B: Apa yang Baru (v1.0 Beta) */}
+                  <div className="rounded-2xl md:rounded-xl bg-white dark:bg-[#131316] md:bg-zinc-50/90 md:dark:bg-white/[0.03] border border-zinc-200/80 dark:border-white/[0.08] p-4 md:p-3 space-y-2 md:mx-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
+                        Apa yang Baru (v1.0 Beta)
+                      </span>
+                      <span className="text-[10px] font-medium px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400">
+                        Beta
+                      </span>
+                    </div>
+                    <ul className="space-y-1.5 text-[11.5px] leading-relaxed text-zinc-600 dark:text-zinc-300">
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1.5 w-1 h-1 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
+                        <span>
+                          <strong className="font-medium text-zinc-900 dark:text-zinc-100">Bedah PDF:</strong> Ringkas dokumen, istilah kunci, &amp; prediksi pertanyaan kritis.
+                        </span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1.5 w-1 h-1 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
+                        <span>
+                          <strong className="font-medium text-zinc-900 dark:text-zinc-100">Axioma Lens:</strong> Analisis 2 sisi pro, kontra, dan celah pakai <code className="font-mono text-[10.5px]">/lens</code>.
+                        </span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1.5 w-1 h-1 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
+                        <span>
+                          <strong className="font-medium text-zinc-900 dark:text-zinc-100">Roleplay + Rapor:</strong> Simulasi sidang, HRD, atau negosiasi dengan ekspor PDF.
+                        </span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="mt-1.5 w-1 h-1 rounded-full bg-zinc-400 dark:bg-zinc-500 shrink-0" />
+                        <span>
+                          <strong className="font-medium text-zinc-900 dark:text-zinc-100">Kontrol Konteks:</strong> Atur riwayat, profil, mode privat, dan kunci syarat proyek.
+                        </span>
+                      </li>
+                    </ul>
                   </div>
 
                   {/* Grup 4: Kartu Terpisah Hapus semua percakapan */}
@@ -6005,7 +7922,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                   {/* Clean Version Footer (Mobile only) */}
                   <div className="md:hidden pt-2 pb-1 text-center text-xs text-zinc-500 space-y-1">
-                    <div>Axioma {APP_FULL_VERSION}</div>
+                    <div>Axioma v1.0 Beta</div>
                     <div className="text-[11px] leading-relaxed">
                       Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
                     </div>
@@ -6018,7 +7935,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           document.body
         )}
 
-      {/* Shared Profile Sheet / Desktop Floating Popover (Mobile < md: Bottom Sheet | Desktop md+: Frosted Popover at trigger) */}
+      {/* Shared Profile Sheet / Desktop Floating Popover (immediately unmounted when Settings opens so dark backdrop never lingers) */}
       {shouldRenderProfile && !isSettingsModalOpen && (
         <div
           role="dialog"
@@ -6043,7 +7960,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 ? { transform: `translate3d(0, ${profileSwipeDeltaY}px, 0)`, transition: "none" }
                 : profilePopoverStyle
             }
-            className={`ios-glass relative z-10 w-full h-auto max-h-[90%] rounded-t-[28px] border-x-0 border-b-0 px-5 pt-3 pb-[calc(var(--safe-bottom,env(safe-area-inset-bottom,0px))+16px)] flex flex-col overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] md:fixed md:z-50 md:w-[310px] md:max-h-[82vh] md:rounded-2xl md:border md:p-3 ${
+            className={`ios-glass relative z-10 w-full h-auto max-h-[90%] rounded-t-[28px] border-x-0 border-b-0 px-5 pt-3 pb-[calc(var(--safe-bottom)+16px)] flex flex-col overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] md:fixed md:z-50 md:w-[310px] md:max-h-[82vh] md:rounded-2xl md:border md:p-3 ${
               profileAnchor === "sidebar"
                 ? "md:inset-auto md:bottom-16 md:left-4 md:origin-bottom-left"
                 : "md:inset-auto md:top-16 md:right-4 md:origin-top-right"
@@ -6265,7 +8182,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar (Mobile Drawer < 768px | Desktop Full 260px / Mini Rail 64px >= 768px) */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed top-0 left-0 h-[var(--app-height,100dvh)] md:static md:h-full z-40 w-[82vw] max-w-[320px] md:max-w-none pt-0 pb-0 bg-[#f3f3f1] dark:bg-[#0a0a0c] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-white/[0.08] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+        className={`fixed top-0 left-0 h-[var(--app-height)] md:static md:h-full z-40 w-[82vw] max-w-[320px] md:max-w-none pt-0 pb-0 bg-[#f3f3f1] dark:bg-[#0a0a0c] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-white/[0.08] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
           isDesktopSidebarCollapsed
             ? "md:w-[64px] md:opacity-100 md:visible md:translate-x-0"
             : "md:w-[260px] md:opacity-100 md:visible md:translate-x-0"
@@ -6273,11 +8190,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       >
         {/* Brand Header */}
         <div
-          className={`relative z-30 shrink-0 pt-[calc(var(--safe-top,env(safe-area-inset-top,0px))+14px)] pb-3 px-4 md:pt-0 md:pb-0 md:h-14 bg-[#f3f3f1] dark:bg-[#0a0a0c] flex items-center ${
+          className={`relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] pb-3 px-4 md:pt-0 md:pb-0 md:h-14 bg-[#f3f3f1] dark:bg-[#0a0a0c] flex items-center ${
             isDesktopSidebarCollapsed ? "justify-between md:justify-center md:px-0" : "justify-between"
           }`}
         >
-          <div className="flex items-center gap-2.5">
+          <div className="flex items-center gap-2">
             <AxiomaLogoMark className="w-6 h-6 object-contain shrink-0" />
             <span
               className={`font-heading text-[14px] font-bold tracking-[0.06em] uppercase text-zinc-900 dark:text-zinc-100 ${
@@ -6285,6 +8202,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               }`}
             >
               Axioma
+            </span>
+            <span
+              className={`text-[10px] font-medium px-1.5 py-0.5 rounded-md border border-zinc-200 dark:border-white/10 text-zinc-500 dark:text-zinc-400 leading-none select-none ${
+                isDesktopSidebarCollapsed ? "md:hidden" : ""
+              }`}
+            >
+              Beta
             </span>
           </div>
           <button
@@ -6379,8 +8303,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={isTouchOrMobile ? "Cari percakapan..." : "Cari percakapan..."}
                 aria-label="Cari percakapan"
-                disabled={!isMobileSidebarOpen && (isTouchOrMobile || (typeof window !== "undefined" && window.innerWidth < 768))}
-                tabIndex={isMobileSidebarOpen || (!isTouchOrMobile && (typeof window === "undefined" || window.innerWidth >= 768)) ? 0 : -1}
+                disabled={!isMobileSidebarOpen && isTouchOrMobile}
+                tabIndex={isMobileSidebarOpen || !isTouchOrMobile ? 0 : -1}
                 className="w-full pl-8 pr-14 md:pr-14 py-2 min-h-[40px] md:min-h-0 md:py-1.5 rounded-xl bg-white dark:bg-[#161618] border border-zinc-200/80 dark:border-white/[0.08] text-[16px] md:text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors"
               />
               {!searchQuery && (
@@ -6401,6 +8325,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             </div>
           </div>
         )}
+
+        {/* Compact Collapsible Workspace / Project Spaces Section */}
+        <WorkspaceSidebarSection
+          workspaces={workspaces}
+          activeWorkspaceId={activeWorkspaceId}
+          collapsed={isDesktopSidebarCollapsed}
+          onSelectWorkspace={handleSelectWorkspace}
+          onCreateWorkspace={handleCreateWorkspace}
+          onDeleteWorkspace={handleDeleteWorkspace}
+        />
 
         {/* Grouped Chat History (Only visible when user is logged in) */}
         {authUser ? (
@@ -6469,7 +8403,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }}
                             onBlur={() => void submitRenameChat(chat.id)}
                             aria-label="Ubah judul percakapan"
-                            className="flex-1 min-w-0 bg-bg-elevated border border-border-strong rounded px-2 py-0.5 text-[16px] md:text-xs text-text-primary focus:outline-none focus:border-border-strong"
+                            className="flex-1 min-w-0 bg-bg-elevated border border-border-strong rounded px-2 py-0.5 text-[16px] sm:text-[15px] lg:text-xs text-text-primary focus:outline-none focus:border-border-strong"
                           />
                         </div>
                       ) : (
@@ -6593,7 +8527,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         {/* User Profile & Settings Menu (Item 4 & Item 7) */}
         <div
-          className={`shrink-0 pt-3 pb-[calc(var(--safe-bottom,env(safe-area-inset-bottom,0px))+12px)] px-4 md:px-2 md:pt-3 md:pb-4 border-t border-zinc-200/80 dark:border-white/[0.07] relative flex items-center gap-1 ${
+          className={`shrink-0 pt-3 pb-[calc(var(--safe-bottom)+12px)] px-4 md:px-2 md:pt-3 md:pb-4 border-t border-zinc-200/80 dark:border-white/[0.07] relative flex items-center gap-1 ${
             isDesktopSidebarCollapsed
               ? "justify-between md:flex-col md:justify-center md:px-1.5 md:gap-1.5"
               : "justify-between"
@@ -6604,7 +8538,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             type="button"
             aria-haspopup="menu"
             aria-expanded={
-              typeof window !== "undefined" && window.innerWidth >= 768
+              !isTouchOrMobile
                 ? isProfileDropdownOpen && profileAnchor === "sidebar"
                 : isSettingsMenuOpen
             }
@@ -6639,17 +8573,31 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </div>
               ) : (
                 <div className="w-full h-full rounded-xl bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10 flex items-center justify-center transition-colors">
-                  <User className="w-4 h-4 text-current" strokeWidth={1.75} />
+                  <User className="w-4 h-4 text-current" strokeWidth={1.5} />
                 </div>
               )}
             </div>
-            <div className={`min-w-0 ${isDesktopSidebarCollapsed ? "md:hidden" : ""}`}>
-              <div className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">
-                {authUser ? userName : "Mode Tamu"}
+            <div className={`min-w-0 flex-1 ${isDesktopSidebarCollapsed ? "md:hidden" : ""}`}>
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+                  {authUser ? userName : "Mode Tamu"}
+                </span>
+                {authUser &&
+                  (isProPlan ? (
+                    <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded shrink-0">
+                      PRO
+                    </span>
+                  ) : (
+                    <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-[10px] font-medium uppercase px-1.5 py-0.5 rounded shrink-0">
+                      FREE
+                    </span>
+                  ))}
               </div>
               <div className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 truncate tabular-nums">
                 {authUser
-                  ? (authUser?.email || "Akun terhubung")
+                  ? isProPlan
+                    ? "Axioma Pro"
+                    : `${remainingCreditsCount} kredit tersisa`
                   : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} pesan tamu tersisa`}
               </div>
             </div>
@@ -6671,7 +8619,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             title="Pengaturan"
             className="w-11 h-11 min-w-[44px] min-h-[44px] md:w-9 md:h-9 md:min-w-0 md:min-h-0 p-2 rounded-xl text-icon-muted hover:text-text-primary hover:bg-zinc-200/60 dark:hover:bg-white/[0.05] transition-colors flex items-center justify-center cursor-pointer shrink-0"
           >
-            <Settings className="w-4 h-4" />
+            <Settings className="w-4 h-4" strokeWidth={1.5} />
           </button>
 
           {isSettingsMenuOpen && (
@@ -6684,7 +8632,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   closeSettingsMenu(true)
                 )
               }
-              className="absolute bottom-full left-2 right-2 mb-2 z-50 rounded-xl bg-bg-elevated border border-border-subtle p-1.5 shadow-2xl space-y-0.5"
+              className="absolute bottom-full left-2 right-2 mb-2 z-50 max-h-[80dvh] overflow-y-auto overscroll-contain rounded-xl bg-bg-elevated border border-border-subtle p-1.5 shadow-2xl space-y-0.5"
             >
               {!authUser ? (
                 <button
@@ -6786,7 +8734,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Main Workspace Column */}
       <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-[#f9f9f8] dark:bg-[#0e0e10]">
         {/* Header (100% solid opaque, bebas backdrop-blur) */}
-        <header className="relative shrink-0 w-full flex items-center justify-between pt-[calc(var(--safe-top,env(safe-area-inset-top,0px))+14px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-30 bg-[#f9f9f8] dark:bg-[#0e0e10]">
+        <header className="relative shrink-0 w-full flex items-center justify-between pt-[calc(var(--safe-top)+14px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-30 bg-[#f9f9f8] dark:bg-[#0e0e10]">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -7016,10 +8964,40 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     )}
                   </button>
 
+                  {/* Quiet Active Workspace Label (only when a Project Space is active) */}
+                  {activeWorkspace && (
+                    <span
+                      title={activeWorkspace.instructions || activeWorkspace.name}
+                      className="inline-flex items-center gap-1.5 max-w-[150px] sm:max-w-[220px] px-2.5 py-1 rounded-full border border-black/[0.08] dark:border-white/[0.08] text-[11px] font-medium tracking-tight text-zinc-600 dark:text-zinc-300 truncate select-none"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-900/70 dark:bg-white/70 shrink-0" />
+                      <span className="truncate">{activeWorkspace.name}</span>
+                    </span>
+                  )}
+
                 </div>
 
-                {/* Sisi Kanan: Tombol Profil / Akun (monokrom kalem seragam) */}
-                <div className="flex items-center shrink-0">
+                {/* Sisi Kanan: Tombol Checkpoint Minimalis (saat >= 2 pesan) + Tombol Profil Mobile */}
+                <div className="flex items-center gap-2 shrink-0">
+                  {currentMessages.length >= 2 && (
+                    <button
+                      type="button"
+                      onClick={() => setIsCheckpointModalOpen(true)}
+                      aria-label="Buka panel konteks dan checkpoint percakapan"
+                      title="Konteks & Checkpoint"
+                      className="h-9 px-2.5 rounded-full inline-flex items-center gap-1.5 bg-transparent hover:bg-black/[0.05] text-zinc-600 hover:text-zinc-900 border border-black/[0.08] dark:hover:bg-white/[0.06] dark:text-zinc-400 dark:hover:text-zinc-100 dark:border-white/[0.08] text-[11.5px] font-medium tracking-tight transition-colors cursor-pointer active:scale-[0.97] whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                    >
+                      <Bookmark className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                      <span className="hidden min-[380px]:inline">Checkpoint</span>
+                      {hasActiveChatContext(chatContextState) && (
+                        <span
+                          aria-hidden="true"
+                          className="w-1.5 h-1.5 rounded-full bg-zinc-900/70 dark:bg-white/70 shrink-0"
+                        />
+                      )}
+                    </button>
+                  )}
+
                   <button
                     ref={headerProfileTriggerRef}
                     type="button"
@@ -7106,7 +9084,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div
               role="status"
               aria-live="polite"
-              className="ios-glass absolute bottom-[calc(7.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:bottom-28 [[data-kb='open']_&]:bottom-24 left-1/2 -translate-x-1/2 z-50 rounded-full px-4 py-2 text-xs font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 animate-axioma-scale-in pointer-events-none select-none whitespace-nowrap max-w-[calc(100vw-2rem)] truncate"
+              className="ios-glass fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 rounded-full px-4 py-2 text-xs font-medium text-zinc-900 dark:text-zinc-100 flex items-center gap-1.5 animate-axioma-scale-in pointer-events-none select-none whitespace-nowrap max-w-[calc(100vw-2rem)] truncate"
             >
               <span>{toastNotice}</span>
             </div>
@@ -7117,7 +9095,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div
               role="status"
               aria-live="polite"
-              className="ios-glass absolute bottom-[calc(7.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:bottom-28 [[data-kb='open']_&]:bottom-24 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-zinc-900 dark:text-zinc-100 flex items-center gap-2 text-xs font-medium animate-axioma-scale-in pointer-events-none select-none"
+              className="ios-glass fixed bottom-24 sm:bottom-28 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-zinc-900 dark:text-zinc-100 flex items-center gap-2 text-xs font-medium animate-axioma-scale-in pointer-events-none select-none"
             >
               <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
               <span>Teks disalin!</span>
@@ -7227,6 +9205,180 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       )}
                     </div>
 
+                    {/* Stage 6: Tentang Saya (Profil Singkat) */}
+                    <div className="py-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <label
+                          htmlFor="desktop-settings-user-profile"
+                          className="block text-[15px] font-medium text-zinc-900 dark:text-zinc-100"
+                        >
+                          Tentang Saya (Profil Singkat)
+                        </label>
+                        <span className="text-xs text-zinc-400">
+                          {userProfile.length}/500
+                        </span>
+                      </div>
+                      <textarea
+                        id="desktop-settings-user-profile"
+                        rows={3}
+                        maxLength={500}
+                        value={userProfile}
+                        onChange={(e) => handleUpdateUserProfile(e.target.value)}
+                        placeholder="Contoh: Mahasiswa TI, suka penjelasan to-the-point pakai analogi sederhana..."
+                        className="w-full bg-white dark:bg-[#161618] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 rounded-xl px-3.5 py-2.5 text-[14px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-none transition-colors"
+                      />
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Membantu Axioma menyesuaikan gaya &amp; konteks jawaban. Tersimpan lokal dan bisa diatur lewat Kontrol Konteks.
+                      </p>
+                    </div>
+
+                    {/* Stage 10A: Kunci Syarat Proyek (Requirement Lock) */}
+                    <div className="py-4 space-y-2.5">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" strokeWidth={1.5} />
+                          <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                            Kunci Syarat Proyek ({requirementLockItems.length}/5)
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          role="switch"
+                          aria-checked={isRequirementLockEnabled}
+                          aria-label="Aktifkan kunci syarat proyek"
+                          onClick={() =>
+                            handleUpdateRequirementLockEnabled(!isRequirementLockEnabled)
+                          }
+                          className="cursor-pointer"
+                        >
+                          <span
+                            aria-hidden="true"
+                            className={`inline-flex items-center w-9 h-5 rounded-full p-0.5 transition-colors ${
+                              isRequirementLockEnabled
+                                ? "bg-zinc-950 dark:bg-white justify-end"
+                                : "bg-zinc-300 dark:bg-zinc-700 justify-start"
+                            }`}
+                          >
+                            <span
+                              className={`w-4 h-4 rounded-full ${
+                                isRequirementLockEnabled
+                                  ? "bg-white dark:bg-zinc-950"
+                                  : "bg-white dark:bg-zinc-300"
+                              }`}
+                            />
+                          </span>
+                        </button>
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="text"
+                          maxLength={200}
+                          value={settingsReqDraft}
+                          disabled={requirementLockItems.length >= 5}
+                          onChange={(e) => setSettingsReqDraft(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              handleAddRequirementLockItem();
+                            }
+                          }}
+                          placeholder={
+                            requirementLockItems.length >= 5
+                              ? "Maksimal 5 syarat terkunci"
+                              : "Contoh: Gunakan Bahasa Indonesia formal & sertakan contoh konkret..."
+                          }
+                          className="flex-1 min-w-0 bg-white dark:bg-[#161618] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 rounded-xl px-3.5 py-2 text-[14px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors disabled:opacity-45"
+                        />
+                        <button
+                          type="button"
+                          disabled={!settingsReqDraft.trim() || requirementLockItems.length >= 5}
+                          onClick={handleAddRequirementLockItem}
+                          aria-label="Tambah syarat proyek"
+                          className="shrink-0 inline-flex items-center gap-1 rounded-xl px-3.5 py-2 text-[13.5px] font-medium bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                        >
+                          <Plus className="w-4 h-4" strokeWidth={1.75} />
+                          <span>Tambah</span>
+                        </button>
+                      </div>
+
+                      {requirementLockItems.length > 0 && (
+                        <ul className="space-y-1.5">
+                          {requirementLockItems.map((rule, idx) => (
+                            <li
+                              key={`${rule}-${idx}`}
+                              className="flex items-start justify-between gap-2 rounded-xl border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-3 py-2 text-[13px] text-zinc-800 dark:text-zinc-200"
+                            >
+                              <span className="leading-snug break-words min-w-0 flex-1">
+                                {idx + 1}. {rule}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleUpdateRequirementLockItems(
+                                    requirementLockItems.filter((_, i) => i !== idx)
+                                  )
+                                }
+                                aria-label="Hapus syarat"
+                                className="p-0.5 text-zinc-400 hover:text-zinc-900 dark:text-zinc-500 dark:hover:text-zinc-100 cursor-pointer shrink-0"
+                              >
+                                <X className="w-4 h-4" strokeWidth={1.5} />
+                              </button>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                        Batasan &amp; aturan wajib proyek yang selalu dipatuhi Axioma di setiap percakapan saat aktif.
+                      </p>
+                    </div>
+
+                    {/* Paket Langganan (tepat di atas Status Akun) */}
+                    <div className="py-4 flex items-center justify-between gap-4">
+                      <div className="min-w-0 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
+                            Paket Langganan
+                          </span>
+                          {isProPlan && (
+                            <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10.5px] font-semibold tracking-wide px-2 py-0.5 rounded-full">
+                              Axioma Pro · Aktif
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[13.5px] leading-relaxed text-zinc-500 dark:text-zinc-400 tabular-nums">
+                          {isProPlan ? (
+                            <>
+                              Akses penuh tanpa batas kredit harian untuk seluruh model &amp; fitur kreatif.
+                              {quotaInfo?.expiresAt
+                                ? ` Berlaku hingga ${new Intl.DateTimeFormat("id-ID", {
+                                    day: "2-digit",
+                                    month: "short",
+                                    year: "numeric",
+                                  }).format(new Date(quotaInfo.expiresAt))}.`
+                                : ""}
+                            </>
+                          ) : (
+                            <>
+                              Paket Gratis (Free) · {remainingCreditsCount} kredit tersisa · Reset pukul 00.00 WIB
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={openSubscriptionModal}
+                        className={`shrink-0 px-4 py-2 rounded-xl text-[13px] font-medium transition-colors cursor-pointer active:scale-[0.98] ${
+                          isProPlan
+                            ? "border border-zinc-300 dark:border-white/15 bg-transparent hover:bg-zinc-100 dark:hover:bg-white/[0.06] text-zinc-800 dark:text-zinc-200"
+                            : "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+                        }`}
+                      >
+                        {isProPlan ? "Kelola Paket" : "Upgrade ke Pro"}
+                      </button>
+                    </div>
+
                     <div className="py-4 flex items-center justify-between gap-4">
                       <div>
                         <div className="text-[15px] font-medium text-zinc-900 dark:text-zinc-100">
@@ -7309,7 +9461,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {desktopSettingsPage === "agent" && (
                   <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
-                    {availableEngines.map((agent) => {
+                    {AVAILABLE_AGENTS.map((agent) => {
                       const isChecked = defaultAgentId === agent.id;
                       return (
                         <label
@@ -7447,9 +9599,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {desktopSettingsPage === "about" && (
                   <AboutSettingsView
                     inline
-                    activeEngine={selectedAgent.name}
-                    activeMode={activeAboutModeLabel}
-                    backendUrl={BACKEND_URL}
                     onBack={() => setDesktopSettingsPage(null)}
                     onClose={() => setDesktopSettingsPage(null)}
                   />
@@ -7471,15 +9620,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     }`}
                   >
                     <div className="w-full max-w-[340px] mx-auto flex flex-col items-center">
-                      {/* Clean Brand Logo (tanpa kotak squircle ungu) */}
-                      <div className="mb-3.5 flex items-center justify-center animate-axioma-fade-up">
+                      {/* Clean Brand Logo */}
+                      <div className="mb-3.5 flex items-center justify-center animate-axioma-fade-up select-none">
                         <AxiomaLogoMark className="w-10 h-10" />
                       </div>
 
                       {/* Sapaan Personal Kontekstual Minimalis */}
                       <h1
                         style={{ animationDelay: "60ms" }}
-                        className="font-heading text-[22px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 text-center text-balance animate-axioma-fade-up"
+                        className="font-heading text-[22px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 text-center text-balance animate-axioma-fade-up select-none"
                       >
                         {contextualGreeting}
                       </h1>
@@ -7494,7 +9643,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             onScroll={handleChatScroll}
             className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages || isLoadingExistingChat
-                ? "opacity-100 pt-6 pb-[calc(10.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] [[data-kb='open']_&]:pb-32 sm:pb-44 px-4 sm:px-6 flex"
+                ? "opacity-100 pt-6 pb-[calc(10.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:pb-44 px-4 sm:px-6 flex"
                 : "hidden"
             } max-w-[720px] mx-auto w-full flex-col gap-6`}
           >
@@ -7673,8 +9822,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             )}
                           </button>
                           {copiedId === `user-${message.id}` && (
-                            <span className="absolute right-full mr-1.5 px-2 py-0.5 rounded-md bg-zinc-900 text-white text-[11px] font-medium whitespace-nowrap shadow-md border border-zinc-800 animate-in fade-in zoom-in-95 duration-150 z-30 flex items-center gap-1 pointer-events-none">
-                              <Check className="w-3 h-3 text-emerald-400" strokeWidth={1.75} />
+                            <span className="absolute right-full mr-1.5 px-2 py-0.5 rounded-md bg-zinc-900 text-white border border-zinc-800 dark:bg-white dark:text-zinc-950 dark:border-zinc-200 text-[11px] font-medium whitespace-nowrap shadow-md animate-in fade-in zoom-in-95 duration-150 z-30 flex items-center gap-1 pointer-events-none">
+                              <Check className="w-3 h-3 text-white dark:text-zinc-950" strokeWidth={1.75} />
                               <span>Disalin</span>
                             </span>
                           )}
@@ -7695,33 +9844,47 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               }
 
               if (message.isError) {
+                const lastUserMsgBeforeError = [...currentMessages]
+                  .reverse()
+                  .find((m) => m.sender === "user" && m.content.trim());
                 return (
                   <div
                     key={message.id}
                     className="flex justify-start animate-error-shake w-full"
                   >
-                    <div className="w-full rounded-2xl bg-red-50 border border-red-200 text-red-900 dark:bg-red-950/40 dark:border-red-900/60 dark:text-red-200 px-4 py-3.5 space-y-2.5 shadow-xs">
-                      <div className="flex items-start gap-2.5 text-sm font-medium">
-                        <CircleAlert className="w-4 h-4 text-red-600 dark:text-red-400 shrink-0 mt-0.5" />
-                        <div className="space-y-1">
-                          <div className="font-semibold text-red-900 dark:text-red-200">{message.content}</div>
+                    <div className="w-full max-w-xl rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-[#0e0e10] px-4 py-3.5 space-y-2.5 shadow-sm">
+                      <div className="flex items-start gap-2.5 text-sm">
+                        <CircleAlert
+                          className="w-4 h-4 text-zinc-700 dark:text-zinc-300 shrink-0 mt-0.5"
+                          strokeWidth={1.5}
+                        />
+                        <div className="space-y-1 min-w-0">
+                          <div className="font-medium text-zinc-900 dark:text-zinc-100">
+                            {message.content}
+                          </div>
                           {message.errorDetail && (
-                            <div className="text-xs text-red-700 dark:text-red-300 font-normal leading-relaxed">
+                            <div className="text-xs text-zinc-500 dark:text-zinc-400 font-normal leading-relaxed">
                               {message.errorDetail}
                             </div>
                           )}
                         </div>
                       </div>
-                      {message.retryPayload && (
-                        <div className="pt-1">
+                      {(message.retryPayload || lastUserMsgBeforeError) && (
+                        <div className="pt-0.5">
                           <button
                             type="button"
                             disabled={isLoading || isGenerating}
-                            onClick={() => handleRetry(message.id, message.retryPayload!)}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium bg-red-600 hover:bg-red-700 text-white dark:bg-red-900/60 dark:hover:bg-red-900/80 dark:text-red-100 border border-red-600 dark:border-red-700/50 transition-colors active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer shadow-xs"
+                            onClick={() => {
+                              if (message.retryPayload) {
+                                handleRetry(message.id, message.retryPayload);
+                              } else if (lastUserMsgBeforeError) {
+                                void handleSendMessage(lastUserMsgBeforeError.content);
+                              }
+                            }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
                           >
-                            <RotateCw className="w-3.5 h-3.5" />
-                            <span>Coba lagi</span>
+                            <RotateCw className="w-3.5 h-3.5" strokeWidth={1.5} />
+                            <span>Coba Lagi</span>
                           </button>
                         </div>
                       )}
@@ -7748,42 +9911,100 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       </span>
                     </div>
 
-                    <div
-                      className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 font-normal text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-[1.7] tracking-[-0.005em] break-words transition-opacity duration-200 ${
-                        isStreamingThisMessage ? "streaming-prose" : ""
-                      }`}
-                    >
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm, remarkMath]}
-                        rehypePlugins={[rehypeKatex]}
-                        components={{
-                          p({ node, children, ...props }) {
-                            const hasBlockChild = (n: any): boolean => {
-                              if (!n || !Array.isArray(n.children)) return false;
-                              return n.children.some((child: any) => {
-                                if (child?.type === "element") {
-                                  const tag = String(child.tagName || "").toLowerCase();
-                                  if (
-                                    tag === "img" ||
-                                    tag === "div" ||
-                                    tag === "video" ||
-                                    tag === "figure" ||
-                                    tag === "pre" ||
-                                    tag === "table"
-                                  ) {
-                                    return true;
-                                  }
-                                  return hasBlockChild(child);
-                                }
-                                return false;
-                              });
-                            };
-                            if (hasBlockChild(node)) {
-                              return <div className="my-2">{children}</div>;
+                    {(() => {
+                      const checklistMatches = message.content.match(
+                        /^\s*[-*+]\s+\[([ xX])\]/gm
+                      );
+                      const checklistDefaults = checklistMatches
+                        ? checklistMatches.map((m) => /\[[xX]\]/.test(m))
+                        : [];
+                      let checkboxRenderIdx = 0;
+                      const savedMap = checklistState[message.id] || {};
+                      const completedCount = checklistDefaults.reduce(
+                        (acc, defChecked, idx) =>
+                          acc + ((savedMap[idx] ?? defChecked) ? 1 : 0),
+                        0
+                      );
+
+                      if (message.lensData) {
+                        return (
+                          <div
+                            data-ai-message-id={message.id}
+                            onMouseUp={() =>
+                              handleAiMessageTextSelect(message.id, message.content)
                             }
-                            return <p {...props}>{children}</p>;
-                          },
-                          pre({ children }) {
+                          >
+                            <AxiomaLensCard data={message.lensData} />
+                          </div>
+                        );
+                      }
+
+                      return (
+                        <div className="space-y-2">
+                          <div
+                            data-ai-message-id={message.id}
+                            onMouseUp={() =>
+                              handleAiMessageTextSelect(message.id, message.content)
+                            }
+                            className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 font-normal text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-[1.7] tracking-[-0.005em] break-words transition-opacity duration-200 ${
+                              isStreamingThisMessage ? "streaming-prose" : ""
+                            }`}
+                          >
+                            <ReactMarkdown
+                              remarkPlugins={[remarkGfm, remarkMath]}
+                              rehypePlugins={[rehypeKatex]}
+                              components={{
+                                p({ node, children, ...props }) {
+                                  const hasBlockChild = (n: any): boolean => {
+                                    if (!n || !Array.isArray(n.children)) return false;
+                                    return n.children.some((child: any) => {
+                                      if (child?.type === "element") {
+                                        const tag = String(child.tagName || "").toLowerCase();
+                                        if (
+                                          tag === "img" ||
+                                          tag === "div" ||
+                                          tag === "video" ||
+                                          tag === "figure" ||
+                                          tag === "pre" ||
+                                          tag === "table"
+                                        ) {
+                                          return true;
+                                        }
+                                        return hasBlockChild(child);
+                                      }
+                                      return false;
+                                    });
+                                  };
+                                  if (hasBlockChild(node)) {
+                                    return <div className="my-2">{children}</div>;
+                                  }
+                                  return <p {...props}>{children}</p>;
+                                },
+                                input({ type, checked, ...props }) {
+                                  if (type === "checkbox") {
+                                    const currentIdx = checkboxRenderIdx++;
+                                    const isChecked =
+                                      savedMap[currentIdx] ?? Boolean(checked);
+                                    return (
+                                      <input
+                                        type="checkbox"
+                                        checked={isChecked}
+                                        disabled={false}
+                                        onChange={() =>
+                                          handleToggleChecklistItem(
+                                            message.id,
+                                            currentIdx,
+                                            isChecked
+                                          )
+                                        }
+                                        aria-label={`Tandai langkah ${currentIdx + 1}`}
+                                        className="mr-2 align-middle h-3.5 w-3.5 rounded border border-zinc-400 dark:border-zinc-600 accent-zinc-900 dark:accent-zinc-100 cursor-pointer"
+                                      />
+                                    );
+                                  }
+                                  return <input type={type} checked={checked} {...props} />;
+                                },
+                                pre({ children }) {
                             return (
                               <PreBlockContext.Provider value={true}>
                                 {children}
@@ -7820,6 +10041,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                       isStreaming={isStreamingThisMessage}
                                       onCopy={() => handleCopy(rawCode, copyKey, 1800)}
                                       isCopied={copiedId === copyKey}
+                                      onRunPreview={(htmlCode) => setLivePreviewCode(htmlCode)}
                                     />
                                   );
                                 }}
@@ -7868,7 +10090,44 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       >
                         {sanitizeAxiomaMessageContent(message.content)}
                       </ReactMarkdown>
+
+                      {/* Render structured media payload directly when returned separately from markdown */}
+                      {message.imageUrl && !message.content.includes(message.imageUrl) && (
+                        <AiImageCard
+                          src={message.imageUrl}
+                          alt={message.mediaTitle || "Visual Axioma"}
+                          onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
+                        />
+                      )}
+                      {message.videoUrl && !message.content.includes(message.videoUrl) && (
+                        <AiVideoCard
+                          src={message.videoUrl}
+                          title={message.mediaTitle || "Adegan Video"}
+                        />
+                      )}
                     </div>
+
+                          {/* Stage 7: Compact Interactive Checklist Progress Indicator */}
+                          {checklistDefaults.length > 0 && !isStreamingThisMessage && (
+                            <div className="flex items-center gap-2.5 max-w-xs pt-0.5 select-none">
+                              <div className="flex-1 h-1 rounded-full bg-black/[0.08] dark:bg-white/[0.08] overflow-hidden">
+                                <div
+                                  className="h-full bg-zinc-900 dark:bg-zinc-100 transition-all duration-200"
+                                  style={{
+                                    width: `${Math.round(
+                                      (completedCount / checklistDefaults.length) * 100
+                                    )}%`,
+                                  }}
+                                />
+                              </div>
+                              <span className="text-[11px] font-medium text-text-muted tabular-nums shrink-0">
+                                {completedCount}/{checklistDefaults.length} selesai
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
 
                     {/* Message Action Icons: fade-in after streaming finishes */}
                     <div
@@ -7880,86 +10139,233 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       }`}
                     >
                       <div className="flex items-center gap-1.5 -ml-1.5 text-zinc-500 dark:text-zinc-400 transition-opacity duration-200">
-                        {/* Copy button */}
+                        {/* 1. Primary Action: Salin (Copy) */}
                         <div className="relative flex items-center">
                           <button
                             type="button"
                             onClick={() => handleCopy(sanitizeAxiomaMessageContent(message.content), message.id, 1500)}
                             title={copiedId === message.id ? "Disalin" : "Salin jawaban"}
-                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                            className="min-h-[40px] lg:min-h-0 px-2 py-1.5 rounded-lg text-xs font-medium tracking-tight text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 cursor-pointer inline-flex items-center gap-1 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
                             aria-label="Salin teks"
                           >
                             {copiedId === message.id ? (
-                              <Check className="w-4 h-4 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
+                              <>
+                                <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" strokeWidth={1.75} />
+                                <span className="text-zinc-900 dark:text-zinc-100">Tersalin</span>
+                              </>
                             ) : (
-                              <Copy className="w-4 h-4" strokeWidth={1.75} />
+                              <>
+                                <Copy className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                                <span>Salin</span>
+                              </>
                             )}
                           </button>
-                          {copiedId === message.id && (
-                            <span className="absolute left-full ml-1.5 px-2 py-0.5 rounded-md bg-zinc-900 text-white text-[11px] font-medium whitespace-nowrap shadow-md border border-zinc-800 animate-in fade-in zoom-in-95 duration-150 z-30 flex items-center gap-1 pointer-events-none">
-                              <Check className="w-3 h-3 text-emerald-400" strokeWidth={1.75} />
-                              <span>Disalin</span>
-                            </span>
+                        </div>
+
+                        {/* 2. Primary Action: Salin WA */}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            handleCopy(
+                              formatForWhatsApp(sanitizeAxiomaMessageContent(message.content)),
+                              `wa-${message.id}`,
+                              1500
+                            )
+                          }
+                          title={copiedId === `wa-${message.id}` ? "Tersalin untuk WhatsApp" : "Salin format siap WhatsApp"}
+                          aria-label="Salin untuk WhatsApp"
+                          className="min-h-[40px] lg:min-h-0 px-2 py-1.5 rounded-lg text-xs font-medium tracking-tight text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 cursor-pointer inline-flex items-center gap-1 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                        >
+                          {copiedId === `wa-${message.id}` ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" strokeWidth={1.75} />
+                              <span className="text-zinc-900 dark:text-zinc-100">Tersalin</span>
+                            </>
+                          ) : (
+                            <span>Salin WA</span>
+                          )}
+                        </button>
+
+                        {/* 3. Secondary Actions Overflow Menu (···) */}
+                        <div className="relative" data-ai-action-menu="true">
+                          <button
+                            type="button"
+                            aria-haspopup="menu"
+                            aria-expanded={openAiActionMenuId === message.id}
+                            aria-label="Aksi lainnya"
+                            title="Aksi lainnya"
+                            onClick={() =>
+                              setOpenAiActionMenuId((prev) =>
+                                prev === message.id ? null : message.id
+                              )
+                            }
+                            className={`min-w-[36px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg active:scale-[0.96] transition-all duration-200 cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
+                              openAiActionMenuId === message.id
+                                ? "bg-zinc-200/80 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
+                                : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
+                            }`}
+                          >
+                            <MoreHorizontal className="w-4 h-4" strokeWidth={1.75} />
+                          </button>
+
+                          {openAiActionMenuId === message.id && (
+                            <div
+                              role="menu"
+                              aria-label="Aksi tambahan balasan"
+                              className="ios-glass absolute right-0 sm:left-0 sm:right-auto bottom-full mb-1.5 z-40 min-w-[184px] rounded-xl p-1 bg-white/95 dark:bg-[#0e0e10]/95 border border-zinc-200 dark:border-white/[0.08] shadow-xl animate-axioma-scale-in"
+                            >
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={isLoading || isGenerating}
+                                onClick={() => {
+                                  setOpenAiActionMenuId(null);
+                                  handleBranchFromMessage(message.id);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <GitBranch className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                                <span>Cabang</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={isLoading || isGenerating}
+                                onClick={() => {
+                                  setOpenAiActionMenuId(null);
+                                  void handleSendMessage(
+                                    "Lanjutkan penjelasan sebelumnya secara langsung dan runtut dari poin terakhir tanpa mengulang."
+                                  );
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <CornerDownRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                                <span>Lanjutkan</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                role="menuitem"
+                                disabled={isLoading || isGenerating}
+                                onClick={() => {
+                                  setOpenAiActionMenuId(null);
+                                  handleRegenerateLastReply(message.id);
+                                }}
+                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                              >
+                                <RotateCw className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                                <span>Ulangi</span>
+                              </button>
+
+                              <div className="border-t border-zinc-200 dark:border-white/[0.08] my-1" />
+
+                              <div className="grid grid-cols-2 gap-1">
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  aria-pressed={msgFeedback === "up"}
+                                  onClick={() => {
+                                    setOpenAiActionMenuId(null);
+                                    void handleFeedback(message.id, "up");
+                                  }}
+                                  className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
+                                    msgFeedback === "up"
+                                      ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
+                                      : "text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08]"
+                                  }`}
+                                >
+                                  <ThumbsUp className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                                  <span>Bagus</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  role="menuitem"
+                                  aria-pressed={msgFeedback === "down"}
+                                  onClick={() => {
+                                    setOpenAiActionMenuId(null);
+                                    void handleFeedback(message.id, "down");
+                                  }}
+                                  className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
+                                    msgFeedback === "down"
+                                      ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
+                                      : "text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08]"
+                                  }`}
+                                >
+                                  <ThumbsDown className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                                  <span>Kurang</span>
+                                </button>
+                              </div>
+                            </div>
                           )}
                         </div>
 
-                        {/* Thumbs Up 👍 */}
-                        <button
-                          type="button"
-                          onClick={() => void handleFeedback(message.id, "up")}
-                          title={msgFeedback === "up" ? "Batalkan suka" : "Jawaban membantu"}
-                          aria-pressed={msgFeedback === "up"}
-                          className={`min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg active:scale-[0.96] transition-all duration-200 cursor-pointer flex items-center justify-center border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
-                            msgFeedback === "up"
-                              ? "text-emerald-700 bg-emerald-50 border-emerald-200 dark:text-emerald-400 dark:bg-emerald-950/60 dark:border-emerald-700/60"
-                              : "border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
-                          }`}
-                          aria-label="Suka"
-                        >
-                          <ThumbsUp className="w-4 h-4" strokeWidth={1.75} />
-                        </button>
-
-                        {/* Thumbs Down 👎 */}
-                        <button
-                          type="button"
-                          onClick={() => void handleFeedback(message.id, "down")}
-                          title={
-                            msgFeedback === "down" ? "Batalkan tidak suka" : "Jawaban kurang tepat"
-                          }
-                          aria-pressed={msgFeedback === "down"}
-                          className={`min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg active:scale-[0.96] transition-all duration-200 cursor-pointer flex items-center justify-center border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
-                            msgFeedback === "down"
-                              ? "text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-400 dark:bg-amber-950/60 dark:border-amber-700/60"
-                              : "border-transparent text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
-                          }`}
-                          aria-label="Tidak suka"
-                        >
-                          <ThumbsDown className="w-4 h-4" strokeWidth={1.75} />
-                        </button>
-
-                        {/* Regenerate AI Reply 🔄 (consistent across mobile & desktop) */}
-                        <button
-                          type="button"
-                          disabled={isLoading || isGenerating}
-                          onClick={() => handleRegenerateLastReply(message.id)}
-                          title="Buat ulang jawaban"
-                          aria-label="Buat ulang jawaban"
-                          className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 cursor-pointer flex items-center justify-center disabled:opacity-45 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                        >
-                          <RotateCw className="w-4 h-4" strokeWidth={1.75} />
-                        </button>
-
                         {feedbackSavedNoticeId === message.id && (
-                          <span className="text-[11px] text-emerald-600 dark:text-emerald-400 pl-1">
+                          <span className="text-[11px] text-zinc-600 dark:text-zinc-400 pl-1">
                             Masukan tersimpan ✓
+                          </span>
+                        )}
+                        {structuredFeedbackThanksId === message.id && (
+                          <span className="text-[11px] text-text-muted pl-1">
+                            Terima kasih
                           </span>
                         )}
                       </div>
                     </div>
 
-                    {/* Optional input "Apa yang kurang?" when 👎 is selected (1c, Item 5) */}
+                    {/* Adaptive Answer Quick Chips (only under the latest non-error AI reply when idle) */}
+                    {(() => {
+                      const lastAiMsg = [...currentMessages]
+                        .reverse()
+                        .find((m) => m.sender === "ai" && !m.isError);
+                      const isLatestAiReply = lastAiMsg?.id === message.id;
+                      if (!isLatestAiReply || isStreamingThisMessage || isLoading || isGenerating) {
+                        return null;
+                      }
+                      return (
+                        <div
+                          role="group"
+                          aria-label="Tindakan lanjutan cepat"
+                          className="flex flex-wrap items-center gap-1.5 pt-1.5"
+                        >
+                          {ADAPTIVE_ANSWER_ACTIONS.map((action) => (
+                            <button
+                              key={action.id}
+                              type="button"
+                              onClick={() =>
+                                void handleSendMessage(action.prompt, {
+                                  taskBreakdownMode: action.taskBreakdownMode,
+                                })
+                              }
+                              className="px-2.5 py-1 rounded-full text-[11px] font-medium tracking-tight bg-zinc-100 text-zinc-700 hover:bg-zinc-200 border border-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.12] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                            >
+                              {action.label}
+                            </button>
+                          ))}
+                        </div>
+                      );
+                    })()}
+
+                    {/* Optional input "Apa yang kurang?" when 👎 is selected (1c, Item 5 + Stage 6 quick reason chips) */}
                     {openFeedbackCommentId === message.id && msgFeedback === "down" && (
                       <div className="rounded-xl bg-bg-elevated border border-border-subtle p-2.5 space-y-2 max-w-md">
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          {(["Terlalu panjang", "Salah konteks", "Bahasa kaku"] as const).map(
+                            (reason) => (
+                              <button
+                                key={reason}
+                                type="button"
+                                onClick={() =>
+                                  void handleSendStructuredFeedback(message.id, "down", reason)
+                                }
+                                className="px-2.5 py-1 rounded-full text-[11px] font-medium text-text-secondary hover:text-text-primary border border-border-subtle hover:bg-bg-surface transition-colors cursor-pointer"
+                              >
+                                {reason}
+                              </button>
+                            )
+                          )}
+                        </div>
                         <label
                           htmlFor={`feedback-comment-${message.id}`}
                           className="block text-xs font-medium text-text-secondary"
@@ -8015,26 +10421,35 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             {/* AI Thinking Indicator with Wave Dots + Shimmer Skeleton Loader */}
             {showThinkingIndicator && (() => {
               const currentChat = chats.find((c) => c.id === activeChatId);
-              const lastUserMsg =
-                currentChat?.messages
-                  ?.filter((m) => m.sender === "user")
-                  .slice(-1)[0]?.content || "";
-              const mediaIntent = detectMediaIntent(lastUserMsg);
-              const isImagePending = mediaIntent.type === "image" || activeMediaModeRef.current === "image";
-              const isVideoPending = mediaIntent.type === "video" || activeMediaModeRef.current === "video";
+              const lastUserMsgObj = currentChat?.messages
+                ?.filter((m) => m.sender === "user")
+                .slice(-1)[0];
+              const lastUserMsg = lastUserMsgObj?.content || "";
+              const lastUserHasAttachment = Boolean(lastUserMsgObj?.attachments?.length);
+              const mediaIntent = detectMediaIntent(lastUserMsg, lastUserHasAttachment);
+              const isImagePending =
+                activeLoadingContext === "image" ||
+                activeMediaModeRef.current === "image" ||
+                (!lastUserHasAttachment && mediaIntent.type === "image");
+              const isVideoPending =
+                activeLoadingContext === "video" ||
+                activeMediaModeRef.current === "video" ||
+                (!lastUserHasAttachment && mediaIntent.type === "video");
 
-              let thinkingText = "Memahami pesan...";
-              if (isImagePending) {
-                thinkingText = "Merender gambar...";
+              let thinkingText = "Menyusun jawaban...";
+              if (activeLoadingContext === "pdf") {
+                thinkingText = "Membaca struktur dokumen PDF...";
+              } else if (activeLoadingContext === "vision") {
+                thinkingText = "Mengekstrak informasi dari gambar...";
+              } else if (isImagePending) {
+                thinkingText = "Membuat gambar sesuai permintaan...";
               } else if (isVideoPending) {
-                thinkingText = "Merender video...";
-              } else {
+                thinkingText = "Menyiapkan video sesuai permintaan...";
+              } else if (activeLoadingContext === "lens" || thinkingMode === "critical") {
+                thinkingText = "Menganalisis peluang & celah...";
+              } else if (waitingSeconds >= 25) {
                 thinkingText =
-                  waitingSeconds >= 25
-                    ? "Jawaban panjang butuh waktu lebih lama. Anda bisa menekan Stop kapan saja."
-                    : waitingSeconds > 2
-                    ? "Menyusun jawaban..."
-                    : "Memahami pesan...";
+                  "Jawaban panjang butuh waktu lebih lama. Anda bisa menekan Stop kapan saja.";
               }
 
               return (
@@ -8047,37 +10462,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       : "opacity-100 translate-y-0 animate-axioma-fade-up"
                   }`}
                 >
-                  <div className="flex items-center gap-3 px-1 py-1">
+                  <div className="flex items-center gap-2.5 px-1 py-1">
                     {isImagePending ? (
                       <div className="w-6 h-6 rounded-md bg-zinc-200/70 border border-zinc-300/80 dark:bg-white/[0.06] dark:border-white/10 flex items-center justify-center shrink-0">
-                        <Palette className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 animate-axioma-breathe" strokeWidth={1.75} />
+                        <Palette className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 animate-axioma-breathe" strokeWidth={1.5} />
                       </div>
                     ) : isVideoPending ? (
                       <div className="w-6 h-6 rounded-md bg-zinc-200/70 border border-zinc-300/80 dark:bg-white/[0.06] dark:border-white/10 flex items-center justify-center shrink-0">
-                        <Video className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 animate-axioma-breathe" strokeWidth={1.75} />
+                        <Video className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300 animate-axioma-breathe" strokeWidth={1.5} />
                       </div>
                     ) : (
                       <AxiomaLogoMark className="w-5 h-5 shrink-0 animate-axioma-breathe" />
                     )}
-                    <div className="flex items-center gap-2.5">
-                      <div className="flex items-center gap-1 h-5" aria-hidden="true">
-                        <span
-                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-500 dark:bg-zinc-400"
-                          style={{ animationDelay: "0ms" }}
-                        />
-                        <span
-                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-500 dark:bg-zinc-400"
-                          style={{ animationDelay: "150ms" }}
-                        />
-                        <span
-                          className="w-1.5 h-1.5 rounded-full animate-thinking-dot bg-zinc-500 dark:bg-zinc-400"
-                          style={{ animationDelay: "300ms" }}
-                        />
-                      </div>
-                      <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium tracking-tight animate-axioma-breathe select-none transition-opacity duration-300">
-                        {thinkingText}
-                      </span>
-                    </div>
+                    <span className="text-xs text-zinc-500 dark:text-zinc-400 animate-pulse select-none">
+                      {thinkingText}
+                    </span>
                   </div>
 
                   {/* Elegant Skeleton Shimmer Box during visual/video rendering */}
@@ -8086,9 +10485,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           {isImagePending ? (
-                            <Palette className="w-4 h-4 text-zinc-600 dark:text-zinc-400 animate-pulse" />
+                            <Palette className="w-4 h-4 text-zinc-600 dark:text-zinc-400 animate-pulse" strokeWidth={1.5} />
                           ) : (
-                            <Video className="w-4 h-4 text-zinc-600 dark:text-zinc-400 animate-pulse" />
+                            <Video className="w-4 h-4 text-zinc-600 dark:text-zinc-400 animate-pulse" strokeWidth={1.5} />
                           )}
                           <span className="text-xs text-zinc-600 dark:text-zinc-400 font-medium">
                             {isImagePending ? "Studio Visual" : "Studio Video"}
@@ -8101,7 +10500,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           <div className="w-2/5 h-full rounded-full bg-zinc-500 dark:bg-zinc-400 animate-pulse" />
                         </div>
                         <p className="text-[11px] text-zinc-600 dark:text-zinc-500 text-right font-mono">
-                          {isImagePending ? "Merender gambar..." : "Merender adegan video..."}
+                          {isImagePending
+                            ? "Membuat gambar sesuai permintaan..."
+                            : "Menyiapkan video sesuai permintaan..."}
                         </p>
                       </div>
                     </div>
@@ -8116,7 +10517,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
           {/* Input Console (Floating overlay during active chat so scrolling messages pass behind .ios-glass) */}
           <div
-            className={`w-full bg-transparent px-3.5 min-[390px]:px-4 sm:px-6 pt-2 pb-[calc(0.75rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 [[data-kb="open"]_&]:pb-2 ${
+            className={`w-full bg-transparent px-3.5 min-[390px]:px-4 sm:px-6 pt-2 pb-[calc(0.75rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 ${
               hasMessages
                 ? "absolute bottom-0 inset-x-0 z-20 pointer-events-none"
                 : isDesktopEmptyState
@@ -8296,6 +10697,273 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
+                {/* Hidden Vision Image Input (<= 4MB) & Smart PDF Input (<= 8MB) */}
+                <input
+                  ref={visionInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  hidden
+                  onChange={handleVisionFileChange}
+                />
+                <input
+                  ref={smartPdfInputRef}
+                  type="file"
+                  accept="application/pdf"
+                  hidden
+                  onChange={handleVisionFileChange}
+                />
+
+                {/* Stage 8 & 9: Subtle Mode Privat & Requirement Lock Indicators */}
+                {(isPrivateMode ||
+                  (isRequirementLockEnabled && requirementLockItems.length > 0)) && (
+                  <div className="max-w-[720px] mx-auto w-full mb-1.5 px-2 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 select-none">
+                    {isPrivateMode && <span>Privat · Tidak disimpan</span>}
+                    {isPrivateMode &&
+                      isRequirementLockEnabled &&
+                      requirementLockItems.length > 0 && <span>·</span>}
+                    {isRequirementLockEnabled && requirementLockItems.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                            openDesktopSettingsPage("account");
+                          } else {
+                            setExpandedSettingsSection("account");
+                            setIsSettingsModalOpen(true);
+                          }
+                        }}
+                        className="pointer-events-auto hover:text-zinc-800 dark:hover:text-zinc-200 transition-colors cursor-pointer"
+                        title="Kelola Kunci Syarat Proyek di Setelan"
+                      >
+                        {requirementLockItems.length} syarat terkunci
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Stage 9: Smart PDF Preview & Mode Selector Card */}
+                {pendingPdfDoc && (
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-start gap-3 shadow-lg">
+                    <div className="relative shrink-0 w-11 h-11 rounded-xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.04] flex items-center justify-center">
+                      <FileText
+                        className="w-5 h-5 text-zinc-700 dark:text-zinc-300"
+                        strokeWidth={1.5}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPendingPdfDoc(null)}
+                        aria-label="Hapus dokumen PDF"
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center shadow cursor-pointer"
+                      >
+                        <X className="w-3 h-3" strokeWidth={1.75} />
+                      </button>
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="flex items-center gap-1.5 text-[11px] text-zinc-700 dark:text-zinc-300">
+                        <span className="font-medium truncate">
+                          {pendingPdfDoc.fileName}
+                        </span>
+                        <span className="text-zinc-400 dark:text-zinc-500 shrink-0">
+                          ·{" "}
+                          {pendingPdfDoc.fileSizeBytes >= 1024 * 1024
+                            ? `${(pendingPdfDoc.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+                            : `${Math.max(1, Math.round(pendingPdfDoc.fileSizeBytes / 1024))} KB`}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(
+                          [
+                            { code: "summary" as const, label: "Ringkas Eksekutif" },
+                            { code: "glossary" as const, label: "Istilah Kunci" },
+                            {
+                              code: "critical_questions" as const,
+                              label: "Prediksi Pertanyaan",
+                            },
+                            { code: "ask" as const, label: "Tanya PDF" },
+                          ] as const
+                        ).map((m) => {
+                          const active = pendingPdfDoc.mode === m.code;
+                          return (
+                            <button
+                              key={m.code}
+                              type="button"
+                              onClick={() =>
+                                setPendingPdfDoc((prev) =>
+                                  prev ? { ...prev, mode: m.code } : null
+                                )
+                              }
+                              className={`px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer ${
+                                active
+                                  ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 font-medium"
+                                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.12]"
+                              }`}
+                            >
+                              {m.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Stage 8: Multimodal Vision Photo Preview & Mode Selector Card */}
+                {pendingVisionPhoto && (
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-center gap-3 shadow-lg">
+                    <div className="relative shrink-0">
+                      <img
+                        src={pendingVisionPhoto.previewUrl}
+                        alt={pendingVisionPhoto.name}
+                        className="w-12 h-12 rounded-xl object-cover border border-zinc-200 dark:border-white/[0.08]"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setPendingVisionPhoto(null)}
+                        aria-label="Hapus foto"
+                        className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 flex items-center justify-center shadow cursor-pointer"
+                      >
+                        <X className="w-3 h-3" strokeWidth={1.75} />
+                      </button>
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1.5">
+                      <div className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate">
+                        {pendingVisionPhoto.name}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(
+                          [
+                            { code: "notes" as const, label: "Ringkas Catatan" },
+                            { code: "table" as const, label: "Buat Tabel" },
+                            { code: "quiz" as const, label: "Soal Latihan" },
+                            { code: "tasks" as const, label: "Ekstrak Tugas" },
+                          ] as const
+                        ).map((m) => {
+                          const active = pendingVisionPhoto.mode === m.code;
+                          return (
+                            <button
+                              key={m.code}
+                              type="button"
+                              onClick={() =>
+                                setPendingVisionPhoto((prev) =>
+                                  prev ? { ...prev, mode: m.code } : null
+                                )
+                              }
+                              className={`px-2.5 py-1 rounded-full text-[11px] transition-colors cursor-pointer ${
+                                active
+                                  ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 font-medium"
+                                  : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.12]"
+                              }`}
+                            >
+                              {m.label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Active Slash /langkah Mode Pill */}
+                {pendingTaskBreakdown && (
+                  <div className="pointer-events-auto flex items-center gap-1.5 mb-2 px-3 py-1 rounded-full bg-zinc-100 border border-zinc-200 text-zinc-800 dark:bg-white/[0.08] dark:border-white/[0.1] dark:text-zinc-200 w-fit text-xs font-medium select-none">
+                    <span>Mode Pecah Langkah</span>
+                    <button
+                      type="button"
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => setPendingTaskBreakdown(false)}
+                      aria-label="Matikan mode pecah langkah"
+                      className="w-4 h-4 rounded-full hover:bg-zinc-200/80 dark:hover:bg-white/10 flex items-center justify-center text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white cursor-pointer"
+                    >
+                      <X className="w-3 h-3" strokeWidth={1.5} />
+                    </button>
+                  </div>
+                )}
+
+                {/* Stage 6: Slash Commands Mini Monochrome Popover (only renders when matching) */}
+                {matchingSlashCommands.length > 0 && (
+                  <div
+                    role="listbox"
+                    aria-label="Pintasan perintah cepat"
+                    className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-1.5 space-y-0.5 shadow-lg"
+                  >
+                    {matchingSlashCommands.map((item, idx) => {
+                      const isSelected = idx === slashMenuIndex;
+                      return (
+                        <button
+                          key={item.cmd}
+                          type="button"
+                          role="option"
+                          aria-selected={isSelected}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleApplySlashCommand(item.cmd);
+                          }}
+                          onMouseEnter={() => setSlashMenuIndex(idx)}
+                          className={`w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl text-left text-xs transition-colors cursor-pointer ${
+                            isSelected
+                              ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 font-medium"
+                              : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
+                          }`}
+                        >
+                          <span className="font-mono font-medium">{item.cmd}</span>
+                          <span
+                            className={`text-[11px] truncate ${
+                              isSelected
+                                ? "text-zinc-300 dark:text-zinc-700"
+                                : "text-zinc-500 dark:text-zinc-400"
+                            }`}
+                          >
+                            {item.label}
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Stage 6: Prompt Enhancement Preview Card (only renders when preview exists) */}
+                {enhancedPromptPreview && (
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-3 space-y-2 shadow-lg">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                        <PenLine className="w-3 h-3" strokeWidth={1.5} />
+                        <span>Pratinjau Prompt Rapi</span>
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => setEnhancedPromptPreview(null)}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.12] transition-colors cursor-pointer"
+                        >
+                          Batal
+                        </button>
+                        <button
+                          type="button"
+                          onMouseDown={(e) => e.preventDefault()}
+                          onClick={() => {
+                            setInputText(enhancedPromptPreview);
+                            setEnhancedPromptPreview(null);
+                            requestAnimationFrame(() => {
+                              const el = textareaRef.current;
+                              if (el) {
+                                el.focus();
+                                adjustTextareaHeight();
+                              }
+                            });
+                          }}
+                          className="px-2.5 py-1 rounded-lg text-[11px] font-medium bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 transition-colors cursor-pointer"
+                        >
+                          Pakai
+                        </button>
+                      </div>
+                    </div>
+                    <p className="text-xs text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap leading-relaxed">
+                      {enhancedPromptPreview}
+                    </p>
+                  </div>
+                )}
+
                 {/* Axioma Organic Minimalist Input Box (rounded-[24px], 2-Row, Native iOS Glass) */}
                 <div
                   style={!hasMessages ? { animationDelay: "120ms" } : undefined}
@@ -8365,10 +11033,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     )}
                   </div>
 
-                  {/* Baris Bawah: Toolbar Kiri (+ & Mic) | Aksi Utama Kanan (non-wrapping di 360px+) */}
+                  {/* Baris Bawah: Toolbar Kiri (+, Mic, & Pemilih Bahasa/Gaya) | Aksi Utama Kanan (non-wrapping di 360px+) */}
                   <div className="relative z-10 w-full flex flex-nowrap items-center justify-between gap-1.5 sm:gap-2 pt-0.5 min-w-0">
-                    {/* Kiri: Tombol + Lampiran & Tombol Mikrofon */}
-                    <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+                    {/* Kiri: Tombol + Lampiran, Mikrofon & Pemilih Bahasa/Gaya */}
+                    <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 shrink">
                       {/* Active Attachment Button & Popover Menu */}
                       {(() => {
                         const isAttachmentsFull = pendingAttachments.length >= 4;
@@ -8428,132 +11096,212 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 />
                                 <div
                                   role="menu"
-                                  aria-label="Pilihan lampiran"
+                                  aria-label="Pilihan lampiran dan aksi cepat"
                                   onKeyDown={(e) =>
                                     handleMenuArrowKeyDown(e, attachmentItemRefs.current, () =>
                                       closeAttachmentMenu(true)
                                     )
                                   }
-                                  className={`absolute -left-2 bottom-full mb-2 md:mb-2.5 z-40 w-[260px] sm:w-72 max-w-[calc(100vw-2rem)] max-h-[min(65vh,calc(var(--app-height)-140px))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] scrollbar-none rounded-2xl bg-white dark:bg-[#18181d] border border-zinc-200/90 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-2xl space-y-1 origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
+                                  className={`absolute -left-2 bottom-full mb-2 md:mb-2.5 z-40 w-[264px] sm:w-72 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto overscroll-contain scrollbar-none rounded-2xl bg-white dark:bg-[#18181d] border border-zinc-200/90 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-2xl origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
                                     isAttachmentMenuEntered
                                       ? "scale-100 opacity-100 translate-y-0"
                                       : "scale-95 opacity-0 translate-y-1 pointer-events-none"
                                   }`}
                                 >
-                                  {/* 1. Foto & Gambar */}
-                                  <button
-                                    ref={(el) => {
-                                      attachmentItemRefs.current[0] = el;
-                                    }}
-                                    role="menuitem"
-                                    type="button"
-                                    onClick={() => {
-                                      closeAttachmentMenu(false);
-                                      imageInputRef.current?.click();
-                                    }}
-                                    className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                  >
-                                    <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
-                                      <ImageIcon className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                                    </div>
-                                    <span className="flex-1">Foto &amp; Gambar</span>
-                                  </button>
+                                  {/* Grup 1: LAMPIRKAN & MEDIA */}
+                                  <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3 pt-2 pb-1 select-none">
+                                    LAMPIRKAN &amp; MEDIA
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    {/* 1. Foto & Gambar (Vision / tabel / catatan) */}
+                                    <button
+                                      ref={(el) => {
+                                        attachmentItemRefs.current[0] = el;
+                                      }}
+                                      role="menuitem"
+                                      type="button"
+                                      onClick={() => {
+                                        closeAttachmentMenu(false);
+                                        visionInputRef.current?.click();
+                                      }}
+                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                                    >
+                                      <ImageIcon
+                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                        strokeWidth={1.5}
+                                      />
+                                      <span className="flex-1 truncate">Foto &amp; Gambar</span>
+                                    </button>
 
-                                  {/* 2. Dokumen PDF */}
-                                  <button
-                                    ref={(el) => {
-                                      attachmentItemRefs.current[1] = el;
-                                    }}
-                                    role="menuitem"
-                                    type="button"
-                                    onClick={() => {
-                                      closeAttachmentMenu(false);
-                                      pdfInputRef.current?.click();
-                                    }}
-                                    className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                  >
-                                    <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
-                                      <FileText className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                                    </div>
-                                    <span className="flex-1">Dokumen PDF</span>
-                                  </button>
+                                    {/* 2. Bedah Dokumen PDF */}
+                                    <button
+                                      ref={(el) => {
+                                        attachmentItemRefs.current[1] = el;
+                                      }}
+                                      role="menuitem"
+                                      type="button"
+                                      onClick={() => {
+                                        closeAttachmentMenu(false);
+                                        smartPdfInputRef.current?.click();
+                                      }}
+                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                                    >
+                                      <FileText
+                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                        strokeWidth={1.5}
+                                      />
+                                      <span className="flex-1 truncate">Bedah Dokumen PDF</span>
+                                    </button>
 
-                                  {/* 3. Buat Gambar */}
-                                  <button
-                                    ref={(el) => {
-                                      attachmentItemRefs.current[2] = el;
-                                    }}
-                                    role="menuitem"
-                                    type="button"
-                                    onClick={() => {
-                                      closeAttachmentMenu(false);
-                                      setActiveMediaMode("image");
-                                      activeMediaModeRef.current = "image";
-                                      setInputText("");
-                                      requestAnimationFrame(() => {
-                                        const el = textareaRef.current;
-                                        if (el) {
-                                          el.focus();
-                                          adjustTextareaHeight();
-                                        }
-                                      });
-                                    }}
-                                    className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                  >
-                                    <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
-                                      <Palette className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                                    </div>
-                                    <span className="flex-1">Buat Gambar</span>
-                                  </button>
+                                    {/* 3. Buat Gambar */}
+                                    <button
+                                      ref={(el) => {
+                                        attachmentItemRefs.current[2] = el;
+                                      }}
+                                      role="menuitem"
+                                      type="button"
+                                      onClick={() => {
+                                        closeAttachmentMenu(false);
+                                        setActiveMediaMode("image");
+                                        activeMediaModeRef.current = "image";
+                                        setInputText("");
+                                        requestAnimationFrame(() => {
+                                          const el = textareaRef.current;
+                                          if (el) {
+                                            el.focus();
+                                            adjustTextareaHeight();
+                                          }
+                                        });
+                                      }}
+                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                                    >
+                                      <Palette
+                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                        strokeWidth={1.5}
+                                      />
+                                      <span className="flex-1 truncate">Buat Gambar</span>
+                                    </button>
 
-                                  {/* 4. Buat Video */}
-                                  <button
-                                    ref={(el) => {
-                                      attachmentItemRefs.current[3] = el;
-                                    }}
-                                    role="menuitem"
-                                    type="button"
-                                    onClick={() => {
-                                      closeAttachmentMenu(false);
-                                      setActiveMediaMode("video");
-                                      activeMediaModeRef.current = "video";
-                                      setInputText("");
-                                      requestAnimationFrame(() => {
-                                        const el = textareaRef.current;
-                                        if (el) {
-                                          el.focus();
-                                          adjustTextareaHeight();
-                                        }
-                                      });
-                                    }}
-                                    className="w-full flex items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                  >
-                                    <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
-                                      <Video className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                                    </div>
-                                    <span className="flex-1">Buat Video</span>
-                                  </button>
+                                    {/* 4. Buat Video */}
+                                    <button
+                                      ref={(el) => {
+                                        attachmentItemRefs.current[3] = el;
+                                      }}
+                                      role="menuitem"
+                                      type="button"
+                                      onClick={() => {
+                                        closeAttachmentMenu(false);
+                                        setActiveMediaMode("video");
+                                        activeMediaModeRef.current = "video";
+                                        setInputText("");
+                                        requestAnimationFrame(() => {
+                                          const el = textareaRef.current;
+                                          if (el) {
+                                            el.focus();
+                                            adjustTextareaHeight();
+                                          }
+                                        });
+                                      }}
+                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                                    >
+                                      <Video
+                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                        strokeWidth={1.5}
+                                      />
+                                      <span className="flex-1 truncate">Buat Video</span>
+                                    </button>
+                                  </div>
 
-                                  {/* 5. Ambil Foto (Touchscreen only) */}
-                                  <button
-                                    ref={(el) => {
-                                      attachmentItemRefs.current[4] = el;
-                                    }}
-                                    role="menuitem"
-                                    type="button"
-                                    onClick={() => {
-                                      closeAttachmentMenu(false);
-                                      cameraInputRef.current?.click();
-                                    }}
-                                    className="hidden [@media(pointer:coarse)]:flex w-full items-center gap-3.5 px-3.5 py-2.5 min-h-[44px] rounded-xl text-[15px] font-normal text-zinc-800 hover:bg-zinc-100/80 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                  >
-                                    <div className="w-9 h-9 rounded-xl bg-zinc-100 text-zinc-600 dark:bg-white/[0.06] dark:text-zinc-300 flex items-center justify-center shrink-0">
-                                      <Camera className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                                    </div>
-                                    <span className="flex-1">Ambil Foto</span>
-                                  </button>
+                                  <div className="border-t border-zinc-200/80 dark:border-white/[0.08] my-1.5" />
 
-                                  <div className="border-t border-zinc-200/70 dark:border-white/[0.06] pt-2 pb-1 px-3.5 mt-1">
+                                  {/* Grup 2: AKSI CEPAT */}
+                                  <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3 pt-1 pb-1 select-none">
+                                    AKSI CEPAT
+                                  </div>
+                                  <div className="space-y-0.5">
+                                    {/* 5. Bandingkan 2 Opsi (/lens) */}
+                                    <button
+                                      ref={(el) => {
+                                        attachmentItemRefs.current[4] = el;
+                                      }}
+                                      role="menuitem"
+                                      type="button"
+                                      onClick={() => {
+                                        closeAttachmentMenu(false);
+                                        const draft = "/lens ";
+                                        setInputText(draft);
+                                        requestAnimationFrame(() => {
+                                          const el = textareaRef.current;
+                                          if (el) {
+                                            el.value = draft;
+                                            el.focus();
+                                            el.setSelectionRange(draft.length, draft.length);
+                                            adjustTextareaHeight();
+                                          }
+                                        });
+                                      }}
+                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                                    >
+                                      <Scale
+                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                        strokeWidth={1.5}
+                                      />
+                                      <span className="flex-1 truncate">Bandingkan 2 Opsi</span>
+                                    </button>
+
+                                    {/* 6. Simulasi Roleplay */}
+                                    <button
+                                      ref={(el) => {
+                                        attachmentItemRefs.current[5] = el;
+                                      }}
+                                      role="menuitem"
+                                      type="button"
+                                      onClick={() => {
+                                        closeAttachmentMenu(false);
+                                        setIsRoleplayModalOpen(true);
+                                      }}
+                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                                    >
+                                      <Users
+                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                        strokeWidth={1.5}
+                                      />
+                                      <span className="flex-1 truncate">Simulasi Roleplay</span>
+                                    </button>
+
+                                    {/* 7. Bedah Surat / Kontrak */}
+                                    <button
+                                      ref={(el) => {
+                                        attachmentItemRefs.current[6] = el;
+                                      }}
+                                      role="menuitem"
+                                      type="button"
+                                      onClick={() => {
+                                        closeAttachmentMenu(false);
+                                        const draft =
+                                          "Tolong bedah hak, kewajiban, dan poin yang perlu diwaspadai dari teks ini:\n\n";
+                                        setInputText(draft);
+                                        requestAnimationFrame(() => {
+                                          const el = textareaRef.current;
+                                          if (el) {
+                                            el.value = draft;
+                                            el.focus();
+                                            el.setSelectionRange(draft.length, draft.length);
+                                            adjustTextareaHeight();
+                                          }
+                                        });
+                                      }}
+                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                                    >
+                                      <ShieldCheck
+                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                        strokeWidth={1.5}
+                                      />
+                                      <span className="flex-1 truncate">Bedah Surat / Kontrak</span>
+                                    </button>
+                                  </div>
+
+                                  <div className="border-t border-zinc-200/80 dark:border-white/[0.08] pt-2 pb-1 px-3 mt-1.5">
                                     <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
                                       Maks. 4 file · 10 MB per file · PDF maks. 30 halaman
                                     </p>
@@ -8606,6 +11354,53 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           )}
                         </div>
                       )}
+
+                      {/* Compact Quick Settings Pill Selector (Mode Berpikir & Kontrol Konteks) */}
+                      {!isRecording && !isTranscribingVoice && (
+                        <LanguageToneSelector
+                          thinkingMode={thinkingMode}
+                          contextControl={contextControl}
+                          isPrivateMode={isPrivateMode}
+                          disabled={isLoading || isGenerating}
+                          onBeforeOpen={() => {
+                            if (typeof window !== "undefined" && window.innerWidth < 768) {
+                              textareaRef.current?.blur();
+                            }
+                          }}
+                          onThinkingModeChange={(nextMode) => {
+                            setThinkingMode(nextMode);
+                            safeSetLocalStorage(STORAGE_KEYS.THINKING_MODE, nextMode);
+                          }}
+                          onContextControlChange={handleUpdateContextControl}
+                          onPrivateModeChange={(nextPrivate) => {
+                            setIsPrivateMode(nextPrivate);
+                            if (nextPrivate) {
+                              showToastNotice("Mode Privat aktif · Tidak disimpan", 2000);
+                            }
+                          }}
+                        />
+                      )}
+
+                      {/* Stage 6: Prompt Enhancement Icon Button (only visible when input >= 12 chars) */}
+                      {!isRecording &&
+                        !isTranscribingVoice &&
+                        inputText.trim().length >= 12 && (
+                          <button
+                            type="button"
+                            disabled={isLoading || isGenerating || isEnhancingPrompt}
+                            onMouseDown={(e) => e.preventDefault()}
+                            onClick={() => void handleEnhancePrompt()}
+                            title="Rapikan Prompt"
+                            aria-label="Rapikan Prompt"
+                            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer active:scale-[0.96] disabled:opacity-45 shrink-0"
+                          >
+                            {isEnhancingPrompt ? (
+                              <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.5} />
+                            ) : (
+                              <PenLine className="w-4 h-4" strokeWidth={1.5} />
+                            )}
+                          </button>
+                        )}
                     </div>
 
                     {/* Kanan: Pemilih Model + Tombol Aksi Utama (w-8 h-8 rounded-xl) */}
@@ -8617,9 +11412,6 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           type="button"
                           aria-haspopup="menu"
                           aria-expanded={isHeaderAgentMenuOpen}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                          }}
                           onClick={() => {
                             if (typeof window !== "undefined" && window.innerWidth < 768) {
                               textareaRef.current?.blur();
@@ -8674,7 +11466,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                     } pointer-events-none`
                               }`}
                             >
-                              {availableEngines.map((agent, idx) => {
+                              {AVAILABLE_AGENTS.map((agent, idx) => {
                                 const isSelected = agent.id === selectedAgent.id;
                                 return (
                                   <button
@@ -8761,12 +11553,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           (a) => a.status === "uploading" || a.status === "compressing"
                         );
                         const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
-                        const hasUserTextOrAttachments = Boolean(inputText.trim()) || hasReadyAttachments;
+                        const hasUserTextOrAttachments =
+                          Boolean(inputText.trim()) ||
+                          hasReadyAttachments ||
+                          Boolean(pendingVisionPhoto) ||
+                          Boolean(pendingPdfDoc);
                         const isSendDisabled =
                           !isOnline ||
                           isUploadingAttachment ||
                           isLoading ||
                           isGenerating ||
+                          isVisionLoading ||
                           isSubmitting;
 
                         return (
@@ -9008,6 +11805,145 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Stage 2: Context Checkpoint & Context Correction Modal (only mounts when open) */}
+      <ContextCheckpointModal
+        isOpen={isCheckpointModalOpen}
+        onClose={() => setIsCheckpointModalOpen(false)}
+        backendUrl={BACKEND_URL}
+        messages={currentMessages
+          .filter((m) => !m.isError && m.content.trim())
+          .map((m) => ({
+            role: m.sender === "ai" ? "assistant" : "user",
+            content: m.content,
+          }))}
+        contextState={chatContextState}
+        onUpdateContextState={handleUpdateChatContextState}
+      />
+
+      {/* Stage 9: Roleplay Simulation & Final Report Modal (only mounts when open) */}
+      <RoleplayModal
+        isOpen={isRoleplayModalOpen}
+        onClose={() => setIsRoleplayModalOpen(false)}
+        backendUrl={BACKEND_URL}
+        language={language}
+      />
+
+      {/* Live Preview / Interactive Sandbox Modal (portal to document.body, only mounts when open) */}
+      <LivePreviewModal
+        isOpen={livePreviewCode !== null}
+        code={livePreviewCode ?? ""}
+        onClose={() => setLivePreviewCode(null)}
+      />
+
+      {/* Daily Credit Quota Soft Paywall & Upgrade Modal (portal to document.body, only mounts when open) */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        quotaInfo={quotaInfo}
+        onSwitchToOmni={handleSwitchToOmni}
+        triggerReason={quotaInfo?.triggeredByLimit ? "quota_exceeded" : "manual"}
+      />
+
+      {/* Stage 7: Floating Highlight-to-Edit Mini Toolbar (zero DOM when no selection) */}
+      {selectionEdit && (
+        <div
+          role="dialog"
+          aria-label="Edit teks terpilih"
+          style={{
+            top: `${selectionEdit.top}px`,
+            left: `${selectionEdit.left}px`,
+          }}
+          className="fixed z-50 w-[min(320px,calc(100vw-24px))] rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.1] p-2 shadow-xl space-y-2"
+        >
+          <div className="flex items-center justify-between gap-1">
+            <div className="flex flex-wrap items-center gap-1">
+              {(
+                [
+                  { action: "shorten" as const, label: "Perpendek" },
+                  { action: "soften" as const, label: "Perhalus" },
+                  { action: "assertive" as const, label: "Lebih Tegas" },
+                  {
+                    action:
+                      /\b(the|and|with|for|that|this|is|are)\b/i.test(
+                        selectionEdit.selectedText
+                      )
+                        ? ("translate_id" as const)
+                        : ("translate_en" as const),
+                    label: "Terjemahkan",
+                  },
+                ] as const
+              ).map((item) => (
+                <button
+                  key={item.label}
+                  type="button"
+                  disabled={selectionEdit.isLoading}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => void handleRunSelectionEdit(item.action)}
+                  className="px-2 py-1 rounded-lg text-[11px] font-medium bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.12] transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                >
+                  {item.label}
+                </button>
+              ))}
+            </div>
+            <button
+              type="button"
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => setSelectionEdit(null)}
+              aria-label="Tutup menu edit"
+              className="p-1 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer shrink-0"
+            >
+              <X className="w-3.5 h-3.5" strokeWidth={1.5} />
+            </button>
+          </div>
+
+          {selectionEdit.isLoading && (
+            <div className="flex items-center gap-1.5 px-1.5 py-1 text-[11px] text-zinc-500 dark:text-zinc-400">
+              <Loader2 className="w-3 h-3 animate-spin" strokeWidth={1.5} />
+              <span>Merevisi potongan teks...</span>
+            </div>
+          )}
+
+          {selectionEdit.error && (
+            <p className="px-1.5 text-[11px] text-zinc-700 dark:text-zinc-300">
+              {selectionEdit.error}
+            </p>
+          )}
+
+          {selectionEdit.revisedText && (
+            <div className="pt-2 border-t border-zinc-200 dark:border-white/[0.08] space-y-2">
+              <p className="text-xs text-zinc-900 dark:text-zinc-100 whitespace-pre-wrap leading-relaxed max-h-36 overflow-y-auto px-1">
+                {selectionEdit.revisedText}
+              </p>
+              <div className="flex items-center justify-end gap-1.5">
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    handleCopy(
+                      selectionEdit.revisedText || "",
+                      `sel-${selectionEdit.messageId}`,
+                      1500
+                    );
+                    showToastNotice("Hasil revisi disalin", 1500);
+                  }}
+                  className="px-2.5 py-1 rounded-lg bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.12] border border-zinc-200 dark:border-white/[0.08] text-[11px] font-medium transition-colors cursor-pointer"
+                >
+                  Salin
+                </button>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={handleReplaceSelectedText}
+                  className="px-2.5 py-1 rounded-lg bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-[11px] font-medium transition-colors cursor-pointer"
+                >
+                  Ganti Teks
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

@@ -2,7 +2,23 @@
 
 import React, { memo, useMemo } from "react";
 import hljs from "highlight.js/lib/common";
-import { Check, Copy } from "lucide-react";
+import { Check, Copy, Play } from "lucide-react";
+
+export function isRunnableHtml(language: string, codeString: string): boolean {
+  const cleanLang = (language || "").trim().toLowerCase();
+  if (cleanLang !== "html" && cleanLang !== "htm") {
+    return false;
+  }
+  const normalized = (codeString || "").toLowerCase();
+  if (!normalized) {
+    return false;
+  }
+  return (
+    normalized.includes("<!doctype html") ||
+    normalized.includes("<html") ||
+    (normalized.includes("<body") && normalized.includes("<script"))
+  );
+}
 
 interface CodeBlockProps {
   language: string;
@@ -10,6 +26,7 @@ interface CodeBlockProps {
   isStreaming?: boolean;
   onCopy: () => void;
   isCopied: boolean;
+  onRunPreview?: (code: string) => void;
 }
 
 export const CodeBlock = memo(function CodeBlock({
@@ -18,8 +35,13 @@ export const CodeBlock = memo(function CodeBlock({
   isStreaming = false,
   onCopy,
   isCopied,
+  onRunPreview,
 }: CodeBlockProps) {
   const displayLanguage = language || "code";
+  const canRunPreview = useMemo(
+    () => Boolean(onRunPreview) && isRunnableHtml(language, rawCode),
+    [onRunPreview, language, rawCode]
+  );
 
   // During active streaming of this message, avoid syntax highlight parsing
   // on every single chunk to ensure 60fps smooth rendering without stutter.
@@ -47,29 +69,43 @@ export const CodeBlock = memo(function CodeBlock({
   return (
     <div className="my-3.5 w-full max-w-full min-w-0 rounded-xl bg-[#f4f4f2] border border-zinc-200/80 text-zinc-900 dark:bg-[#161618] dark:border-white/[0.08] dark:text-zinc-100 overflow-hidden shadow-[0_1px_4px_rgba(0,0,0,0.03)] dark:shadow-[0_2px_12px_rgba(0,0,0,0.28)] transition-colors duration-200 hover:border-zinc-300/90 dark:hover:border-white/[0.14]">
       {/* Slim Code Header Bar */}
-      <div className="px-3.5 py-1.5 bg-[#ebebea]/80 border-b border-zinc-200/80 dark:bg-[#1c1c1f] dark:border-white/[0.08] flex items-center justify-between select-none">
+      <div className="px-3.5 py-1.5 bg-[#ebebea]/80 border-b border-zinc-200/80 dark:bg-[#1c1c1f] dark:border-white/[0.08] flex items-center justify-between gap-2 select-none">
         <span className="text-[11px] font-mono uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">
           {displayLanguage}
         </span>
-        <button
-          type="button"
-          onClick={onCopy}
-          aria-label={isCopied ? "Kode berhasil disalin" : "Salin kode"}
-          className="inline-flex items-center gap-1.5 font-sans font-medium tracking-tight text-[11.5px] text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] transition-all duration-200 active:scale-[0.96] cursor-pointer py-1 px-2 min-h-[32px] sm:min-h-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-        >
-          {isCopied ? (
-            <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 shrink-0" strokeWidth={1.75} />
-          ) : (
-            <Copy className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 shrink-0" strokeWidth={1.75} />
+        <div className="flex items-center gap-1.5">
+          {canRunPreview && (
+            <button
+              type="button"
+              disabled={isStreaming}
+              onClick={() => onRunPreview?.(rawCode)}
+              aria-label="Jalankan pratinjau langsung HTML"
+              className="inline-flex items-center gap-1.5 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 active:scale-[0.96] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[28px] sm:min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+            >
+              <Play className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+              <span>Jalankan</span>
+            </button>
           )}
-          <span className={isCopied ? "text-emerald-700 dark:text-emerald-400" : ""}>
-            {isCopied ? "Disalin" : "Salin"}
-          </span>
-        </button>
+          <button
+            type="button"
+            onClick={onCopy}
+            aria-label={isCopied ? "Kode berhasil disalin" : "Salin kode"}
+            className="inline-flex items-center gap-1.5 font-sans font-medium tracking-tight text-[11.5px] text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] transition-all duration-200 active:scale-[0.96] cursor-pointer py-1 px-2 min-h-[32px] sm:min-h-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+          >
+            {isCopied ? (
+              <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" strokeWidth={1.5} />
+            ) : (
+              <Copy className="w-3.5 h-3.5 text-zinc-500 dark:text-zinc-400 shrink-0" strokeWidth={1.5} />
+            )}
+            <span className={isCopied ? "text-zinc-900 dark:text-zinc-100" : ""}>
+              {isCopied ? "Disalin" : "Salin"}
+            </span>
+          </button>
+        </div>
       </div>
 
       {/* Code Body */}
-      <pre className="p-4 max-w-full overflow-x-auto [-webkit-overflow-scrolling:touch] text-zinc-900 dark:text-zinc-100 font-mono text-[13px] leading-[1.6] m-0">
+      <pre className="p-4 overflow-x-auto text-zinc-900 dark:text-zinc-100 font-mono text-[13px] leading-[1.6] m-0">
         {highlightedHtml ? (
           <code
             className="hljs font-mono text-[13px] leading-[1.6] block"

@@ -1,43 +1,27 @@
 /**
  * Safari iOS Real-Time Theme-Color & Bar Tinting Sync Helper
  *
- * Keeps a single `<meta name="theme-color">` and a single
- * `<meta name="apple-mobile-web-app-status-bar-style">` in `<head>`, updating
- * their `content` attribute and `html`/`body` root surfaces 100% synchronously
- * inside the user click handler (no rAF / setTimeout tag removal-reinsertion).
+ * Updates `html`/`body` root surfaces, `color-scheme`,
+ * `apple-mobile-web-app-status-bar-style`, and `<meta name="theme-color">`
+ * synchronously inside the user click handler, followed by a single clean
+ * `requestAnimationFrame` confirmation re-insert so Safari iOS repaints top
+ * status bar & bottom toolbar immediately without closing modals or refreshing.
  */
 
 export const AXIOMA_DARK_THEME_COLOR = "#0e0e10";
 export const AXIOMA_LIGHT_THEME_COLOR = "#f9f9f8";
 
-function getOrCreateSingleMeta(name: string): HTMLMetaElement {
-  const existing = Array.from(
-    document.querySelectorAll<HTMLMetaElement>(`meta[name="${name}"]`)
-  );
-  let primary = existing[0];
-  if (!primary) {
-    primary = document.createElement("meta");
-    primary.name = name;
-    document.head.appendChild(primary);
-  } else {
-    primary.removeAttribute("media");
-    for (let i = 1; i < existing.length; i += 1) {
-      existing[i].remove();
-    }
+let pendingRafId: number | null = null;
+
+function clearPendingRaf(): void {
+  if (typeof window === "undefined") return;
+  if (pendingRafId !== null) {
+    window.cancelAnimationFrame(pendingRafId);
+    pendingRafId = null;
   }
-  return primary;
 }
 
-export function syncIosSafariTheme(isDark: boolean): void {
-  if (typeof window === "undefined" || typeof document === "undefined") return;
-
-  const targetColor = isDark
-    ? AXIOMA_DARK_THEME_COLOR
-    : AXIOMA_LIGHT_THEME_COLOR;
-  const colorScheme = isDark ? "dark" : "light";
-  const statusBarStyle = isDark ? "black-translucent" : "default";
-
-  // a. Synchronous update on html & body surfaces
+function applyRootSurface(isDark: boolean, targetColor: string): void {
   const root = document.documentElement;
   if (isDark) {
     root.classList.add("dark");
@@ -46,17 +30,58 @@ export function syncIosSafariTheme(isDark: boolean): void {
     root.classList.remove("dark");
     root.classList.add("light");
   }
-  root.style.colorScheme = colorScheme;
+  root.style.colorScheme = isDark ? "dark" : "light";
   root.style.backgroundColor = targetColor;
   if (document.body) {
     document.body.style.backgroundColor = targetColor;
   }
+}
 
-  // b. Update single <meta name="theme-color"> synchronously in-place
-  const themeMeta = getOrCreateSingleMeta("theme-color");
-  themeMeta.setAttribute("content", targetColor);
+function syncAppleStatusBarStyle(isDark: boolean): void {
+  const statusBarValue = isDark ? "black-translucent" : "default";
+  const existing = document.querySelector<HTMLMetaElement>(
+    'meta[name="apple-mobile-web-app-status-bar-style"]'
+  );
+  if (existing) {
+    existing.setAttribute("content", statusBarValue);
+  } else {
+    const meta = document.createElement("meta");
+    meta.name = "apple-mobile-web-app-status-bar-style";
+    meta.content = statusBarValue;
+    document.head.appendChild(meta);
+  }
+}
 
-  // c. Update single <meta name="apple-mobile-web-app-status-bar-style"> synchronously
-  const appleMeta = getOrCreateSingleMeta("apple-mobile-web-app-status-bar-style");
-  appleMeta.setAttribute("content", statusBarStyle);
+function replaceThemeColorMeta(targetColor: string): void {
+  document
+    .querySelectorAll('meta[name="theme-color"]')
+    .forEach((el) => el.remove());
+
+  const meta = document.createElement("meta");
+  meta.name = "theme-color";
+  meta.setAttribute("content", targetColor);
+  document.head.appendChild(meta);
+}
+
+export function syncIosSafariTheme(isDark: boolean): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
+
+  const targetColor = isDark
+    ? AXIOMA_DARK_THEME_COLOR
+    : AXIOMA_LIGHT_THEME_COLOR;
+
+  clearPendingRaf();
+
+  // 1. Synchronous update inside user click handler
+  applyRootSurface(isDark, targetColor);
+  syncAppleStatusBarStyle(isDark);
+  replaceThemeColorMeta(targetColor);
+
+  // 2. Single clean re-insert on next animation frame to confirm Safari iOS chrome repaint
+  pendingRafId = window.requestAnimationFrame(() => {
+    pendingRafId = null;
+    applyRootSurface(isDark, targetColor);
+    syncAppleStatusBarStyle(isDark);
+    replaceThemeColorMeta(targetColor);
+  });
 }

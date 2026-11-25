@@ -1551,9 +1551,9 @@ export default function VoiceModeOverlay({
               {/* Subtle processing indicator right before AI speech starts */}
               {voiceState === "processing" && (
                 <div className="flex items-center gap-1.5 py-2 animate-fade-in" aria-label="Memproses jawaban">
-                  <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-bounce [animation-delay:-0.3s]" />
-                  <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-bounce [animation-delay:-0.15s]" />
-                  <span className="w-2 h-2 rounded-full bg-blue-600 dark:bg-blue-400 animate-bounce" />
+                  <span className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 animate-bounce [animation-delay:-0.3s]" />
+                  <span className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 animate-bounce [animation-delay:-0.15s]" />
+                  <span className="w-2 h-2 rounded-full bg-zinc-900 dark:bg-zinc-100 animate-bounce" />
                   <span className="text-xs text-zinc-600 dark:text-zinc-400 ml-1.5">Axioma sedang berpikir...</span>
                 </div>
               )}
@@ -1750,7 +1750,7 @@ export default function VoiceModeOverlay({
               title={isCameraActive ? "Tutup kamera" : "Kamera langsung"}
               className={`w-12 h-12 rounded-full flex items-center justify-center active:scale-95 transition cursor-pointer border ${
                 isCameraActive
-                  ? "bg-blue-50 border-blue-200 text-blue-600 dark:bg-blue-600/25 dark:border-blue-400/40 dark:text-blue-300"
+                  ? "bg-zinc-950 border-zinc-950 text-white dark:bg-white dark:border-white dark:text-zinc-950"
                   : "bg-zinc-100 hover:bg-zinc-200 border-zinc-200 text-zinc-700 dark:bg-[#18181b] dark:hover:bg-[#222327] dark:border-white/[0.06] dark:text-zinc-200"
               }`}
             >

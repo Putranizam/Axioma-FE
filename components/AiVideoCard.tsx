@@ -60,17 +60,17 @@ export function AiVideoCard({ src, title }: AiVideoCardProps) {
   };
 
   return (
-    <div className="my-3 max-w-xl w-full group/ai-video relative rounded-2xl overflow-hidden border border-white/10 bg-zinc-950 shadow-lg transition-all hover:border-white/20">
+    <div className="my-3 max-w-xl w-full group/ai-video relative rounded-2xl overflow-hidden border border-zinc-200 dark:border-white/10 bg-white dark:bg-zinc-950 shadow-sm dark:shadow-lg transition-all hover:border-zinc-300 dark:hover:border-white/20">
       {/* Top Badge Overlay */}
-      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/80 text-zinc-200 text-[11px] font-medium border border-white/10 pointer-events-none shadow-sm">
-        <Video className="w-3.5 h-3.5 text-zinc-300" />
+      <div className="absolute top-2.5 left-2.5 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/90 dark:bg-black/80 text-zinc-800 dark:text-zinc-200 text-[11px] font-medium border border-zinc-200 dark:border-white/10 pointer-events-none shadow-sm">
+        <Video className="w-3.5 h-3.5 text-zinc-700 dark:text-zinc-300" strokeWidth={1.5} />
         <span>Studio Video</span>
       </div>
 
       {/* Loading Skeleton */}
       {!isLoaded && !hasError && (
-        <div className="w-full aspect-video bg-zinc-900/80 animate-pulse flex flex-col items-center justify-center gap-2.5 text-zinc-400 select-none">
-          <Loader2 className="w-6 h-6 animate-spin text-zinc-400" />
+        <div className="w-full aspect-video bg-zinc-50 dark:bg-zinc-900/90 animate-pulse flex flex-col items-center justify-center gap-2.5 text-zinc-500 dark:text-zinc-400 select-none">
+          <Loader2 className="w-6 h-6 animate-spin text-zinc-500 dark:text-zinc-400" strokeWidth={1.5} />
           <span className="text-xs font-medium tracking-tight">Memuat video...</span>
         </div>
       )}
@@ -85,15 +85,15 @@ export function AiVideoCard({ src, title }: AiVideoCardProps) {
         muted
         onLoadedData={() => setIsLoaded(true)}
         onError={() => setHasError(true)}
-        className={`w-full rounded-2xl border border-white/10 shadow-lg bg-zinc-900 aspect-video object-cover ${
+        className={`w-full rounded-t-2xl bg-zinc-100 dark:bg-zinc-900 aspect-video object-cover ${
           isLoaded ? "block" : "hidden"
         }`}
       />
 
       {/* Bottom Action Bar */}
       {isLoaded && (
-        <div className="p-3 bg-zinc-900/90 border-t border-white/5 flex items-center justify-between gap-2">
-          <span className="text-xs text-zinc-300 truncate max-w-[65%] font-medium">
+        <div className="p-3 bg-zinc-50 dark:bg-zinc-900/90 border-t border-zinc-200 dark:border-white/10 flex items-center justify-between gap-2">
+          <span className="text-xs text-zinc-900 dark:text-zinc-100 truncate max-w-[65%] font-medium">
             {title || "Adegan Video Selesai"}
           </span>
           <button
@@ -102,12 +102,12 @@ export function AiVideoCard({ src, title }: AiVideoCardProps) {
             disabled={isDownloading}
             title="Unduh video"
             aria-label="Unduh video"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white text-zinc-900 font-medium text-xs hover:bg-zinc-200 active:scale-95 transition-all shadow-md cursor-pointer disabled:opacity-50 shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 font-medium text-xs active:scale-95 transition-all shadow-xs cursor-pointer disabled:opacity-50 shrink-0"
           >
             {isDownloading ? (
-              <Loader2 className="w-3.5 h-3.5 animate-spin text-zinc-900" />
+              <Loader2 className="w-3.5 h-3.5 animate-spin" strokeWidth={1.5} />
             ) : (
-              <Download className="w-3.5 h-3.5 text-zinc-900" />
+              <Download className="w-3.5 h-3.5" strokeWidth={1.5} />
             )}
             <span>Unduh Video</span>
           </button>
@@ -116,15 +116,15 @@ export function AiVideoCard({ src, title }: AiVideoCardProps) {
 
       {/* Error Fallback */}
       {hasError && (
-        <div className="p-4 rounded-2xl bg-zinc-900 border border-white/10 flex items-center gap-3 text-zinc-400">
-          <CircleAlert className="w-5 h-5 text-amber-400 shrink-0" />
+        <div className="p-4 rounded-2xl bg-zinc-50 dark:bg-zinc-900/90 border border-zinc-200 dark:border-white/10 flex items-center gap-3 text-zinc-500 dark:text-zinc-400">
+          <CircleAlert className="w-5 h-5 text-zinc-600 dark:text-zinc-400 shrink-0" strokeWidth={1.5} />
           <div className="text-xs leading-relaxed">
             Format video tidak dapat diputar langsung di peramban.{" "}
             <a
               href={src}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-white underline font-medium hover:text-blue-400"
+              className="text-zinc-900 dark:text-zinc-100 underline font-medium hover:text-zinc-900 dark:hover:text-white"
             >
               Unduh atau putar video di tab baru
             </a>

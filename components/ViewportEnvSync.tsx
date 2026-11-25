@@ -61,11 +61,8 @@ export function ViewportEnvSync() {
         const isInputFocused =
           activeTag === "INPUT" || activeTag === "TEXTAREA";
 
-        if (!isInputFocused) {
-          const fullHeight = Math.max(vvHeight, window.innerHeight);
-          if (fullHeight > baseHeightRef.current) {
-            baseHeightRef.current = fullHeight;
-          }
+        if (!isInputFocused && vvHeight > baseHeightRef.current) {
+          baseHeightRef.current = vvHeight;
         }
 
         const kbOpen =
@@ -77,11 +74,10 @@ export function ViewportEnvSync() {
           if (kbOpen) {
             root.style.setProperty("--app-height", `${vvHeight}px`);
             root.style.setProperty("--app-offset-top", `${vvOffsetTop}px`);
-            if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+            if (window.scrollY !== 0) window.scrollTo(0, 0);
           } else {
             root.style.setProperty("--app-height", "100lvh");
             root.style.setProperty("--app-offset-top", "0px");
-            if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
           }
         } else if (env === "desktop") {
           root.style.setProperty("--app-height", "100dvh");
