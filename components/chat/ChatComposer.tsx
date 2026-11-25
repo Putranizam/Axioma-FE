@@ -74,12 +74,7 @@ export const ChatComposer = React.memo(function ChatComposer({
           {aboveInputSlot}
 
           {/* Rounded Floating Composer Card */}
-          <div
-            style={!hasMessages ? { animationDelay: "120ms" } : undefined}
-            className={`group/input relative pointer-events-auto max-w-[720px] mx-auto w-full rounded-[24px] px-3.5 sm:px-4 pt-3 pb-2.5 flex flex-col gap-2 ${
-              !hasMessages ? "animate-axioma-fade-up" : ""
-            }`}
-          >
+          <div className="group/input relative pointer-events-auto max-w-[720px] mx-auto w-full rounded-[24px] px-3.5 sm:px-4 pt-3 pb-2.5 flex flex-col gap-2">
             {/* Dedicated backdrop layer (keeps parent free of backdrop-filter for iOS Safari nested menus) */}
             <div
               aria-hidden="true"

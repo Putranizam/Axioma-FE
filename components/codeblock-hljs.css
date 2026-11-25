@@ -1,0 +1,136 @@
+/* =============================================================================
+ * SYNTAX HIGHLIGHTING (highlight.js) — THEME ADAPTIVE (LIGHT & DARK)
+ * Lazy-loaded strictly inside CodeBlock chunk (excluded from initial `/` CSS)
+ * ============================================================================= */
+.hljs {
+  color: var(--text-primary);
+  background: transparent;
+}
+
+/* Light theme colors (default) */
+.hljs-comment,
+.hljs-quote {
+  color: #64748b;
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-subst {
+  color: #7c3aed;
+  font-weight: 500;
+}
+
+.hljs-string,
+.hljs-title,
+.hljs-section,
+.hljs-attribute,
+.hljs-literal,
+.hljs-template-tag,
+.hljs-template-variable,
+.hljs-type,
+.hljs-addition {
+  color: #15803d;
+}
+
+.hljs-number,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-variable {
+  color: #b45309;
+}
+
+.hljs-title.class_,
+.hljs-class .hljs-title,
+.hljs-title.function_,
+.hljs-function .hljs-title {
+  color: #1d4ed8;
+}
+
+.hljs-attr,
+.hljs-variable.language_,
+.hljs-name {
+  color: #0284c7;
+}
+
+.hljs-built_in,
+.hljs-doctag {
+  color: #be185d;
+}
+
+.hljs-deletion {
+  color: #b91c1c;
+  background-color: rgba(220, 38, 38, 0.08);
+}
+
+.hljs-meta {
+  color: #475569;
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: 700;
+}
+
+/* Dark theme overrides */
+html.dark .hljs-comment,
+html.dark .hljs-quote {
+  color: #71717a;
+  font-style: italic;
+}
+
+html.dark .hljs-keyword,
+html.dark .hljs-selector-tag,
+html.dark .hljs-subst {
+  color: #c084fc;
+  font-weight: 500;
+}
+
+html.dark .hljs-string,
+html.dark .hljs-title,
+html.dark .hljs-section,
+html.dark .hljs-attribute,
+html.dark .hljs-literal,
+html.dark .hljs-template-tag,
+html.dark .hljs-template-variable,
+html.dark .hljs-type,
+html.dark .hljs-addition {
+  color: #4ade80;
+}
+
+html.dark .hljs-number,
+html.dark .hljs-symbol,
+html.dark .hljs-bullet,
+html.dark .hljs-variable {
+  color: #fbbf24;
+}
+
+html.dark .hljs-title.class_,
+html.dark .hljs-class .hljs-title,
+html.dark .hljs-title.function_,
+html.dark .hljs-function .hljs-title {
+  color: #60a5fa;
+}
+
+html.dark .hljs-attr,
+html.dark .hljs-variable.language_,
+html.dark .hljs-name {
+  color: #38bdf8;
+}
+
+html.dark .hljs-built_in,
+html.dark .hljs-doctag {
+  color: #f472b6;
+}
+
+html.dark .hljs-deletion {
+  color: #f87171;
+  background-color: rgba(239, 68, 68, 0.1);
+}
+
+html.dark .hljs-meta {
+  color: #94a3b8;
+}

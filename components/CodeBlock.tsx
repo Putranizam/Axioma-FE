@@ -2,6 +2,7 @@
 
 import React, { memo, useMemo } from "react";
 import hljs from "highlight.js/lib/common";
+import "./codeblock-hljs.css";
 import { Check, Copy, Play } from "lucide-react";
 
 export function isRunnableHtml(language: string, codeString: string): boolean {

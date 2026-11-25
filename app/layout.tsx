@@ -15,7 +15,7 @@ const jetbrainsMono = JetBrains_Mono({
   variable: "--font-jetbrains",
   subsets: ["latin"],
   display: "swap",
-  preload: true,
+  preload: false,
   weight: ["400", "500"],
 });
 
@@ -128,8 +128,6 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
   themeColor: [
@@ -151,7 +149,6 @@ export default function RootLayout({
     >
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
-        <link rel="preconnect" href={BACKEND_ORIGIN} crossOrigin="anonymous" />
         <link rel="dns-prefetch" href={BACKEND_ORIGIN} />
         <script
           dangerouslySetInnerHTML={{

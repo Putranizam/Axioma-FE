@@ -80,10 +80,16 @@ export function ViewportEnvSync() {
             root.style.setProperty("--app-offset-top", "0px");
           }
         } else if (env === "desktop") {
-          root.style.setProperty("--app-height", "100dvh");
+          root.style.removeProperty("--app-height");
           root.style.setProperty("--app-offset-top", "0px");
         } else {
-          root.style.setProperty("--app-height", `${vvHeight}px`);
+          // Avoid overwriting CSS 100dvh on initial mount when visualViewport matches innerHeight (prevents mobile CLS)
+          const heightDelta = Math.abs(vvHeight - window.innerHeight);
+          if (kbOpen || heightDelta > 16) {
+            root.style.setProperty("--app-height", `${vvHeight}px`);
+          } else {
+            root.style.removeProperty("--app-height");
+          }
           root.style.setProperty(
             "--app-offset-top",
             kbOpen ? `${vvOffsetTop}px` : "0px"

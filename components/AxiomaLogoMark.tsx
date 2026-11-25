@@ -1,39 +1,23 @@
 import React from "react";
-import Image from "next/image";
 
 interface AxiomaLogoMarkProps {
   className?: string;
   size?: number;
+  priority?: boolean;
 }
 
 /**
- * Logo resmi Axioma 3D Ribbon "A" dengan deteksi tema real-time:
- * - Mode Terang: `/brand/light/axioma-logo.png`
- * - Mode Gelap: `/brand/dark/axioma-logo.png`
+ * Logo resmi Axioma 3D Ribbon "A" dengan deteksi tema real-time berbasis CSS:
+ * - Hanya mengunduh 1 aset sesuai tema aktif (`html.dark` vs terang), tanpa double preload `<link rel="preload">`.
+ * - Berpindah tema seketika tanpa flicker saat pengguna mengubah mode Terang/Gelap/Sistem.
  */
-export function AxiomaLogoMark({
-  className = "w-full h-full",
-  size = 64,
-}: AxiomaLogoMarkProps) {
+export function AxiomaLogoMark({ className = "w-full h-full" }: AxiomaLogoMarkProps) {
   return (
-    <>
-      <Image
-        src="/brand/light/axioma-logo.png"
-        alt="Axioma"
-        width={size}
-        height={size}
-        className={`${className} object-contain dark:hidden`}
-        priority
-      />
-      <Image
-        src="/brand/dark/axioma-logo.png"
-        alt="Axioma"
-        width={size}
-        height={size}
-        className={`${className} object-contain hidden dark:block`}
-        priority
-      />
-    </>
+    <span
+      role="img"
+      aria-label="Axioma"
+      className={`axioma-logo-mark shrink-0 ${className}`}
+    />
   );
 }
 

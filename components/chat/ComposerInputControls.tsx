@@ -48,6 +48,7 @@ interface ComposerTextareaProps {
   onChangeValue: (nextVal: string) => void;
   onKeyDown: (e: React.KeyboardEvent<HTMLTextAreaElement>) => void;
   onPaste: (e: React.ClipboardEvent<HTMLTextAreaElement>) => void;
+  onFocusInput?: () => void;
 }
 
 export const ComposerTextarea = memo(function ComposerTextarea({
@@ -57,6 +58,7 @@ export const ComposerTextarea = memo(function ComposerTextarea({
   onChangeValue,
   onKeyDown,
   onPaste,
+  onFocusInput,
 }: ComposerTextareaProps) {
   const value = useSyncExternalStore(store.subscribe, store.get, () => "");
 
@@ -74,6 +76,7 @@ export const ComposerTextarea = memo(function ComposerTextarea({
       onKeyDown={onKeyDown}
       onPaste={onPaste}
       onFocus={() => {
+        onFocusInput?.();
         if (typeof window !== "undefined" && (window.scrollY !== 0 || window.scrollX !== 0)) {
           window.scrollTo(0, 0);
         }

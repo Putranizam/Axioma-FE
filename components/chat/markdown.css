@@ -1,0 +1,288 @@
+/* ==========================================================================
+   Axioma Markdown Typography (Lazy-loaded inside MessageItem chunk)
+   Restores and styles headings, ordered/unordered lists, tables, blockquotes,
+   and code blocks inside AI responses without blocking initial `/` render.
+   ========================================================================== */
+
+.axioma-markdown {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  color: #18181b;
+  font-size: 15.5px;
+  font-weight: 400;
+  line-height: 1.7;
+  letter-spacing: -0.005em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+html.dark .axioma-markdown {
+  color: #f4f4f5;
+}
+
+.axioma-markdown pre,
+.axioma-markdown code {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.axioma-markdown pre {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.axioma-markdown .katex-display {
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0.25rem 0;
+  -webkit-overflow-scrolling: touch;
+}
+
+.axioma-markdown > *:first-child {
+  margin-top: 0 !important;
+}
+
+.axioma-markdown > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+.axioma-markdown p {
+  color: #18181b;
+  font-weight: 400;
+  margin-top: 0;
+  margin-bottom: 0.75em;
+  line-height: 1.7;
+}
+
+html.dark .axioma-markdown p {
+  color: #f4f4f5;
+}
+
+.axioma-markdown h1 {
+  font-size: 1.375rem; /* 22px */
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: -0.015em;
+  color: #09090b;
+  margin-top: 1.25em;
+  margin-bottom: 0.5em;
+}
+
+.axioma-markdown h2 {
+  font-size: 1.1875rem; /* 19px */
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+  color: #09090b;
+  margin-top: 1.15em;
+  margin-bottom: 0.45em;
+}
+
+.axioma-markdown h3 {
+  font-size: 1.0625rem; /* 17px */
+  font-weight: 600;
+  line-height: 1.45;
+  color: #09090b;
+  margin-top: 1em;
+  margin-bottom: 0.4em;
+}
+
+.axioma-markdown h4,
+.axioma-markdown h5,
+.axioma-markdown h6 {
+  font-size: 0.96875rem; /* 15.5px */
+  font-weight: 600;
+  line-height: 1.5;
+  color: #09090b;
+  margin-top: 0.9em;
+  margin-bottom: 0.35em;
+}
+
+html.dark .axioma-markdown h1,
+html.dark .axioma-markdown h2,
+html.dark .axioma-markdown h3,
+html.dark .axioma-markdown h4,
+html.dark .axioma-markdown h5,
+html.dark .axioma-markdown h6 {
+  color: #ffffff;
+}
+
+.axioma-markdown ul {
+  list-style-type: disc !important;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin-top: 0.5em;
+  margin-bottom: 0.85em;
+}
+
+.axioma-markdown ol {
+  list-style-type: decimal !important;
+  list-style-position: outside;
+  padding-left: 1.5rem;
+  margin-top: 0.5em;
+  margin-bottom: 0.85em;
+}
+
+.axioma-markdown ul ul {
+  list-style-type: circle !important;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.axioma-markdown ul ul ul {
+  list-style-type: square !important;
+}
+
+.axioma-markdown ol ol {
+  list-style-type: lower-alpha !important;
+  margin-top: 0.25em;
+  margin-bottom: 0.25em;
+}
+
+.axioma-markdown li {
+  display: list-item !important;
+  margin-top: 0.3em;
+  margin-bottom: 0.3em;
+  padding-left: 0.2rem;
+  line-height: 1.68;
+  color: #18181b;
+}
+
+html.dark .axioma-markdown li {
+  color: #f4f4f5;
+}
+
+.axioma-markdown li > p {
+  margin-bottom: 0.35em;
+}
+
+.axioma-markdown li > p:last-child {
+  margin-bottom: 0;
+}
+
+.axioma-markdown li::marker {
+  color: #52525b;
+  font-weight: 500;
+}
+
+html.dark .axioma-markdown li::marker {
+  color: #a1a1aa;
+}
+
+.axioma-markdown strong {
+  font-weight: 600;
+  color: #09090b;
+}
+
+html.dark .axioma-markdown strong {
+  color: #ffffff;
+}
+
+.axioma-markdown em {
+  font-style: italic;
+  color: #18181b;
+}
+
+html.dark .axioma-markdown em {
+  color: #f4f4f5;
+}
+
+.axioma-markdown a {
+  color: #2563eb;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+html.dark .axioma-markdown a {
+  color: #60a5fa;
+}
+
+.axioma-markdown blockquote {
+  margin: 0.85em 0;
+  padding: 0.5rem 0.9rem;
+  border-left: 3px solid #d4d4d8;
+  background-color: #f4f4f5;
+  border-radius: 0 0.5rem 0.5rem 0;
+  color: #3f3f46;
+  font-style: italic;
+}
+
+html.dark .axioma-markdown blockquote {
+  border-left-color: #3f3f46;
+  background-color: #18181b;
+  color: #d4d4d8;
+}
+
+.axioma-markdown hr {
+  border: 0;
+  border-top: 1px solid var(--border-subtle);
+  margin: 1.1rem 0;
+}
+
+.axioma-markdown .axioma-table-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0.85em 0;
+  border-radius: 0.75rem;
+  border: 1px solid var(--border-subtle);
+  background-color: var(--bg-elevated);
+  -webkit-overflow-scrolling: touch;
+}
+
+.axioma-markdown table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 0.84375rem; /* 13.5px */
+  line-height: 1.55;
+}
+
+.axioma-markdown thead {
+  background-color: var(--bg-surface);
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.axioma-markdown th {
+  padding: 0.6rem 0.85rem;
+  font-weight: 600;
+  color: #09090b;
+  border-right: 1px solid var(--border-subtle);
+  white-space: nowrap;
+}
+
+html.dark .axioma-markdown th {
+  color: #ffffff;
+}
+
+.axioma-markdown th:last-child {
+  border-right: 0;
+}
+
+.axioma-markdown td {
+  padding: 0.55rem 0.85rem;
+  color: #18181b;
+  border-top: 1px solid var(--border-subtle);
+  border-right: 1px solid var(--border-subtle);
+  vertical-align: top;
+}
+
+html.dark .axioma-markdown td {
+  color: #e4e4e7;
+}
+
+.axioma-markdown td:last-child {
+  border-right: 0;
+}
+
+.axioma-markdown tbody tr:nth-child(even) {
+  background-color: var(--bg-surface);
+}
+
+.axioma-markdown tbody tr:hover {
+  background-color: var(--bg-subtle);
+}
