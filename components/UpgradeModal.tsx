@@ -159,11 +159,11 @@ export function UpgradeModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-[125] flex items-center justify-center p-3 sm:p-4 bg-black/50 dark:bg-black/75 backdrop-blur-xs text-zinc-900 dark:text-zinc-100 font-sans"
+      className="fixed inset-0 z-[125] w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 md:p-4 flex items-stretch md:items-center justify-center bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-black/50 md:dark:bg-black/75 md:backdrop-blur-xs text-zinc-900 dark:text-zinc-100 font-sans overflow-hidden"
     >
-      <div className="w-full max-w-[680px] max-h-[90dvh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] flex flex-col rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] bg-white dark:bg-[#141416] shadow-2xl">
+      <div className="w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 md:h-auto md:max-w-[680px] md:max-h-[90dvh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] flex flex-col md:rounded-2xl md:border md:border-zinc-200/80 md:dark:border-white/[0.08] bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-white md:dark:bg-[#141416] md:shadow-2xl">
         {/* Header */}
-        <header className="sticky top-0 z-10 shrink-0 flex items-start justify-between gap-3 sm:gap-4 border-b border-zinc-200/80 dark:border-white/[0.08] bg-white dark:bg-[#141416] px-4 sm:px-6 py-4 sm:py-5">
+        <header className="sticky top-0 z-10 shrink-0 flex items-start justify-between gap-3 sm:gap-4 border-b border-zinc-200/80 dark:border-white/[0.08] bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-white md:dark:bg-[#141416] pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5 px-4 md:px-6 md:py-5">
           <div className="min-w-0 flex-1">
             <h2
               id="upgrade-modal-title"
@@ -405,7 +405,7 @@ export function UpgradeModal({
         </div>
 
         {/* Footer */}
-        <footer className="shrink-0 border-t border-zinc-200/80 dark:border-white/[0.08] bg-white dark:bg-[#141416] px-4 sm:px-6 py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
+        <footer className="shrink-0 border-t border-zinc-200/80 dark:border-white/[0.08] bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-white md:dark:bg-[#141416] px-4 md:px-6 pt-3.5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
           <div className="inline-flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
             <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
             <span>Kuota gratis direset otomatis setiap pukul 00.00 WIB</span>

@@ -124,11 +124,11 @@ export function LivePreviewModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-[120] flex flex-col bg-[#f9f9f8] dark:bg-[#0e0e10] text-zinc-900 dark:text-zinc-100 md:p-4 md:bg-black/45 md:dark:bg-black/70 md:backdrop-blur-xs md:items-center md:justify-center"
+      className="fixed inset-0 z-[120] w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 flex flex-col bg-[#f9f9f8] dark:bg-[#0e0e10] text-zinc-900 dark:text-zinc-100 font-sans md:p-4 md:bg-black/45 md:dark:bg-black/70 md:backdrop-blur-xs md:items-center md:justify-center overflow-hidden"
     >
-      <div className="w-full h-full flex flex-col overflow-hidden bg-[#f9f9f8] dark:bg-[#0e0e10] md:max-w-[1180px] md:h-[min(88vh,860px)] md:rounded-2xl md:border md:border-zinc-200/80 md:dark:border-white/[0.1] md:shadow-2xl">
+      <div className="w-full h-full max-w-none max-h-none m-0 rounded-none border-0 flex flex-col overflow-hidden bg-[#f9f9f8] dark:bg-[#0e0e10] md:max-w-[1180px] md:h-[min(88dvh,860px)] md:rounded-2xl md:border md:border-zinc-200/80 md:dark:border-white/[0.1] md:shadow-2xl">
         {/* Compact Monochrome Header */}
-        <header className="shrink-0 flex items-center justify-between gap-2 border-b border-zinc-200/80 dark:border-white/[0.08] bg-white dark:bg-[#141416] pt-[calc(var(--safe-top,env(safe-area-inset-top,0px))+10px)] md:pt-2.5 pb-2.5 px-3.5 sm:px-5">
+        <header className="shrink-0 flex items-center justify-between gap-2 border-b border-zinc-200/80 dark:border-white/[0.08] bg-white dark:bg-[#141416] pt-[max(0.625rem,env(safe-area-inset-top))] md:pt-2.5 pb-2.5 px-3.5 md:px-5">
           {/* Left: Title + Segmented Toggle */}
           <div className="flex items-center gap-2.5 sm:gap-3.5 min-w-0">
             <h2

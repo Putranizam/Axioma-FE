@@ -186,17 +186,17 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       role="dialog"
       aria-modal="true"
       aria-labelledby="auth-modal-title"
-      className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] z-50 flex items-stretch sm:items-center justify-center p-0 sm:p-6 bg-[#f9f9f8] dark:bg-[#0e0e10] sm:bg-black/70 sm:dark:bg-black/70 overflow-hidden animate-backdrop"
+      className="fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 md:p-6 z-50 flex items-stretch md:items-center justify-center bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-black/70 md:dark:bg-black/70 overflow-hidden animate-backdrop font-sans"
       onClick={(e) => {
         if (e.target === e.currentTarget && !isLoading) onClose();
       }}
     >
       <div
         ref={modalRef}
-        className="fixed top-0 left-0 right-0 w-full h-[var(--app-height)] overflow-hidden sm:static sm:w-full sm:h-auto sm:max-h-[90vh] bg-[#f9f9f8] dark:bg-[#0e0e10] sm:max-w-[420px] sm:mx-auto sm:my-auto sm:rounded-2xl sm:bg-white sm:dark:bg-[#161618] sm:border sm:border-zinc-200/80 sm:dark:border-white/[0.08] sm:shadow-2xl sm:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
+        className="fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 overflow-hidden md:static md:w-full md:h-auto md:max-h-[90dvh] bg-[#f9f9f8] dark:bg-[#0e0e10] md:max-w-[420px] md:mx-auto md:my-auto md:rounded-2xl md:bg-white md:dark:bg-[#161618] md:border md:border-zinc-200/80 md:dark:border-white/[0.08] md:shadow-2xl md:p-6 flex flex-col focus:outline-none animate-modal-pop text-text-primary"
       >
         {/* Header (solid opaque, aman di bawah status bar / Dynamic Island) */}
-        <div className="relative z-30 shrink-0 flex items-start justify-between gap-3 pt-[calc(var(--safe-top)+14px)] pb-3 px-5 sm:p-0 sm:pb-5 bg-[#f9f9f8] dark:bg-[#0e0e10] sm:bg-white sm:dark:bg-[#161618] border-b border-zinc-200/80 dark:border-white/[0.08] sm:border-b-0">
+        <div className="relative z-30 shrink-0 flex items-start justify-between gap-3 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 px-4 md:p-0 md:pb-5 bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-white md:dark:bg-[#161618] border-b border-zinc-200/80 dark:border-white/[0.08] md:border-b-0">
           <div className="flex items-center gap-3 min-w-0">
             <AxiomaLogoMark className="w-8 h-8 shrink-0" />
             <div className="min-w-0">
@@ -220,7 +220,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         </div>
 
         {/* Content + Footer Body */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-0 pt-5 pb-[calc(var(--safe-bottom)+20px)] sm:pb-0 space-y-4">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto px-4 md:px-0 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-0 space-y-4">
           <div className="space-y-4">
           {!configured && (
             <div
@@ -352,7 +352,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="Nama Anda"
                     disabled={isLoading}
-                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-base md:text-sm placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>
@@ -371,7 +371,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                   placeholder="nama@email.com"
                   disabled={isLoading}
                   autoComplete="email"
-                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                  className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-base md:text-sm placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                 />
               </div>
             </div>
@@ -401,7 +401,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     disabled={isLoading}
                     minLength={6}
                     autoComplete={tab === "signup" ? "new-password" : "current-password"}
-                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-[16px] sm:text-[15px] placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
+                    className="w-full h-11 pl-9 pr-3.5 rounded-xl bg-bg-surface dark:bg-[#18181b] border border-border-subtle dark:border-white/[0.06] text-text-primary dark:text-white text-base md:text-sm placeholder:text-text-muted dark:placeholder:text-zinc-500 focus:outline-none focus:border-border-strong dark:focus:border-white/20 transition-all"
                   />
                 </div>
               </div>

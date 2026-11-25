@@ -116,6 +116,10 @@ export const viewport: Viewport = {
   userScalable: false,
   viewportFit: "cover",
   interactiveWidget: "resizes-content",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f9f9f8" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0e10" },
+  ],
 };
 
 export default function RootLayout({
@@ -140,7 +144,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className="fixed inset-0 w-full h-[var(--app-height)] m-0 p-0 overflow-hidden overscroll-none bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-primary font-sans antialiased"
+        className="fixed inset-0 w-full min-h-[100dvh] h-[var(--app-height,100dvh)] m-0 p-0 overflow-hidden overflow-x-hidden overscroll-none bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-primary font-sans antialiased"
         suppressHydrationWarning
       >
         <ViewportEnvSync />

@@ -7066,7 +7066,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }}
       id="axioma-app-shell"
       style={{ transform: "translate3d(0, var(--app-offset-top), 0)" }}
-      className="fixed top-0 left-0 right-0 h-[var(--app-height)] w-full pb-0 flex flex-col justify-between md:flex-row bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-secondary font-sans antialiased overflow-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
+      className="fixed inset-0 h-[var(--app-height,100dvh)] min-h-[100dvh] w-full max-w-none m-0 p-0 border-0 rounded-none flex flex-col justify-between md:flex-row bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-secondary font-sans antialiased overflow-hidden overflow-x-hidden selection:bg-border-strong selection:text-text-primary select-none !transition-none"
     >
       {/* Drag & Drop Overlay */}
       {isDraggingOver && (
@@ -7190,14 +7190,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </aside>
       )}
 
-      {/* Clear All Chats Confirmation Dialog (Smooth Enter & Exit Animations) */}
+      {/* Clear All Chats Confirmation Dialog (Full-Screen on Mobile < md, Centered Card on Desktop >= md) */}
       {shouldRenderClearAllConfirm && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="clear-all-dialog-title"
           aria-describedby="clear-all-dialog-desc"
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 touch-none transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 md:p-4 z-50 flex items-stretch md:items-center justify-center bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-black/70 md:dark:bg-black/70 touch-none font-sans transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isClearAllConfirmEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -7207,38 +7207,37 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[440px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pb-[calc(var(--safe-bottom)+16px)] sm:p-6 shadow-2xl space-y-4 max-h-[90%] sm:max-h-[85vh] overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
-              isClearAllConfirmEntered ? "translate-y-0 opacity-100 sm:scale-100" : "translate-y-full opacity-0 sm:scale-95"
+            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[440px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-4 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+              isClearAllConfirmEntered ? "translate-y-0 opacity-100 md:scale-100" : "translate-y-4 opacity-0 md:translate-y-0 md:scale-95"
             }`}
           >
-            <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3 pt-4 md:pt-0">
               <div className="w-9 h-9 rounded-xl bg-red-50 border border-red-200 text-red-600 dark:bg-red-950/50 dark:border-red-800/50 dark:text-red-400 flex items-center justify-center shrink-0">
                 <TriangleAlert className="w-4 h-4" />
               </div>
               <div className="space-y-1 min-w-0">
                 <h2
                   id="clear-all-dialog-title"
-                  className="text-sm font-semibold text-text-primary"
+                  className="text-base md:text-sm font-semibold text-text-primary"
                 >
                   Hapus semua percakapan?
                 </h2>
                 <p
                   id="clear-all-dialog-desc"
-                  className="text-xs text-text-secondary leading-relaxed"
+                  className="text-sm md:text-xs text-text-secondary leading-relaxed"
                 >
                   Seluruh riwayat percakapan dan pesan Anda akan dihapus secara permanen. Tindakan ini tidak bisa dibatalkan.
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
+            <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-end gap-2 pt-3 border-t border-border-subtle">
               <button
                 ref={clearAllCancelButtonRef}
                 type="button"
                 disabled={isClearingAllChats}
                 onClick={() => setIsClearAllConfirmOpen(false)}
-                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary border border-border-subtle transition-colors cursor-pointer disabled:opacity-50"
+                className="w-full md:w-auto min-h-[44px] md:min-h-[40px] px-4 py-2 rounded-xl text-sm md:text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary border border-border-subtle transition-colors cursor-pointer disabled:opacity-50"
               >
                 Batal
               </button>
@@ -7246,7 +7245,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 type="button"
                 disabled={isClearingAllChats}
                 onClick={confirmClearAllChats}
-                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-medium text-red-100 bg-red-600 hover:bg-red-500 transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
+                className="w-full md:w-auto min-h-[44px] md:min-h-[40px] px-4 py-2 rounded-xl text-sm md:text-xs font-medium text-red-100 bg-red-600 hover:bg-red-500 transition-colors cursor-pointer disabled:opacity-50 shadow-xs"
               >
                 {isClearingAllChats ? "Menghapus..." : "Hapus Semua"}
               </button>
@@ -7263,7 +7262,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             role="dialog"
             aria-modal="true"
             aria-labelledby="settings-modal-title"
-            className={`fixed inset-0 z-50 flex items-stretch justify-center p-0 overflow-hidden font-sans ${
+            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 z-50 flex items-stretch justify-center overflow-hidden font-sans ${
               isSettingsEntered
                 ? "max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] pointer-events-auto"
                 : "max-md:bg-transparent pointer-events-none"
@@ -7281,12 +7280,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               style={settingsView === "main" ? settingsPopoverStyle : undefined}
               className={`fixed z-50 flex flex-col overflow-hidden ${
                 settingsView === "main"
-                  ? `inset-0 w-full rounded-none max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:inset-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[80dvh] md:overflow-y-auto md:rounded-2xl md:p-2 md:origin-bottom-left transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  ? `inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] md-ios-glass md:inset-auto md:bottom-16 md:left-4 md:w-[290px] md:h-auto md:max-h-[80dvh] md:overflow-y-auto md:rounded-2xl md:p-2 md:origin-bottom-left transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                       isSettingsEntered
                         ? "opacity-100 md:scale-100"
                         : "max-md:translate-y-4 opacity-0 md:scale-95 pointer-events-none"
                     }`
-                  : `inset-0 w-full rounded-none bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[80dvh] md:overflow-y-auto md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                  : `inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:w-[calc(100vw-3rem)] md:max-w-[540px] md:h-auto md:max-h-[80dvh] md:overflow-y-auto md:rounded-2xl md:border md:border-zinc-200/80 dark:md:border-white/[0.08] md:shadow-2xl transition-opacity duration-200 md:transition-[transform,opacity] ease-[cubic-bezier(0.22,1,0.36,1)] ${
                       isSettingsEntered
                         ? "md:-translate-y-1/2 opacity-100 md:scale-100"
                         : "max-md:translate-y-4 md:-translate-y-[calc(50%-16px)] opacity-0 md:scale-95 pointer-events-none"
@@ -7308,7 +7307,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ) : (
               <>
                 {/* Sticky Top Navigation Bar (Mobile only; hidden on Desktop Popover) */}
-                <div className="md:hidden relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] pb-3 px-5 bg-[#f9f9f8] dark:bg-[#0e0e10] border-b border-zinc-200/80 dark:border-white/[0.08] flex items-center justify-between">
+                <div className="md:hidden sticky top-0 z-30 shrink-0 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 px-4 bg-[#f9f9f8] dark:bg-[#0e0e10] border-b border-zinc-200/80 dark:border-white/[0.06] flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <h1 id="settings-modal-title" className="font-heading text-[18px] font-semibold tracking-[-0.015em] text-zinc-900 dark:text-zinc-100">
                       Setelan
@@ -7327,14 +7326,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </button>
                 </div>
 
-                {/* Scrollable Body Area */}
-                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] px-5 pt-5 pb-[calc(var(--safe-bottom)+28px)] space-y-5 md:p-0 md:space-y-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
+                {/* Scrollable Body Area (Full-bleed edge-to-edge on Mobile < md, Popover list on Desktop >= md) */}
+                <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] px-0 pt-2 pb-[max(1.5rem,env(safe-area-inset-bottom))] space-y-5 md:p-0 md:space-y-1 scrollbar-none [&::-webkit-scrollbar]:hidden">
                   {/* Grup 1: Akun */}
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2 md:pb-1 md:mb-0">
+                  <div className="w-full">
+                    <div className="w-full text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-4 pt-2 pb-1.5 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2 md:pb-1">
                       Akun
                     </div>
-                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl max-md:overflow-hidden divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:shadow-none md:space-y-0.5">
+                    <div className="w-full h-auto bg-white/80 dark:bg-transparent border-y border-zinc-200/70 dark:border-white/[0.06] rounded-none divide-y divide-zinc-200/70 dark:divide-white/[0.06] md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:space-y-0.5">
                       {/* Kelola Akun */}
                       <button
                         type="button"
@@ -7345,7 +7344,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             setExpandedSettingsSection((prev) => (prev === "account" ? null : "account"));
                           }
                         }}
-                        className="w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] rounded-t-2xl cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                        className="w-full flex items-center justify-between px-4 py-4 min-h-[54px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] rounded-none cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
                           <User className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
@@ -7360,7 +7359,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Kelola Akun drawer */}
                       {expandedSettingsSection === "account" && (
-                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-3">
+                        <div className="w-full px-4 py-4 bg-zinc-100/60 dark:bg-white/[0.025] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-3">
                           <div>
                             <label htmlFor="settings-display-name" className="block text-xs font-medium text-zinc-600 dark:text-zinc-300 mb-1.5">
                               Nama Tampilan
@@ -7387,7 +7386,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                   handleUpdateDisplayName(settingsNameInput);
                                 }}
                                 placeholder="Masukkan nama tampilan..."
-                                className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3.5 py-2.5 md:px-2.5 md:py-1.5 text-[16px] md:text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors"
+                                className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3.5 py-2.5 md:px-2.5 md:py-1.5 text-base md:text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none transition-colors"
                               />
                               <button
                                 type="button"
@@ -7463,7 +7462,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               value={userProfile}
                               onChange={(e) => handleUpdateUserProfile(e.target.value)}
                               placeholder="Contoh: Mahasiswa TI, suka penjelasan to-the-point pakai analogi sederhana..."
-                              className="w-full bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3 py-2 text-[16px] md:text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-none transition-colors"
+                              className="w-full bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3 py-2 text-base md:text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none resize-none transition-colors"
                             />
                             <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
                               Tersimpan lokal &amp; dapat dinonaktifkan kapan saja di Kontrol Konteks.
@@ -7524,7 +7523,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                     ? "Maksimal 5 syarat terkunci"
                                     : "Tambah syarat wajib proyek..."
                                 }
-                                className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3 py-1.5 text-[16px] md:text-[13px] text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none disabled:opacity-45"
+                                className="flex-1 min-w-0 bg-white dark:bg-[#141416] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/20 rounded-xl px-3 py-1.5 text-base md:text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none disabled:opacity-45"
                               />
                               <button
                                 type="button"
@@ -7576,7 +7575,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         type="button"
                         disabled
                         aria-disabled="true"
-                        className="w-full flex items-center justify-between gap-3 px-5 py-4 min-h-[56px] text-left font-sans opacity-65 cursor-not-allowed select-none md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200"
+                        className="w-full flex items-center justify-between gap-3 px-4 py-4 min-h-[54px] text-left font-sans rounded-none opacity-65 cursor-not-allowed select-none md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200"
                       >
                         <div className="flex items-center min-w-0">
                           <CreditCard className="w-5 h-5 text-zinc-500 dark:text-zinc-400 mr-4 md:w-4 md:h-4 md:mr-3 shrink-0" strokeWidth={1.5} />
@@ -7597,7 +7596,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"));
                           }
                         }}
-                        className="w-full flex items-center justify-between gap-3 px-5 py-4 min-h-[56px] text-left font-sans transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                        className="w-full flex items-center justify-between gap-3 px-4 py-4 min-h-[54px] text-left font-sans rounded-none transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
                           <Clock className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.5} />
@@ -7620,11 +7619,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </div>
                       </button>
 
-                      {/* Expandable Batas penggunaan Card (Mobile) */}
+                      {/* Expandable Batas penggunaan Body (Mobile full-bleed edge-to-edge) */}
                       {expandedSettingsSection === "quota" && (
-                        <div className="px-4 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-3 md:py-3 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] font-sans">
+                        <div className="w-full px-4 py-4 bg-zinc-100/60 dark:bg-white/[0.025] md:px-3 md:py-3 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] font-sans">
                           {authUser ? (
-                            <div className="rounded-xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-4 space-y-3.5">
+                            <div className="w-full space-y-3.5 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
                               {/* Status Paket */}
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
@@ -7709,7 +7708,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               </button>
                             </div>
                           ) : (
-                            <div className="rounded-xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-4 space-y-3">
+                            <div className="w-full space-y-3 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
                               <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
                                   Status Paket
@@ -7760,11 +7759,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
 
                   {/* Grup 2: Preferensi */}
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2.5 md:pb-1 md:mb-0">
+                  <div className="w-full">
+                    <div className="w-full text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-4 pt-1 pb-1.5 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2.5 md:pb-1">
                       Preferensi
                     </div>
-                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:shadow-none md:space-y-0.5">
+                    <div className="w-full h-auto bg-white/80 dark:bg-transparent border-y border-zinc-200/70 dark:border-white/[0.06] rounded-none divide-y divide-zinc-200/70 dark:divide-white/[0.06] md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:space-y-0.5">
                       {/* Notifikasi */}
                       <button
                         type="button"
@@ -7773,7 +7772,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             openDesktopSettingsPage("notifications");
                           }
                         }}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:transition-colors md:duration-150 md:cursor-pointer"
+                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between text-left md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:transition-colors md:duration-150 md:cursor-pointer"
                       >
                         <div className="flex items-center min-w-0">
                           <Bell className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
@@ -7792,7 +7791,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             setExpandedSettingsSection((prev) => (prev === "agent" ? null : "agent"));
                           }
                         }}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
                           <Cpu className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
@@ -7812,7 +7811,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Model Selector */}
                       {expandedSettingsSection === "agent" && (
-                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-2 md:py-2 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2">
+                        <div className="w-full px-4 py-4 bg-zinc-100/60 dark:bg-white/[0.025] md:px-2 md:py-2 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2">
                           {AVAILABLE_AGENTS.map((agent) => {
                             const isChecked = defaultAgentId === agent.id;
                             return (
@@ -7855,7 +7854,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             openDesktopSettingsPage("storage");
                           }
                         }}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:transition-colors md:duration-150 md:cursor-pointer"
+                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between gap-3 text-left md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:transition-colors md:duration-150 md:cursor-pointer"
                       >
                         <div className="flex items-center min-w-0">
                           <Database className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
@@ -7876,7 +7875,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"));
                           }
                         }}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
                           <Keyboard className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
@@ -7891,7 +7890,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                       {/* Expandable Keyboard Shortcuts */}
                       {expandedSettingsSection === "shortcuts" && (
-                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2 text-xs">
+                        <div className="w-full px-4 py-4 bg-zinc-100/60 dark:bg-white/[0.025] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2 text-xs">
                           <div className="flex items-center justify-between py-1 border-b border-zinc-200/70 dark:border-zinc-800/60">
                             <span className="text-zinc-600 dark:text-zinc-400">Cari percakapan</span>
                             <kbd className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
@@ -7920,7 +7919,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       )}
 
                       {/* Tema (Mobile monochrome segmented buttons — avoids iOS native <select> UIMenu dimming | Desktop opens flat canvas page) */}
-                      <div className="md:hidden w-full px-5 py-3.5 min-h-[56px] flex items-center justify-between gap-3 text-left rounded-b-2xl">
+                      <div className="md:hidden w-full px-4 py-3.5 min-h-[54px] flex items-center justify-between gap-3 text-left rounded-none">
                         <div className="flex items-center min-w-0 shrink-0">
                           <Moon className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 shrink-0" strokeWidth={1.75} />
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 truncate">Tema</span>
@@ -7977,11 +7976,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
 
                   {/* Grup 3: Bantuan & Informasi */}
-                  <div>
-                    <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2.5 md:pb-1 md:mb-0">
+                  <div className="w-full">
+                    <div className="w-full text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-4 pt-1 pb-1.5 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2.5 md:pb-1">
                       Bantuan &amp; Informasi
                     </div>
-                    <div className="rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none overflow-hidden md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:shadow-none md:space-y-0.5">
+                    <div className="w-full rounded-none bg-white/80 dark:bg-transparent border-y border-zinc-200/70 dark:border-white/[0.06] divide-y divide-zinc-200/70 dark:divide-white/[0.06] overflow-hidden md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:space-y-0.5">
                       {/* 1) Kirim Masukan */}
                       <button
                         type="button"
@@ -7992,7 +7991,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             setSettingsView("feedback");
                           }
                         }}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
                           <MessageSquarePlus className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
@@ -8014,7 +8013,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             setSettingsView("about");
                           }
                         }}
-                        className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between gap-3 text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
                           <Info className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
@@ -8029,7 +8028,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
 
                   {/* Stage 10B: Apa yang Baru (v1.0 Beta) */}
-                  <div className="rounded-2xl md:rounded-xl bg-white dark:bg-[#131316] md:bg-zinc-50/90 md:dark:bg-white/[0.03] border border-zinc-200/80 dark:border-white/[0.08] p-4 md:p-3 space-y-2 md:mx-1">
+                  <div className="w-full rounded-none md:rounded-xl bg-white/80 dark:bg-transparent md:bg-zinc-50/90 md:dark:bg-white/[0.03] border-y md:border border-zinc-200/70 dark:border-white/[0.06] px-4 py-4 md:p-3 space-y-2 md:mx-1 md:w-auto">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-xs font-semibold text-zinc-900 dark:text-zinc-100 tracking-tight">
                         Apa yang Baru (v1.0 Beta)
@@ -8066,15 +8065,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     </ul>
                   </div>
 
-                  {/* Grup 4: Kartu Terpisah Hapus semua percakapan */}
-                  <div className="rounded-2xl bg-white dark:bg-[#131316] border border-red-200 dark:border-red-500/15 hover:bg-red-50/70 dark:hover:bg-red-500/[0.06] transition overflow-hidden md:bg-transparent md:dark:bg-transparent md:border-0 md:border-t md:border-zinc-200/70 md:dark:border-white/[0.08] md:rounded-none md:mt-1 md:pt-1 md:hover:bg-transparent md:dark:hover:bg-transparent">
+                  {/* Grup 4: Hapus semua percakapan */}
+                  <div className="w-full rounded-none bg-white/80 dark:bg-transparent border-y border-red-200/70 dark:border-red-500/15 hover:bg-red-50/70 dark:hover:bg-red-500/[0.06] transition overflow-hidden md:bg-transparent md:dark:bg-transparent md:border-0 md:border-t md:border-zinc-200/70 md:dark:border-white/[0.08] md:rounded-none md:mt-1 md:pt-1 md:hover:bg-transparent md:dark:hover:bg-transparent">
                     <button
                       type="button"
                       onClick={() => {
                         setIsSettingsModalOpen(false);
                         setIsClearAllConfirmOpen(true);
                       }}
-                      className="w-full px-5 py-4 min-h-[56px] flex items-center justify-between text-left cursor-pointer text-red-600 dark:text-red-400 group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:hover:bg-red-50 md:dark:hover:bg-red-500/10 md:transition-colors md:duration-150"
+                      className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between text-left cursor-pointer text-red-600 dark:text-red-400 group md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:hover:bg-red-50 md:dark:hover:bg-red-500/10 md:transition-colors md:duration-150"
                     >
                       <div className="flex items-center min-w-0">
                         <Trash className="w-5 h-5 text-red-600 dark:text-red-400 mr-4 md:w-4 md:h-4 md:mr-3 shrink-0" strokeWidth={1.75} />
@@ -8085,7 +8084,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
 
                   {/* Clean Version Footer (Mobile only) */}
-                  <div className="md:hidden pt-2 pb-1 text-center text-xs text-zinc-500 space-y-1">
+                  <div className="md:hidden px-4 pt-2 pb-1 text-center text-xs text-zinc-500 space-y-1">
                     <div>Axioma v1.0 Beta</div>
                     <div className="text-[11px] leading-relaxed">
                       Riwayat percakapan tersimpan secara aman di peramban perangkat ini.
@@ -8336,7 +8335,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               setIsMobileSidebarOpen(false);
             }
           }}
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-40 bg-black/70 md:hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 h-[var(--app-height,100dvh)] min-h-[100dvh] z-40 bg-black/70 md:hidden transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isSidebarBackdropEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           aria-label="Tutup latar bilah sisi"
@@ -8346,7 +8345,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar (Mobile Drawer < 768px | Desktop Full 260px / Mini Rail 64px >= 768px) */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed top-0 left-0 h-[var(--app-height)] md:static md:h-full z-40 w-[82vw] max-w-[320px] md:max-w-none pt-0 pb-0 bg-[#f3f3f1] dark:bg-[#0a0a0c] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-white/[0.08] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+        className={`fixed inset-y-0 left-0 h-[var(--app-height,100dvh)] min-h-[100dvh] md:static md:h-full md:min-h-0 z-40 w-[82vw] max-w-[320px] md:max-w-none m-0 pt-0 pb-0 bg-[#f3f3f1] dark:bg-[#0a0a0c] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-white/[0.08] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
           isDesktopSidebarCollapsed
             ? "md:w-[64px] md:opacity-100 md:visible md:translate-x-0"
             : "md:w-[260px] md:opacity-100 md:visible md:translate-x-0"
@@ -8354,7 +8353,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       >
         {/* Brand Header */}
         <div
-          className={`relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] pb-3 px-4 md:pt-0 md:pb-0 md:h-14 bg-[#f3f3f1] dark:bg-[#0a0a0c] flex items-center ${
+          className={`relative z-30 shrink-0 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3 px-4 md:pt-0 md:pb-0 md:h-14 bg-[#f3f3f1] dark:bg-[#0a0a0c] flex items-center ${
             isDesktopSidebarCollapsed ? "justify-between md:justify-center md:px-0" : "justify-between"
           }`}
         >
@@ -8469,7 +8468,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 aria-label="Cari percakapan"
                 disabled={!isMobileSidebarOpen && isTouchOrMobile}
                 tabIndex={isMobileSidebarOpen || !isTouchOrMobile ? 0 : -1}
-                className="w-full pl-8 pr-14 md:pr-14 py-2 min-h-[40px] md:min-h-0 md:py-1.5 rounded-xl bg-white dark:bg-[#161618] border border-zinc-200/80 dark:border-white/[0.08] text-[16px] md:text-[13px] text-text-primary placeholder:text-text-muted focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors"
+                className="w-full pl-8 pr-14 md:pr-14 py-2 min-h-[40px] md:min-h-0 md:py-1.5 rounded-xl bg-white dark:bg-[#161618] border border-zinc-200/80 dark:border-white/[0.08] text-base md:text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-zinc-400 dark:focus:border-zinc-600 transition-colors"
               />
               {!searchQuery && (
                 <kbd className="hidden md:inline-flex items-center absolute right-2 pointer-events-none border border-zinc-200 dark:border-zinc-800 bg-zinc-100/80 dark:bg-zinc-900 px-1.5 py-0.5 rounded text-[10px] font-mono text-zinc-500">
@@ -8691,7 +8690,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         {/* User Profile & Settings Menu (Item 4 & Item 7) */}
         <div
-          className={`shrink-0 pt-3 pb-[calc(var(--safe-bottom)+12px)] px-4 md:px-2 md:pt-3 md:pb-4 border-t border-zinc-200/80 dark:border-white/[0.07] relative flex items-center gap-1 ${
+          className={`shrink-0 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] px-4 md:px-2 md:pt-3 md:pb-4 border-t border-zinc-200/80 dark:border-white/[0.07] relative flex items-center gap-1 ${
             isDesktopSidebarCollapsed
               ? "justify-between md:flex-col md:justify-center md:px-1.5 md:gap-1.5"
               : "justify-between"
@@ -8942,8 +8941,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
       {/* Main Workspace Column */}
       <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-[#f9f9f8] dark:bg-[#0e0e10]">
-        {/* Header (100% solid opaque, bebas backdrop-blur) */}
-        <header className="relative shrink-0 w-full flex items-center justify-between pt-[calc(var(--safe-top)+14px)] pb-3 px-4 md:py-0 md:h-14 md:px-5 z-30 bg-[#f9f9f8] dark:bg-[#0e0e10]">
+        {/* Header (Sticky full-bleed on Mobile < md with safe-area top, 100% solid opaque) */}
+        <header className="sticky top-0 shrink-0 w-full flex items-center justify-between pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 px-3.5 md:relative md:py-0 md:h-14 md:px-5 z-30 bg-[#f9f9f8] dark:bg-[#0e0e10]">
           {isVoiceModeOpen ? (
             /* In-Place Gemini Live Voice Header */
             <div className="flex items-center justify-between w-full animate-fade-in">
@@ -9976,9 +9975,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             onScroll={handleChatScroll}
             className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
               hasMessages || isLoadingExistingChat
-                ? "opacity-100 pt-6 pb-[calc(10.5rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] sm:pb-44 px-4 sm:px-6 flex"
+                ? "opacity-100 pt-4 md:pt-6 pb-[calc(9.5rem+env(safe-area-inset-bottom,0px))] md:pb-44 px-3.5 md:px-6 flex"
                 : "hidden"
-            } max-w-[720px] mx-auto w-full flex-col gap-6`}
+            } w-full max-w-none md:max-w-[720px] md:mx-auto flex-col gap-6`}
           >
             {isChatAreaLoading &&
               currentMessages.length === 0 &&
@@ -10035,7 +10034,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             }
                           }}
                           rows={Math.max(2, editingUserMsgText.split("\n").length)}
-                          className="w-full bg-transparent text-text-primary text-[16px] md:text-[15px] leading-relaxed resize-none focus:outline-none"
+                          className="w-full bg-transparent text-text-primary text-base md:text-sm leading-relaxed resize-none focus:outline-none"
                           autoFocus
                           aria-label="Edit pesan pengguna"
                         />
@@ -10848,9 +10847,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div ref={messagesEndRef} className="h-6 shrink-0" />
           </div>
 
-          {/* Input Console (Floating overlay during active chat so scrolling messages pass behind .ios-glass) */}
+          {/* Input Console (Mobile < md: full-bleed edge-to-edge dock | Desktop md+: floating .ios-glass capsule) */}
           <div
-            className={`w-full bg-transparent px-3.5 min-[390px]:px-4 sm:px-6 pt-2 pb-[calc(0.75rem+var(--safe-bottom,env(safe-area-inset-bottom,0px)))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 ${
+            className={`w-full bg-transparent px-0 pt-0 pb-0 md:px-6 md:pt-2 md:pb-3 [[data-kb="open"]_&]:md:pt-1.5 ${
               hasMessages
                 ? "absolute bottom-0 inset-x-0 z-20 pointer-events-none"
                 : isDesktopEmptyState
@@ -10879,7 +10878,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </div>
             )}
             <div
-              className={`w-full max-w-[680px] lg:max-w-[720px] mx-auto flex flex-col items-center ${
+              className={`w-full max-w-none md:max-w-[680px] lg:max-w-[720px] md:mx-auto flex flex-col items-center ${
                 isDesktopEmptyState ? "md:flex-1 md:justify-center" : ""
               }`}
             >
@@ -10916,7 +10915,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Pending Attachment Chips Preview */}
                 {pendingAttachments.length > 0 && (
-                  <div className="pointer-events-auto flex items-center gap-2 mb-2 p-1.5 overflow-x-auto max-w-full scrollbar-none animate-fade-in">
+                  <div className="pointer-events-auto flex items-center gap-2 mb-2 px-3 py-1.5 md:p-1.5 overflow-x-auto max-w-full scrollbar-none animate-fade-in">
                     {pendingAttachments.map((att) => (
                       <div
                         key={att.id}
@@ -11076,7 +11075,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Stage 9: Smart PDF Preview & Mode Selector Card */}
                 {pendingPdfDoc && (
-                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-start gap-3 shadow-lg">
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-[calc(100%-1.5rem)] md:w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-start gap-3 shadow-lg">
                     <div className="relative shrink-0 w-11 h-11 rounded-xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.04] flex items-center justify-center">
                       <FileText
                         className="w-5 h-5 text-zinc-700 dark:text-zinc-300"
@@ -11142,7 +11141,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Stage 8: Multimodal Vision Photo Preview & Mode Selector Card */}
                 {pendingVisionPhoto && (
-                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-center gap-3 shadow-lg">
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-[calc(100%-1.5rem)] md:w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-center gap-3 shadow-lg">
                     <div className="relative shrink-0">
                       <img
                         src={pendingVisionPhoto.previewUrl}
@@ -11217,7 +11216,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <div
                     role="listbox"
                     aria-label="Pintasan perintah cepat"
-                    className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-1.5 space-y-0.5 shadow-lg"
+                    className="pointer-events-auto max-w-[720px] mx-auto w-[calc(100%-1.5rem)] md:w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-1.5 space-y-0.5 shadow-lg"
                   >
                     {matchingSlashCommands.map((item, idx) => {
                       const isSelected = idx === slashMenuIndex;
@@ -11256,7 +11255,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Stage 6: Prompt Enhancement Preview Card (only renders when preview exists) */}
                 {enhancedPromptPreview && (
-                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-3 space-y-2 shadow-lg">
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-[calc(100%-1.5rem)] md:w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-3 space-y-2 shadow-lg">
                     <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                         <PenLine className="w-3 h-3" strokeWidth={1.5} />
@@ -11297,17 +11296,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Axioma Organic Minimalist Input Box (rounded-[24px], 2-Row, Native iOS Glass) */}
+                {/* Axioma Input Box (Mobile < md: Full-bleed edge-to-edge dock | Desktop md+: rounded-[24px] Native iOS Glass) */}
                 <div
                   style={!hasMessages ? { animationDelay: "120ms" } : undefined}
-                  className={`group/input relative pointer-events-auto max-w-[720px] mx-auto w-full rounded-[24px] px-4 pt-3 pb-2.5 flex flex-col gap-1.5 ${
+                  className={`group/input relative pointer-events-auto w-full max-w-none rounded-none border-t border-zinc-200/80 dark:border-white/[0.08] bg-[#f9f9f8]/95 dark:bg-[#0e0e10]/95 backdrop-blur-md px-3.5 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:max-w-[720px] md:mx-auto md:rounded-[24px] md:border-t-0 md:bg-transparent md:dark:bg-transparent md:backdrop-blur-none md:px-4 md:pt-3 md:pb-2.5 flex flex-col gap-1.5 ${
                     !hasMessages ? "animate-axioma-fade-up" : ""
                   }`}
                 >
-                  {/* Dedicated .ios-glass backdrop layer (keeps parent free of backdrop-filter so nested Model Dropdown blurs cleanly in Safari iOS) */}
+                  {/* Dedicated .ios-glass backdrop layer (Desktop md+ only; mobile uses seamless full-bleed dock) */}
                   <div
                     aria-hidden="true"
-                    className="ios-glass absolute inset-0 rounded-[24px] pointer-events-none transition-all duration-200 group-focus-within/input:border-zinc-400/40 dark:group-focus-within/input:border-white/25"
+                    className="hidden md:block ios-glass absolute inset-0 rounded-[24px] pointer-events-none transition-all duration-200 group-focus-within/input:border-zinc-400/40 dark:group-focus-within/input:border-white/25"
                   />
                   {/* Baris Atas: Textarea Auto-Expand / Recording Waveform / Transcribing */}
                   <div className="relative z-10 w-full min-w-0 flex items-center">
@@ -11361,7 +11360,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             : DYNAMIC_PLACEHOLDERS[placeholderIndex]
                         }
                         style={{ height: "28px" }}
-                        className="flex-1 min-w-0 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-[16px] md:text-[15px] leading-[1.45] font-normal py-0.5 px-0.5 min-h-[28px] max-h-[140px] overflow-y-auto tracking-normal transition-colors duration-300 ease-out touch-manipulation"
+                        className="flex-1 min-w-0 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-base md:text-sm leading-[1.45] font-normal py-0.5 px-0.5 min-h-[28px] max-h-[140px] overflow-y-auto tracking-normal transition-colors duration-300 ease-out touch-manipulation"
                       />
                     )}
                   </div>
@@ -12003,13 +12002,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       </div>
 
-      {/* Edit Message & Truncate Subsequent Messages Confirmation Modal (Smooth Enter & Exit Two-Way Animation) */}
+      {/* Edit Message & Truncate Subsequent Messages Confirmation Modal (Full-Screen on Mobile < md, Centered Card on Desktop >= md) */}
       {shouldRenderEditConfirm && displayEditConfirm && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="edit-confirm-title"
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 touch-none transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 md:p-4 z-50 flex items-stretch md:items-center justify-center bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-black/70 md:dark:bg-black/70 touch-none font-sans transition-opacity duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isEditConfirmEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -12019,22 +12018,21 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[440px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pb-[calc(var(--safe-bottom)+16px)] sm:p-6 shadow-2xl space-y-4 max-h-[90%] sm:max-h-[85vh] overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[440px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-4 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isEditConfirmEntered
-                ? "translate-y-0 opacity-100 sm:scale-100"
-                : "translate-y-full opacity-0 sm:scale-95"
+                ? "translate-y-0 opacity-100 md:scale-100"
+                : "translate-y-4 opacity-0 md:translate-y-0 md:scale-95"
             }`}
           >
-            <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
-            <div className="flex items-start gap-3">
+            <div className="flex items-start gap-3 pt-4 md:pt-0">
               <div className="w-9 h-9 rounded-xl bg-amber-50 border border-amber-200 text-amber-600 dark:bg-amber-950/60 dark:border-amber-800/60 dark:text-amber-400 flex items-center justify-center shrink-0">
                 <TriangleAlert className="w-4 h-4 text-amber-600 dark:text-amber-400" />
               </div>
               <div className="space-y-1 min-w-0">
-                <h2 id="edit-confirm-title" className="text-sm font-semibold text-text-primary">
+                <h2 id="edit-confirm-title" className="text-base md:text-sm font-semibold text-text-primary">
                   Edit Pesan &amp; Buat Balasan Baru?
                 </h2>
-                <p className="text-xs text-text-secondary leading-relaxed">
+                <p className="text-sm md:text-xs text-text-secondary leading-relaxed">
                   Mengedit pesan ini akan menghapus{" "}
                   <strong className="text-text-primary">
                     {displayEditConfirm.subsequentCount} pesan setelahnya
@@ -12043,12 +12041,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </p>
               </div>
             </div>
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border-subtle">
+            <div className="flex flex-col-reverse md:flex-row md:items-center md:justify-end gap-2 pt-3 border-t border-border-subtle">
               <button
                 type="button"
                 disabled={isSubmittingEdit}
                 onClick={() => setEditConfirmTarget(null)}
-                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary active:scale-[0.96] border border-border-subtle transition-all cursor-pointer disabled:opacity-50"
+                className="w-full md:w-auto min-h-[44px] md:min-h-[40px] px-4 py-2 rounded-xl text-sm md:text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary active:scale-[0.96] border border-border-subtle transition-all cursor-pointer disabled:opacity-50"
               >
                 Batal
               </button>
@@ -12058,7 +12056,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 onClick={() =>
                   handleSubmitEditUserMessage(displayEditConfirm.msgId, displayEditConfirm.content)
                 }
-                className="min-h-[40px] px-4 py-2 rounded-xl text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 active:scale-[0.96] transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                className="w-full md:w-auto min-h-[44px] md:min-h-[40px] px-4 py-2 rounded-xl text-sm md:text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 active:scale-[0.96] transition-all cursor-pointer disabled:opacity-50 shadow-xs"
               >
                 {isSubmittingEdit ? "Menghapus & Mengirim…" : "Lanjutkan & Kirim"}
               </button>
@@ -12067,13 +12065,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         </div>
       )}
 
-      {/* Guest Message Limit Modal (Smooth Enter & Exit Two-Way Animation) */}
+      {/* Guest Message Limit Modal (Full-Screen on Mobile < md, Centered Card on Desktop >= md) */}
       {shouldRenderGuestLimit && (
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby="guest-limit-title"
-          className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/70 transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+          className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 md:p-4 z-50 flex items-stretch md:items-center justify-center bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-black/70 md:dark:bg-black/70 font-sans transition-opacity duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
             isGuestLimitEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
           }`}
           onClick={(e) => {
@@ -12083,45 +12081,47 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`absolute inset-x-0 bottom-0 sm:inset-auto sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 w-full sm:w-[90vw] sm:max-w-[480px] rounded-t-[28px] sm:rounded-[28px] bg-bg-elevated dark:bg-[#111114] border-t sm:border border-border-subtle dark:border-white/[0.08] p-5 pt-3 pb-[calc(var(--safe-bottom)+20px)] sm:p-6 shadow-2xl space-y-5 max-h-[90%] sm:max-h-[85vh] overflow-y-auto overscroll-y-contain overscroll-contain transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[480px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-5 overflow-y-auto overscroll-y-contain overscroll-contain transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
               isGuestLimitEntered
-                ? "translate-y-0 opacity-100 sm:scale-100"
-                : "translate-y-full opacity-0 sm:scale-95"
+                ? "translate-y-0 opacity-100 md:scale-100"
+                : "translate-y-4 opacity-0 md:translate-y-0 md:scale-95"
             }`}
           >
-            <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700/80 mx-auto mb-1 sm:hidden shrink-0" />
-            <button
-              type="button"
-              onClick={() => setIsGuestLimitModalOpen(false)}
-              className="absolute top-4 right-4 p-1.5 rounded-lg text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer"
-              aria-label="Tutup popup"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            <div className="space-y-4 pt-2 md:pt-0">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3.5 min-w-0">
+                  <div className="w-11 h-11 rounded-2xl bg-bg-surface border border-border-subtle flex items-center justify-center shrink-0">
+                    <Cloud className="w-5 h-5 text-text-primary" strokeWidth={1.75} />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 id="guest-limit-title" className="text-base font-semibold text-text-primary">
+                      Batas Percakapan Tamu
+                    </h2>
+                    <p className="text-xs text-text-muted">
+                      Kuota {GUEST_MAX_MESSAGES} pesan gratis telah digunakan
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsGuestLimitModalOpen(false)}
+                  className="p-2 rounded-xl text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer shrink-0"
+                  aria-label="Tutup popup"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
 
-            <div className="flex items-center gap-3.5 pr-8">
-              <div className="w-11 h-11 rounded-2xl bg-bg-surface border border-border-subtle flex items-center justify-center shrink-0">
-                <Cloud className="w-5 h-5 text-text-primary" strokeWidth={1.75} />
-              </div>
-              <div className="min-w-0">
-                <h2 id="guest-limit-title" className="text-base font-semibold text-text-primary">
-                  Batas Percakapan Tamu
-                </h2>
-                <p className="text-xs text-text-muted">
-                  Kuota {GUEST_MAX_MESSAGES} pesan gratis telah digunakan
-                </p>
-              </div>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                Hubungkan akun Anda untuk melanjutkan percakapan tanpa batas dan menyimpan seluruh riwayat percakapan agar dapat diakses dari perangkat lain.
+              </p>
             </div>
 
-            <p className="text-sm text-text-secondary leading-relaxed">
-              Hubungkan akun Anda untuk melanjutkan percakapan tanpa batas dan menyimpan seluruh riwayat percakapan agar dapat diakses dari perangkat lain.
-            </p>
-
-            <div className="flex flex-col sm:flex-row gap-2.5 pt-2">
+            <div className="flex flex-col md:flex-row gap-2.5 pt-3 border-t border-border-subtle md:border-t-0 md:pt-2">
               <button
                 type="button"
                 onClick={() => setIsGuestLimitModalOpen(false)}
-                className="w-full sm:w-auto flex-1 min-h-[42px] px-4 py-2.5 rounded-xl text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
+                className="w-full md:w-auto flex-1 min-h-[44px] md:min-h-[42px] px-4 py-2.5 rounded-xl text-sm md:text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
               >
                 Nanti Saja
               </button>
@@ -12131,7 +12131,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsGuestLimitModalOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full sm:w-auto flex-1 min-h-[42px] px-4 py-2.5 rounded-xl text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                className="w-full md:w-auto flex-1 min-h-[44px] md:min-h-[42px] px-4 py-2.5 rounded-xl text-sm md:text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 <Cloud className="w-4 h-4" strokeWidth={1.75} />
                 <span>Hubungkan Akun</span>

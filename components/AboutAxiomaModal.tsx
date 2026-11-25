@@ -91,7 +91,7 @@ interface SettingsHeaderProps {
 
 function SubViewHeader({ title, onBack, onClose }: SettingsHeaderProps) {
   return (
-    <div className="relative z-30 shrink-0 pt-[calc(var(--safe-top)+14px)] sm:pt-4 pb-3 px-5 sm:px-6 bg-[#f9f9f8] sm:bg-white dark:bg-[#0e0e10] dark:sm:bg-[#161618] border-b border-zinc-200/80 dark:border-white/[0.08]">
+    <div className="relative z-30 shrink-0 pt-[max(0.875rem,env(safe-area-inset-top))] md:pt-4 pb-3 px-4 md:px-6 bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] dark:md:bg-[#161618] border-b border-zinc-200/80 dark:border-white/[0.08]">
       <div className="relative flex items-center justify-between w-full min-h-[36px]">
         <button
           type="button"
@@ -266,10 +266,10 @@ export function AboutSettingsView({ onBack, onClose, inline = false }: AboutSett
   }
 
   return (
-    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85vh] animate-fade-in">
+    <div className="flex-1 md:flex-initial min-h-0 w-full flex flex-col overflow-hidden md:max-h-[85dvh] animate-fade-in">
       <SubViewHeader title="Tentang Axioma" onBack={onBack} onClose={onClose} />
 
-      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(var(--safe-bottom)+28px)] sm:pb-6 space-y-4 scrollbar-none [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 md:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-4 md:px-6 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-6 space-y-4 scrollbar-none [&::-webkit-scrollbar]:hidden">
         {content}
       </div>
     </div>
@@ -469,7 +469,7 @@ export function FeedbackSettingsView({
             value={userEmail}
             onChange={(e) => setUserEmail(e.target.value)}
             placeholder="Email Anda (opsional, untuk balasan)"
-            className="w-full rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 px-3.5 py-3 text-[16px] md:text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none transition-colors"
+            className="w-full rounded-xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 px-3.5 py-3 text-base md:text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none transition-colors"
           />
         </div>
 
@@ -492,7 +492,7 @@ export function FeedbackSettingsView({
               if (submitSuccess) setSubmitSuccess(false);
             }}
             placeholder="Tuliskan saran fitur, masukan desain, atau kendala yang Anda alami..."
-            className="w-full min-h-[140px] rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 p-4 text-[16px] md:text-[15px] text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none resize-none transition-colors"
+            className="w-full min-h-[140px] rounded-2xl bg-white dark:bg-[#131316] border border-zinc-200/90 dark:border-white/[0.08] focus:border-zinc-400 dark:focus:border-white/25 p-4 text-base md:text-sm text-zinc-900 dark:text-white placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none resize-none transition-colors"
           />
         </div>
 
@@ -525,10 +525,10 @@ export function FeedbackSettingsView({
   }
 
   return (
-    <div className="flex-1 sm:flex-initial min-h-0 w-full flex flex-col overflow-hidden sm:max-h-[85vh] animate-fade-in">
+    <div className="flex-1 md:flex-initial min-h-0 w-full flex flex-col overflow-hidden md:max-h-[85dvh] animate-fade-in">
       <SubViewHeader title="Kirim Masukan" onBack={onBack} onClose={onClose} />
 
-      <div className="flex-1 sm:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-5 sm:px-6 pt-5 pb-[calc(var(--safe-bottom)+28px)] sm:pb-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
+      <div className="flex-1 md:flex-initial min-h-0 overflow-y-auto overscroll-contain touch-auto px-4 md:px-6 pt-5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-6 scrollbar-none [&::-webkit-scrollbar]:hidden">
         {feedbackBody}
       </div>
     </div>

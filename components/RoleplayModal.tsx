@@ -269,22 +269,18 @@ export const RoleplayModal: React.FC<RoleplayModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-white dark:bg-[#0e0e10] md:bg-black/45 md:dark:bg-black/55 md:flex md:items-center md:justify-center md:p-4 overflow-hidden"
+      className="fixed inset-0 z-50 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 bg-white dark:bg-[#0e0e10] md:bg-black/45 md:dark:bg-black/55 md:flex md:items-center md:justify-center md:p-4 overflow-hidden font-sans"
       role="dialog"
       aria-modal="true"
       aria-label="Simulasi Roleplay Axioma"
       onClick={onClose}
     >
       <div
-        className="w-full h-[var(--app-height,100dvh)] md:max-w-2xl md:h-auto md:max-h-[86dvh] bg-white dark:bg-[#0e0e10] md:rounded-3xl md:border md:border-zinc-200 dark:md:border-white/[0.08] md:shadow-2xl flex flex-col overflow-hidden"
-        style={{
-          paddingTop: "env(safe-area-inset-top, 0px)",
-          paddingBottom: "env(safe-area-inset-bottom, 0px)",
-        }}
+        className="w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 md:max-w-2xl md:h-auto md:max-h-[86dvh] bg-white dark:bg-[#0e0e10] md:rounded-3xl md:border md:border-zinc-200 dark:md:border-white/[0.08] md:shadow-2xl flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between gap-2 px-5 py-4 border-b border-zinc-200 dark:border-white/[0.08] shrink-0">
+        <div className="flex items-center justify-between gap-2 pt-[max(0.875rem,env(safe-area-inset-top))] pb-3.5 px-4 md:px-5 md:py-4 border-b border-zinc-200 dark:border-white/[0.08] shrink-0">
           <div className="flex items-center gap-2.5 min-w-0">
             <Users
               className="w-4 h-4 text-zinc-900 dark:text-zinc-100 shrink-0"
@@ -341,7 +337,7 @@ export const RoleplayModal: React.FC<RoleplayModalProps> = ({
 
         {/* Body by Stage */}
         {stage === "setup" && (
-          <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-5">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-4 space-y-5">
             <div className="space-y-2">
               <span className="block text-[11px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                 Pilih Lawan Simulasi
@@ -389,7 +385,7 @@ export const RoleplayModal: React.FC<RoleplayModalProps> = ({
                 value={scenario}
                 onChange={(e) => setScenario(e.target.value)}
                 placeholder="Contoh: Sidang skripsi sistem rekomendasi / Jualan kopi literan Rp85rb / Wawancara Frontend Engineer..."
-                className="w-full rounded-2xl border border-zinc-200 dark:border-white/[0.1] bg-zinc-50 dark:bg-white/[0.03] px-3.5 py-2.5 text-[16px] md:text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-400 dark:focus:border-white/25 resize-none transition-colors"
+                className="w-full rounded-2xl border border-zinc-200 dark:border-white/[0.1] bg-zinc-50 dark:bg-white/[0.03] px-3.5 py-2.5 text-base md:text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-400 dark:focus:border-white/25 resize-none transition-colors"
               />
             </div>
 
@@ -454,7 +450,7 @@ export const RoleplayModal: React.FC<RoleplayModalProps> = ({
             </div>
 
             {/* Bottom Input */}
-            <div className="shrink-0 px-4 py-3 border-t border-zinc-200 dark:border-white/[0.08] flex items-center gap-2">
+            <div className="shrink-0 px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:py-3 border-t border-zinc-200 dark:border-white/[0.08] flex items-center gap-2">
               <input
                 type="text"
                 value={draftMsg}
@@ -467,7 +463,7 @@ export const RoleplayModal: React.FC<RoleplayModalProps> = ({
                 }}
                 disabled={isSendingTurn || isLoadingReport}
                 placeholder="Tulis jawabanmu..."
-                className="flex-1 min-w-0 rounded-xl border border-zinc-200 dark:border-white/[0.1] bg-zinc-50 dark:bg-white/[0.03] px-3.5 py-2 text-[16px] md:text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-400 dark:focus:border-white/25 transition-colors"
+                className="flex-1 min-w-0 rounded-xl border border-zinc-200 dark:border-white/[0.1] bg-zinc-50 dark:bg-white/[0.03] px-3.5 py-2 text-base md:text-sm text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 focus:outline-none focus:border-zinc-400 dark:focus:border-white/25 transition-colors"
               />
               <button
                 type="button"
@@ -483,7 +479,7 @@ export const RoleplayModal: React.FC<RoleplayModalProps> = ({
         )}
 
         {stage === "report" && report && (
-          <div className="flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
+          <div className="flex-1 overflow-y-auto overscroll-contain px-4 md:px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-4 space-y-4">
             {/* Score Hero Card */}
             <section className="rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] p-5 space-y-2">
               <span className="block text-[10px] font-medium uppercase tracking-widest text-zinc-500 dark:text-zinc-400">

@@ -93,20 +93,20 @@ html {
 :root {
   --app-height: 100dvh;
   --app-offset-top: 0px;
-  --safe-top: 0px;
-  --safe-bottom: 0px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 html[data-env="browser-safari"],
 html[data-env="browser-mobile"] {
-  --safe-top: 0px;
-  --safe-bottom: 8px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: max(8px, env(safe-area-inset-bottom, 0px));
 }
 
 html[data-env="browser-chrome"],
 html[data-env="browser-google"] {
-  --safe-top: 0px;
-  --safe-bottom: 12px;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: max(12px, env(safe-area-inset-bottom, 0px));
 }
 
 @media (display-mode: standalone) {
@@ -135,7 +135,8 @@ body {
   position: fixed;
   inset: 0;
   width: 100%;
-  height: var(--app-height);
+  min-height: 100dvh;
+  height: var(--app-height, 100dvh);
   overflow: hidden;
   overflow-x: hidden;
   overscroll-behavior: none;
@@ -146,6 +147,7 @@ body {
   color: var(--text-primary);
   font-family: var(--font-sans);
   touch-action: pan-x pan-y;
+  -webkit-tap-highlight-color: transparent;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;

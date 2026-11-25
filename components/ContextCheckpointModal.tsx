@@ -300,24 +300,19 @@ export function ContextCheckpointModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="checkpoint-modal-title"
-      className="fixed top-0 left-0 right-0 h-[var(--app-height,100dvh)] z-50 flex items-end md:items-center justify-center p-0 md:p-4 overflow-hidden"
+      className="fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 p-0 md:p-4 z-50 flex items-stretch md:items-center justify-center bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-transparent md:dark:bg-transparent overflow-hidden font-sans"
     >
-      {/* Sibling Dim Backdrop (keeps .ios-glass free of parent opacity in Safari iOS) */}
+      {/* Sibling Dim Backdrop (Desktop only; mobile is solid full-screen edge-to-edge) */}
       <div
         aria-hidden="true"
         onClick={onClose}
-        className="absolute inset-0 bg-black/45 md:bg-black/35"
+        className="hidden md:block absolute inset-0 bg-black/40"
       />
 
-      {/* Modal Sheet */}
-      <div className="relative z-10 w-full md:max-w-[520px] max-h-[85%] md:max-h-[82vh] rounded-t-[28px] md:rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] border-x-0 border-b-0 md:border shadow-2xl flex flex-col overflow-hidden animate-axioma-scale-in">
-        {/* Mobile Handle */}
-        <div className="pt-2.5 pb-1 flex justify-center md:hidden shrink-0">
-          <div className="w-10 h-1 rounded-full bg-zinc-300 dark:bg-zinc-700" />
-        </div>
-
+      {/* Modal Sheet (Full-Screen on Mobile < md, Centered Card on Desktop >= md) */}
+      <div className="relative z-10 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 md:inset-auto md:h-auto md:max-w-[520px] md:max-h-[82dvh] md:rounded-2xl md:border md:border-zinc-200 md:dark:border-white/[0.08] bg-[#f9f9f8] md:bg-white dark:bg-[#0e0e10] md:shadow-2xl flex flex-col overflow-hidden animate-axioma-scale-in">
         {/* Header + 2-Tab Segmented Switch */}
-        <div className="shrink-0 px-5 pt-2 pb-3 md:pt-4 border-b border-zinc-200 dark:border-white/[0.08] space-y-3">
+        <div className="shrink-0 px-4 md:px-5 pt-[max(0.875rem,env(safe-area-inset-top))] md:pt-4 pb-3 border-b border-zinc-200 dark:border-white/[0.08] space-y-3">
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0">
               <h2
@@ -382,7 +377,7 @@ export function ContextCheckpointModal({
         </div>
 
         {/* Scrollable Content */}
-        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] scrollbar-none px-5 py-4 pb-[calc(var(--safe-bottom,env(safe-area-inset-bottom,0px))+20px)] md:pb-5 space-y-5">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] scrollbar-none px-4 md:px-5 py-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:pb-5 space-y-5">
           {errorText && (
             <p
               role="alert"
@@ -514,7 +509,7 @@ export function ContextCheckpointModal({
                   value={correctionDraft}
                   onChange={(e) => setCorrectionDraft(e.target.value)}
                   placeholder="Ada yang salah dipahami Axioma? Tulis koreksi singkat di sini..."
-                  className="w-full rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/[0.1] focus:border-zinc-400 dark:focus:border-white/25 px-3 py-2.5 text-[16px] md:text-[13px] leading-relaxed text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none resize-none transition-colors"
+                  className="w-full rounded-xl bg-zinc-50 dark:bg-white/[0.03] border border-zinc-200 dark:border-white/[0.1] focus:border-zinc-400 dark:focus:border-white/25 px-3 py-2.5 text-base md:text-sm leading-relaxed text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 outline-none resize-none transition-colors"
                 />
 
                 <div className="flex items-center justify-end gap-2">
