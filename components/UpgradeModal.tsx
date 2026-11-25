@@ -159,7 +159,7 @@ export function UpgradeModal({
           onClose();
         }
       }}
-      className="fixed inset-0 z-[125] flex items-center justify-center p-3 sm:p-4 bg-black/50 dark:bg-black/75 backdrop-blur-xs text-zinc-900 dark:text-zinc-100"
+      className="fixed inset-0 z-[125] flex items-center justify-center p-3 sm:p-4 bg-black/50 dark:bg-black/75 backdrop-blur-xs text-zinc-900 dark:text-zinc-100 font-sans"
     >
       <div className="w-full max-w-[680px] max-h-[90dvh] overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] flex flex-col rounded-2xl border border-zinc-200/80 dark:border-white/[0.08] bg-white dark:bg-[#141416] shadow-2xl">
         {/* Header */}

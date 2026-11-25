@@ -38,9 +38,9 @@ html.dark {
 }
 
 @theme inline {
-  --font-sans: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-heading: var(--font-plus-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  --font-mono: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-heading: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
   --color-bg-primary: var(--bg-primary);
   --color-bg-elevated: var(--bg-elevated);
   --color-bg-surface: var(--bg-surface);
@@ -51,6 +51,25 @@ html.dark {
   --color-icon-muted: var(--icon-muted);
   --color-border-subtle: var(--border-subtle);
   --color-border-strong: var(--border-strong);
+}
+
+@layer base {
+  html {
+    --font-sans: var(--font-jakarta), ui-sans-serif, system-ui, -apple-system, sans-serif;
+    --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, monospace;
+  }
+
+  html,
+  body {
+    font-family: var(--font-sans);
+  }
+
+  button,
+  input,
+  textarea,
+  select {
+    font-family: inherit;
+  }
 }
 
 @media (pointer: coarse) {
@@ -68,7 +87,7 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
 }
 
 :root {
@@ -125,13 +144,12 @@ body {
   padding: 0;
   background-color: #f9f9f8;
   color: var(--text-primary);
-  font-family: var(--font-inter), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
   touch-action: pan-x pan-y;
   -webkit-text-size-adjust: 100%;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   letter-spacing: -0.011em;
 }
 
@@ -163,12 +181,12 @@ h1,
 h2,
 h3,
 .font-heading {
-  font-family: var(--font-plus-jakarta), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-sans);
 }
 
 pre,
 code {
-  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
 }
 
 /* Apple Spring Tap Feedback */
@@ -260,7 +278,7 @@ html.dark .axioma-markdown {
 
 .axioma-markdown pre,
 .axioma-markdown code {
-  font-family: var(--font-jetbrains-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-family: var(--font-mono);
   font-size: 13px;
   line-height: 1.6;
 }

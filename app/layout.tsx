@@ -1,26 +1,18 @@
 import type { Metadata, Viewport } from "next";
-import { Plus_Jakarta_Sans, Inter, JetBrains_Mono } from "next/font/google";
+import { Plus_Jakarta_Sans, JetBrains_Mono } from "next/font/google";
 import { ViewportEnvSync } from "@/components/ViewportEnvSync";
 import "./globals.css";
 
-const plusJakarta = Plus_Jakarta_Sans({
-  variable: "--font-plus-jakarta",
+const plusJakartaSans = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
   display: "swap",
   preload: true,
-  weight: ["500", "600", "700"],
-});
-
-const inter = Inter({
-  variable: "--font-inter",
-  subsets: ["latin"],
-  display: "swap",
-  preload: true,
-  weight: ["400", "500", "600"],
+  weight: ["400", "500", "600", "700"],
 });
 
 const jetbrainsMono = JetBrains_Mono({
-  variable: "--font-jetbrains-mono",
+  variable: "--font-jetbrains",
   subsets: ["latin"],
   display: "swap",
   preload: true,
@@ -134,7 +126,7 @@ export default function RootLayout({
   return (
     <html
       lang="id"
-      className={`${inter.className} ${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} dark antialiased`}
+      className={`${plusJakartaSans.variable} ${jetbrainsMono.variable} dark antialiased`}
       suppressHydrationWarning
     >
       <head>
@@ -148,7 +140,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${inter.className} ${plusJakarta.variable} ${inter.variable} ${jetbrainsMono.variable} fixed inset-0 w-full h-[var(--app-height)] m-0 p-0 overflow-hidden overscroll-none bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-primary font-sans antialiased`}
+        className="fixed inset-0 w-full h-[var(--app-height)] m-0 p-0 overflow-hidden overscroll-none bg-[#f9f9f8] dark:bg-[#0e0e10] text-text-primary font-sans antialiased"
         suppressHydrationWarning
       >
         <ViewportEnvSync />

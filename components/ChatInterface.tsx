@@ -661,7 +661,7 @@ function InlineVoiceWaveform({
       </div>
 
       {/* Timer */}
-      <span className="text-[11px] sm:text-xs text-text-muted/70 font-mono tracking-wider tabular-nums select-none">
+      <span className="text-[11px] sm:text-xs text-text-muted/70 tracking-wider tabular-nums select-none">
         {formattedTime}
       </span>
     </div>
@@ -2300,6 +2300,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       (desktopSettingsPage === "account" ||
         desktopSettingsPage === "quota" ||
         expandedSettingsSection === "account" ||
+        expandedSettingsSection === "quota" ||
         isSettingsModalOpen)
     ) {
       void fetchUserQuota();
@@ -2313,10 +2314,53 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   ]);
 
   const isProPlan = Boolean(quotaInfo?.plan === "pro" || quotaInfo?.unlimited);
-  const remainingCreditsCount = quotaInfo?.remainingCredits ?? 30;
+  const dailyCreditLimit =
+    typeof quotaInfo?.dailyLimit === "number" &&
+    Number.isFinite(quotaInfo.dailyLimit) &&
+    quotaInfo.dailyLimit > 0
+      ? quotaInfo.dailyLimit
+      : 30;
+  const remainingCreditsCount =
+    typeof quotaInfo?.remainingCredits === "number" &&
+    Number.isFinite(quotaInfo.remainingCredits)
+      ? Math.max(0, quotaInfo.remainingCredits)
+      : dailyCreditLimit;
+  const rawBonusCredits =
+    typeof quotaInfo?.bonusCredits === "number" &&
+    Number.isFinite(quotaInfo.bonusCredits)
+      ? Math.max(0, quotaInfo.bonusCredits)
+      : 0;
+  const hasConsistentQuotaBreakdown =
+    typeof quotaInfo?.dailyCredits === "number" &&
+    Number.isFinite(quotaInfo.dailyCredits) &&
+    Math.max(0, quotaInfo.dailyCredits) + rawBonusCredits === remainingCreditsCount;
+  const bonusCreditsCount = isProPlan
+    ? rawBonusCredits
+    : hasConsistentQuotaBreakdown
+      ? rawBonusCredits
+      : Math.min(rawBonusCredits, remainingCreditsCount);
+  const dailyCreditsRemaining = isProPlan
+    ? dailyCreditLimit
+    : hasConsistentQuotaBreakdown && typeof quotaInfo?.dailyCredits === "number"
+      ? Math.min(dailyCreditLimit, Math.max(0, quotaInfo.dailyCredits))
+      : Math.min(dailyCreditLimit, Math.max(0, remainingCreditsCount - bonusCreditsCount));
+  const dailyCreditsPercent = isProPlan
+    ? 100
+    : Math.max(0, Math.min(100, Math.round((dailyCreditsRemaining / dailyCreditLimit) * 100)));
+
+  const openQuotaSettings = useCallback(() => {
+    setIsMobileSidebarOpen(false);
+    setIsProfileDropdownOpen(false);
+    setIsSettingsMenuOpen(false);
+    openSettingsModal("main", "quota");
+    if (authUser) {
+      void fetchUserQuota();
+    }
+  }, [authUser, fetchUserQuota, openSettingsModal]);
 
   const openSubscriptionModal = useCallback(() => {
     setIsSettingsModalOpen(false);
+    setDesktopSettingsPage(null);
     setIsMobileSidebarOpen(false);
     setIsProfileDropdownOpen(false);
     setIsSettingsMenuOpen(false);
@@ -7219,7 +7263,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             role="dialog"
             aria-modal="true"
             aria-labelledby="settings-modal-title"
-            className={`fixed inset-0 z-50 flex items-stretch justify-center p-0 overflow-hidden ${
+            className={`fixed inset-0 z-50 flex items-stretch justify-center p-0 overflow-hidden font-sans ${
               isSettingsEntered
                 ? "max-md:bg-[#f9f9f8] max-md:dark:bg-[#0e0e10] pointer-events-auto"
                 : "max-md:bg-transparent pointer-events-none"
@@ -7290,7 +7334,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     <div className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500 dark:text-zinc-400 px-1 mb-2 md:font-medium md:normal-case md:tracking-normal md:px-3 md:pt-2 md:pb-1 md:mb-0">
                       Akun
                     </div>
-                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:shadow-none md:space-y-0.5">
+                    <div className="h-auto bg-white dark:bg-[#131316] border border-zinc-200/80 dark:border-white/[0.06] rounded-2xl max-md:overflow-hidden divide-y divide-zinc-200/70 dark:divide-white/[0.05] shadow-[0_1px_3px_rgba(0,0,0,0.02)] dark:shadow-none md:bg-transparent md:dark:bg-transparent md:border-0 md:rounded-none md:divide-y-0 md:shadow-none md:space-y-0.5">
                       {/* Kelola Akun */}
                       <button
                         type="button"
@@ -7389,13 +7433,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                     : "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                                 }`}
                               >
-                                {isProPlan ? "Kelola Paket" : "Upgrade ke Pro"}
+                                {isProPlan ? "Kelola Paket" : "Upgrade ke Pro — Segera Hadir"}
                               </button>
                             </div>
                           )}
                           {authUser && (
                             <div className="text-xs text-zinc-500 dark:text-zinc-400 break-words">
-                              Email terhubung: <span className="font-mono text-zinc-800 dark:text-zinc-200 break-all">{authUser.email}</span>
+                              Email terhubung: <span className="font-medium text-zinc-800 dark:text-zinc-200 break-all">{authUser.email}</span>
                             </div>
                           )}
 
@@ -7527,25 +7571,23 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </div>
                       )}
 
-                      {/* Paket & Langganan (terpusat di antara Kelola Akun dan Batas penggunaan) */}
+                      {/* Paket & Langganan (Segera Hadir — dinonaktifkan) */}
                       <button
                         type="button"
-                        onClick={openSubscriptionModal}
-                        className="w-full flex items-center justify-between gap-3 px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                        disabled
+                        aria-disabled="true"
+                        className="w-full flex items-center justify-between gap-3 px-5 py-4 min-h-[56px] text-left font-sans opacity-65 cursor-not-allowed select-none md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200"
                       >
                         <div className="flex items-center min-w-0">
-                          <CreditCard className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.5} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Paket &amp; Langganan</span>
+                          <CreditCard className="w-5 h-5 text-zinc-500 dark:text-zinc-400 mr-4 md:w-4 md:h-4 md:mr-3 shrink-0" strokeWidth={1.5} />
+                          <span className="text-[15px] font-medium leading-snug text-zinc-700 dark:text-zinc-300 md:text-[13.5px] md:font-normal truncate">Paket &amp; Langganan</span>
                         </div>
-                        <div className="flex items-center gap-1.5 shrink-0">
-                          <span className="text-[13px] md:text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 whitespace-nowrap">
-                            {isProPlan ? "Axioma Pro" : "Free"}
-                          </span>
-                          <ChevronRight className="w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0" strokeWidth={1.5} />
-                        </div>
+                        <span className="inline-flex items-center rounded-full border border-zinc-300/90 dark:border-white/[0.12] bg-zinc-100/90 dark:bg-white/[0.06] px-2.5 py-0.5 text-[11px] font-medium text-zinc-600 dark:text-zinc-300 whitespace-nowrap shrink-0">
+                          Segera Hadir
+                        </span>
                       </button>
 
-                      {/* Batas penggunaan */}
+                      {/* Batas penggunaan (sisa kredit real-time dari state kuota / GET /api/quota) */}
                       <button
                         type="button"
                         onClick={() => {
@@ -7555,40 +7597,162 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             setExpandedSettingsSection((prev) => (prev === "quota" ? null : "quota"));
                           }
                         }}
-                        className={`w-full flex items-center justify-between px-5 py-4 min-h-[56px] text-left transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150 ${
-                          expandedSettingsSection === "quota" ? "" : "rounded-b-2xl"
-                        }`}
+                        className="w-full flex items-center justify-between gap-3 px-5 py-4 min-h-[56px] text-left font-sans transition-colors hover:bg-zinc-50 dark:hover:bg-white/[0.04] cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
                       >
                         <div className="flex items-center min-w-0">
-                          <Clock className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
+                          <Clock className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.5} />
                           <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Batas penggunaan</span>
                         </div>
-                        <ChevronRight
-                          className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
-                            expandedSettingsSection === "quota" ? "rotate-90" : ""
-                          }`}
-                        />
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <span className="text-[12.5px] md:text-xs text-zinc-500 dark:text-zinc-400 tabular-nums whitespace-nowrap">
+                            {authUser
+                              ? isProPlan
+                                ? "PRO"
+                                : `${remainingCreditsCount} kredit`
+                              : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)}/${GUEST_MAX_MESSAGES}`}
+                          </span>
+                          <ChevronRight
+                            className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
+                              expandedSettingsSection === "quota" ? "rotate-90" : ""
+                            }`}
+                            strokeWidth={1.5}
+                          />
+                        </div>
                       </button>
 
-                      {/* Expandable Quota Details */}
+                      {/* Expandable Batas penggunaan Card (Mobile) */}
                       {expandedSettingsSection === "quota" && (
-                        <div className="px-5 py-4 bg-zinc-50/80 dark:bg-[#121215] rounded-b-2xl md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2 text-xs">
-                          <p className="text-zinc-600 dark:text-zinc-300 leading-relaxed text-sm md:text-xs">
-                            {authUser
-                              ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan seluruh fitur Axioma Pro."
-                              : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
-                          </p>
-                          {!authUser && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setIsSettingsModalOpen(false);
-                                setIsAuthModalOpen(true);
-                              }}
-                              className="mt-2 px-4 py-2 rounded-xl bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-200 dark:hover:bg-white dark:text-zinc-900 text-xs font-semibold transition-colors cursor-pointer"
-                            >
-                              Hubungkan Akun
-                            </button>
+                        <div className="px-4 py-4 bg-zinc-50/80 dark:bg-[#121215] md:px-3 md:py-3 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] font-sans">
+                          {authUser ? (
+                            <div className="rounded-xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-4 space-y-3.5">
+                              {/* Status Paket */}
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                  Status Paket
+                                </span>
+                                {isProPlan ? (
+                                  <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
+                                    PRO
+                                  </span>
+                                ) : (
+                                  <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
+                                    FREE
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Sisa Kredit Utama */}
+                              <div className="space-y-1">
+                                <div className="text-[18px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
+                                  {isProPlan
+                                    ? "Tanpa batas harian"
+                                    : `${dailyCreditsRemaining} / ${dailyCreditLimit} kredit tersisa hari ini`}
+                                </div>
+                                <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
+                                  {isProPlan
+                                    ? "Akses penuh tanpa batas kredit harian untuk seluruh model Axioma."
+                                    : `Sisa kredit hari ini: ${dailyCreditsRemaining} dari ${dailyCreditLimit} kredit`}
+                                </p>
+                              </div>
+
+                              {/* Progress Bar Visual */}
+                              <div className="space-y-1.5">
+                                <div className="w-full h-2 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
+                                  <div
+                                    style={{ width: `${dailyCreditsPercent}%` }}
+                                    className={`h-full rounded-full transition-all duration-300 ${
+                                      !isProPlan && dailyCreditsPercent <= 20
+                                        ? "bg-red-500/85 dark:bg-red-400/85"
+                                        : !isProPlan && dailyCreditsPercent <= 40
+                                          ? "bg-amber-500/85 dark:bg-amber-400/85"
+                                          : "bg-zinc-900 dark:bg-zinc-100"
+                                    }`}
+                                  />
+                                </div>
+                                <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                                  <span>{dailyCreditsPercent}% tersisa</span>
+                                  <span>Omni 1 · Pro 3 · Architect 4 · Media 5</span>
+                                </div>
+                              </div>
+
+                              {/* Kredit Tambahan / Bonus (jika > 0) */}
+                              {bonusCreditsCount > 0 && (
+                                <div className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-3 py-2 text-xs">
+                                  <div className="min-w-0">
+                                    <div className="font-medium text-zinc-800 dark:text-zinc-200">
+                                      Kredit Tambahan / Bonus
+                                    </div>
+                                    <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                                      Saldo permanen, masa aktif selamanya
+                                    </div>
+                                  </div>
+                                  <span className="font-semibold text-zinc-950 dark:text-white tabular-nums shrink-0">
+                                    +{bonusCreditsCount} kredit
+                                  </span>
+                                </div>
+                              )}
+
+                              {/* Info Reset Harian */}
+                              <div className="flex items-start gap-1.5 text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed pt-1 border-t border-zinc-200/70 dark:border-white/[0.06]">
+                                <Clock className="w-3.5 h-3.5 mt-0.5 shrink-0" strokeWidth={1.5} />
+                                <span>Kuota harian direset otomatis setiap hari pukul 00.00 WIB.</span>
+                              </div>
+
+                              {/* Aksi Lanjutan */}
+                              <button
+                                type="button"
+                                onClick={openSubscriptionModal}
+                                className="w-full h-9 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98] cursor-pointer"
+                              >
+                                <span>{isProPlan ? "Lihat Rincian Paket" : "Upgrade ke Pro — Segera Hadir"}</span>
+                                <ChevronRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="rounded-xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-4 space-y-3">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                                  Status Paket
+                                </span>
+                                <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
+                                  TAMU
+                                </span>
+                              </div>
+                              <div className="text-lg font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
+                                {Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} / {GUEST_MAX_MESSAGES} pesan tersisa
+                              </div>
+                              <div className="w-full h-2 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
+                                <div
+                                  style={{
+                                    width: `${Math.max(
+                                      0,
+                                      Math.min(
+                                        100,
+                                        Math.round(
+                                          ((GUEST_MAX_MESSAGES - guestMessageCount) /
+                                            GUEST_MAX_MESSAGES) *
+                                            100
+                                        )
+                                      )
+                                    )}%`,
+                                  }}
+                                  className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all duration-300"
+                                />
+                              </div>
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                Masuk ke akun untuk mendapatkan 30 kredit gratis setiap hari yang direset otomatis pukul 00.00 WIB.
+                              </p>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setIsSettingsModalOpen(false);
+                                  setIsAuthModalOpen(true);
+                                }}
+                                className="w-full h-9 rounded-xl bg-zinc-950 hover:bg-zinc-800 text-white dark:bg-white dark:hover:bg-zinc-200 dark:text-zinc-950 text-xs font-medium transition-colors cursor-pointer"
+                              >
+                                Hubungkan Akun
+                              </button>
+                            </div>
                           )}
                         </div>
                       )}
@@ -8533,38 +8697,41 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               : "justify-between"
           }`}
         >
-          <button
-            ref={settingsTriggerRef}
-            type="button"
-            aria-haspopup="menu"
-            aria-expanded={
-              !isTouchOrMobile
-                ? isProfileDropdownOpen && profileAnchor === "sidebar"
-                : isSettingsMenuOpen
-            }
-            onClick={() => {
-              if (typeof window !== "undefined" && window.innerWidth >= 768) {
-                if (isProfileDropdownOpen && profileAnchor === "sidebar") {
-                  setIsProfileDropdownOpen(false);
-                } else {
-                  setProfileAnchor("sidebar");
-                  setIsProfileDropdownOpen(true);
-                }
-              } else {
-                setIsSettingsMenuOpen((prev) => !prev);
-              }
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-                e.preventDefault();
-                setIsSettingsMenuOpen(true);
-              }
-            }}
-            className={`flex items-center gap-2.5 p-2 rounded-xl hover:bg-zinc-200/60 dark:hover:bg-white/[0.05] transition-colors cursor-pointer group text-left min-w-0 ${
+          <div
+            className={`flex items-center gap-2.5 p-2 rounded-xl hover:bg-zinc-200/60 dark:hover:bg-white/[0.05] transition-colors group text-left min-w-0 font-sans ${
               isDesktopSidebarCollapsed ? "flex-1 md:flex-none md:justify-center" : "flex-1"
             }`}
           >
-            <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs">
+            <button
+              ref={settingsTriggerRef}
+              type="button"
+              aria-haspopup="menu"
+              aria-expanded={
+                !isTouchOrMobile
+                  ? isProfileDropdownOpen && profileAnchor === "sidebar"
+                  : isSettingsMenuOpen
+              }
+              aria-label="Menu profil"
+              onClick={() => {
+                if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                  if (isProfileDropdownOpen && profileAnchor === "sidebar") {
+                    setIsProfileDropdownOpen(false);
+                  } else {
+                    setProfileAnchor("sidebar");
+                    setIsProfileDropdownOpen(true);
+                  }
+                } else {
+                  setIsSettingsMenuOpen((prev) => !prev);
+                }
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+                  e.preventDefault();
+                  setIsSettingsMenuOpen(true);
+                }
+              }}
+              className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0 text-xs font-semibold tracking-tight select-none overflow-hidden shadow-xs cursor-pointer"
+            >
               {authUser ? (
                 <div className="w-full h-full rounded-xl bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10 flex items-center justify-center">
                   <span className="uppercase font-semibold select-none text-xs">
@@ -8576,32 +8743,74 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <User className="w-4 h-4 text-current" strokeWidth={1.5} />
                 </div>
               )}
-            </div>
+            </button>
             <div className={`min-w-0 flex-1 ${isDesktopSidebarCollapsed ? "md:hidden" : ""}`}>
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="min-w-0 flex-1 truncate text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (typeof window !== "undefined" && window.innerWidth >= 768) {
+                      if (isProfileDropdownOpen && profileAnchor === "sidebar") {
+                        setIsProfileDropdownOpen(false);
+                      } else {
+                        setProfileAnchor("sidebar");
+                        setIsProfileDropdownOpen(true);
+                      }
+                    } else {
+                      setIsSettingsMenuOpen((prev) => !prev);
+                    }
+                  }}
+                  className="min-w-0 flex-1 truncate text-left text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 cursor-pointer font-sans"
+                >
                   {authUser ? userName : "Mode Tamu"}
-                </span>
+                </button>
                 {authUser &&
                   (isProPlan ? (
-                    <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openQuotaSettings();
+                      }}
+                      title="Lihat Batas penggunaan"
+                      aria-label="Status paket PRO, buka Batas penggunaan"
+                      className="bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-[10px] font-semibold tracking-wider uppercase px-1.5 py-0.5 rounded shrink-0 transition-colors cursor-pointer font-sans"
+                    >
                       PRO
-                    </span>
+                    </button>
                   ) : (
-                    <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-600 dark:text-zinc-400 text-[10px] font-medium uppercase px-1.5 py-0.5 rounded shrink-0">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        openQuotaSettings();
+                      }}
+                      title="Lihat Batas penggunaan"
+                      aria-label="Status paket FREE, buka Batas penggunaan"
+                      className="border border-zinc-300 hover:border-zinc-500 dark:border-zinc-700 dark:hover:border-zinc-500 text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 text-[10px] font-medium uppercase px-1.5 py-0.5 rounded shrink-0 transition-colors cursor-pointer font-sans"
+                    >
                       FREE
-                    </span>
+                    </button>
                   ))}
               </div>
-              <div className="text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 truncate tabular-nums">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  openQuotaSettings();
+                }}
+                title="Buka Batas penggunaan"
+                aria-label="Lihat detail Batas penggunaan dan sisa kredit di Setelan"
+                className="block max-w-full text-left text-[13px] leading-relaxed text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 truncate tabular-nums transition-colors cursor-pointer font-sans"
+              >
                 {authUser
                   ? isProPlan
                     ? "Axioma Pro"
                     : `${remainingCreditsCount} kredit tersisa`
                   : `${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} pesan tamu tersisa`}
-              </div>
+              </button>
             </div>
-          </button>
+          </div>
 
           {/* Item 7: Directly open/toggle Settings (Mobile page / Desktop floating popover) */}
           <button
@@ -9375,7 +9584,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             : "bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
                         }`}
                       >
-                        {isProPlan ? "Kelola Paket" : "Upgrade ke Pro"}
+                        {isProPlan ? "Kelola Paket" : "Upgrade ke Pro — Segera Hadir"}
                       </button>
                     </div>
 
@@ -9421,23 +9630,147 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 )}
 
                 {desktopSettingsPage === "quota" && (
-                  <div className="divide-y divide-zinc-200/70 dark:divide-white/[0.06]">
-                    <div className="py-4 space-y-3">
-                      <p className="text-[13.5px] text-zinc-700 dark:text-zinc-300 leading-relaxed">
-                        {authUser
-                          ? "Akun Anda memiliki akses tanpa batas untuk percakapan dan seluruh fitur Axioma Pro."
-                          : `Mode Tamu dibatasi maksimal ${GUEST_MAX_MESSAGES} pesan gratis (${Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} tersisa). Masuk untuk menikmati akses tanpa batas.`}
-                      </p>
-                      {!authUser && (
+                  <div className="py-4 font-sans space-y-4">
+                    {authUser ? (
+                      <div className="rounded-2xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-5 sm:p-6 space-y-5">
+                        {/* Status Paket */}
+                        <div className="flex items-center justify-between gap-3">
+                          <div>
+                            <div className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                              Status Paket
+                            </div>
+                            <div className="mt-0.5 text-sm font-medium text-zinc-900 dark:text-zinc-100">
+                              {isProPlan ? "Axioma Pro" : "Paket Free"}
+                            </div>
+                          </div>
+                          {isProPlan ? (
+                            <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shrink-0">
+                              PRO
+                            </span>
+                          ) : (
+                            <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full shrink-0">
+                              FREE
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Sisa Kredit Utama */}
+                        <div className="space-y-1">
+                          <div className="text-2xl sm:text-[26px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
+                            {isProPlan
+                              ? "Tanpa batas harian"
+                              : `${dailyCreditsRemaining} / ${dailyCreditLimit} kredit tersisa hari ini`}
+                          </div>
+                          <p className="text-[13.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
+                            {isProPlan
+                              ? "Langganan Axioma Pro aktif dengan akses penuh untuk seluruh model."
+                              : `Sisa kredit hari ini: ${dailyCreditsRemaining} dari ${dailyCreditLimit} kredit`}
+                          </p>
+                        </div>
+
+                        {/* Progress Bar Visual */}
+                        <div className="space-y-2">
+                          <div className="w-full h-2.5 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
+                            <div
+                              style={{ width: `${dailyCreditsPercent}%` }}
+                              className={`h-full rounded-full transition-all duration-300 ${
+                                !isProPlan && dailyCreditsPercent <= 20
+                                  ? "bg-red-500/85 dark:bg-red-400/85"
+                                  : !isProPlan && dailyCreditsPercent <= 40
+                                    ? "bg-amber-500/85 dark:bg-amber-400/85"
+                                    : "bg-zinc-900 dark:bg-zinc-100"
+                              }`}
+                            />
+                          </div>
+                          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+                            <span>{dailyCreditsPercent}% kuota harian tersisa</span>
+                            <span>Tarif: Omni 1 · Pro 3 · Architect 4 · Media 5 kredit</span>
+                          </div>
+                        </div>
+
+                        {/* Kredit Tambahan / Bonus (hanya bila > 0) */}
+                        {bonusCreditsCount > 0 && (
+                          <div className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-4 py-3">
+                            <div className="min-w-0">
+                              <div className="text-[13.5px] font-medium text-zinc-900 dark:text-zinc-100">
+                                Kredit Tambahan / Bonus
+                              </div>
+                              <div className="text-xs text-zinc-500 dark:text-zinc-400">
+                                Saldo permanen, tidak ter-reset saat pergantian hari
+                              </div>
+                            </div>
+                            <span className="text-sm font-semibold text-zinc-950 dark:text-white tabular-nums shrink-0">
+                              +{bonusCreditsCount} kredit
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Info Reset Harian */}
+                        <div className="flex items-center gap-2 text-xs text-zinc-500 dark:text-zinc-400 pt-3 border-t border-zinc-200/70 dark:border-white/[0.06]">
+                          <Clock className="w-4 h-4 shrink-0" strokeWidth={1.5} />
+                          <span>Kuota harian direset otomatis setiap hari pukul 00.00 WIB.</span>
+                        </div>
+
+                        {/* Aksi Lanjutan */}
+                        <div className="pt-1 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {isProPlan
+                              ? "Lihat detail seluruh paket dan kapasitas Axioma."
+                              : "Butuh kapasitas lebih besar? Lihat paket Pro & Top-Up."}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={openSubscriptionModal}
+                            className="h-9 px-4 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-[13px] font-medium inline-flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98] cursor-pointer shrink-0"
+                          >
+                            <span>{isProPlan ? "Lihat Rincian Paket" : "Upgrade ke Pro — Segera Hadir"}</span>
+                            <ChevronRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="rounded-2xl border border-zinc-200/85 dark:border-white/[0.08] bg-white dark:bg-[#141416] p-5 sm:p-6 space-y-4">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                            Status Paket
+                          </span>
+                          <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[11px] font-semibold tracking-wider uppercase px-2.5 py-0.5 rounded-full">
+                            MODE TAMU
+                          </span>
+                        </div>
+                        <div className="text-2xl font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
+                          {Math.max(0, GUEST_MAX_MESSAGES - guestMessageCount)} / {GUEST_MAX_MESSAGES} pesan tersisa
+                        </div>
+                        <div className="w-full h-2.5 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
+                          <div
+                            style={{
+                              width: `${Math.max(
+                                0,
+                                Math.min(
+                                  100,
+                                  Math.round(
+                                    ((GUEST_MAX_MESSAGES - guestMessageCount) /
+                                      GUEST_MAX_MESSAGES) *
+                                      100
+                                  )
+                                )
+                              )}%`,
+                            }}
+                            className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all duration-300"
+                          />
+                        </div>
+                        <p className="text-[13.5px] text-zinc-600 dark:text-zinc-300 leading-relaxed">
+                          Mode Tamu dibatasi maksimal {GUEST_MAX_MESSAGES} pesan gratis. Masuk ke akun Anda untuk mendapatkan 30 kredit harian yang direset otomatis pukul 00.00 WIB.
+                        </p>
                         <button
                           type="button"
                           onClick={() => setIsAuthModalOpen(true)}
-                          className="px-4 py-2 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/10 text-[13px] font-medium transition-colors cursor-pointer"
+                          className="h-9 px-4 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-[13px] font-medium transition-colors cursor-pointer"
                         >
                           Hubungkan Akun
                         </button>
-                      )}
-                    </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
@@ -10493,13 +10826,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             {isImagePending ? "Studio Visual" : "Studio Video"}
                           </span>
                         </div>
-                        <span className="text-[11px] text-zinc-600 dark:text-zinc-500 font-mono animate-pulse">Memproses...</span>
+                        <span className="text-[11px] text-zinc-600 dark:text-zinc-500 animate-pulse">Memproses...</span>
                       </div>
                       <div className="w-full space-y-1.5">
                         <div className="w-full h-1.5 rounded-full bg-zinc-200 dark:bg-white/10 overflow-hidden">
                           <div className="w-2/5 h-full rounded-full bg-zinc-500 dark:bg-zinc-400 animate-pulse" />
                         </div>
-                        <p className="text-[11px] text-zinc-600 dark:text-zinc-500 text-right font-mono">
+                        <p className="text-[11px] text-zinc-600 dark:text-zinc-500 text-right">
                           {isImagePending
                             ? "Membuat gambar sesuai permintaan..."
                             : "Menyiapkan video sesuai permintaan..."}

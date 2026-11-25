@@ -70,7 +70,7 @@ function buildPrintableHtml(opts: PrintableDocumentOptions): string {
       padding: 0;
       background: #ffffff;
       color: #111111;
-      font-family: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      font-family: "Plus Jakarta Sans", ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       font-size: 12.5px;
       line-height: 1.55;
       -webkit-print-color-adjust: exact;
