@@ -30,13 +30,17 @@ import { AxiomaLensCard, AxiomaLensData } from "./AxiomaLensCard";
 import { RoleplayModal } from "./RoleplayModal";
 import { LivePreviewModal } from "./LivePreviewModal";
 import { UpgradeModal, type QuotaModalInfo } from "./UpgradeModal";
+import { ChatHeader } from "./chat/ChatHeader";
+import { ChatEmptyState } from "./chat/ChatEmptyState";
+import { MessageActionBar } from "./chat/MessageActionBar";
+import { FollowUpChips } from "./chat/FollowUpChips";
+import { ChatComposer } from "./chat/ChatComposer";
 import {
   DEFAULT_LANGUAGE,
   DEFAULT_TONE,
   DEFAULT_THINKING_MODE,
   DEFAULT_ANSWER_STYLE,
   DEFAULT_SOCIAL_TARGET,
-  ADAPTIVE_ANSWER_ACTIONS,
   LanguageCode,
   ToneStyle,
   ThinkingMode,
@@ -7865,7 +7869,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </span>
                       </button>
 
-                      {/* Pintasan Keyboard */}
+                      {/* Pintasan Keyboard (Desktop only — tersembunyi di layar mobile) */}
                       <button
                         type="button"
                         onClick={() => {
@@ -7875,22 +7879,22 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             setExpandedSettingsSection((prev) => (prev === "shortcuts" ? null : "shortcuts"));
                           }
                         }}
-                        className="w-full px-4 py-4 min-h-[54px] rounded-none flex items-center justify-between text-left hover:bg-zinc-50 dark:hover:bg-white/[0.04] transition-colors cursor-pointer md:px-3 md:py-2 md:min-h-0 md:rounded-xl md:text-[13.5px] md:text-zinc-800 md:dark:text-zinc-200 md:hover:bg-zinc-100 md:dark:hover:bg-white/[0.06] md:duration-150"
+                        className="hidden md:flex w-full px-3 py-2 min-h-0 rounded-xl items-center justify-between text-left text-[13.5px] text-zinc-800 dark:text-zinc-200 hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors duration-150 cursor-pointer"
                       >
                         <div className="flex items-center min-w-0">
-                          <Keyboard className="w-5 h-5 text-zinc-600 dark:text-zinc-300 mr-4 md:w-4 md:h-4 md:text-zinc-500 md:dark:text-zinc-400 md:mr-3 shrink-0" strokeWidth={1.75} />
-                          <span className="text-[15px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 md:text-[13.5px] md:font-normal md:text-zinc-800 md:dark:text-zinc-200 truncate">Pintasan Keyboard</span>
+                          <Keyboard className="w-4 h-4 text-zinc-500 dark:text-zinc-400 mr-3 shrink-0" strokeWidth={1.75} />
+                          <span className="text-[13.5px] font-normal text-zinc-800 dark:text-zinc-200 truncate">Pintasan Keyboard</span>
                         </div>
                         <ChevronRight
-                          className={`w-5 h-5 md:w-3.5 md:h-3.5 text-zinc-400 shrink-0 transition-transform ${
+                          className={`w-3.5 h-3.5 text-zinc-400 shrink-0 transition-transform ${
                             expandedSettingsSection === "shortcuts" ? "rotate-90" : ""
                           }`}
                         />
                       </button>
 
-                      {/* Expandable Keyboard Shortcuts */}
+                      {/* Expandable Keyboard Shortcuts (Desktop only) */}
                       {expandedSettingsSection === "shortcuts" && (
-                        <div className="w-full px-4 py-4 bg-zinc-100/60 dark:bg-white/[0.025] md:px-3 md:py-2.5 md:rounded-xl md:my-1 md:bg-zinc-100/70 md:dark:bg-white/[0.04] space-y-2 text-xs">
+                        <div className="hidden md:block w-full px-3 py-2.5 rounded-xl my-1 bg-zinc-100/70 dark:bg-white/[0.04] space-y-2 text-xs">
                           <div className="flex items-center justify-between py-1 border-b border-zinc-200/70 dark:border-zinc-800/60">
                             <span className="text-zinc-600 dark:text-zinc-400">Cari percakapan</span>
                             <kbd className="px-2 py-0.5 rounded bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 font-mono text-[11px] text-zinc-700 dark:text-zinc-300">
@@ -8927,299 +8931,56 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
       {/* Main Workspace Column */}
       <div className="relative z-10 flex-1 flex flex-col h-full min-h-0 min-w-0 pb-0 overflow-hidden bg-[#f9f9f8] dark:bg-[#0e0e10]">
-        {/* Header (Sticky full-bleed on Mobile < md with safe-area top, 100% solid opaque) */}
-        <header className="sticky top-0 shrink-0 w-full flex items-center justify-between pt-[max(0.625rem,env(safe-area-inset-top))] pb-2.5 px-3.5 md:relative md:py-0 md:h-14 md:px-5 z-30 bg-[#f9f9f8] dark:bg-[#0e0e10]">
-          {isVoiceModeOpen ? (
-            /* In-Place Gemini Live Voice Header */
-            <div className="flex items-center justify-between w-full animate-fade-in">
-              {/* Left: Circular Menu Button (=) across Mobile/Tablet/Desktop */}
-              <div className="flex items-center">
-                <button
-                  type="button"
-                  onClick={() => setIsMobileSidebarOpen(true)}
-                  className="lg:hidden w-10 h-10 min-w-[40px] min-h-[40px] rounded-full bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-[#1e1f20] dark:hover:bg-[#27282b] dark:border-transparent dark:text-zinc-300 dark:hover:text-white active:scale-95 transition-all flex items-center justify-center cursor-pointer"
-                  aria-label="Buka bilah sisi"
-                >
-                  <Menu className="w-[18px] h-[18px]" />
-                </button>
-                <button
-                  type="button"
-                  onClick={toggleDesktopSidebar}
-                  title={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
-                  aria-label={isDesktopSidebarCollapsed ? "Tampilkan bilah sisi" : "Sembunyikan bilah sisi"}
-                  className="hidden lg:flex w-9 h-9 rounded-full bg-zinc-100 hover:bg-zinc-200 border border-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-[#1e1f20] dark:hover:bg-[#27282b] dark:border-transparent dark:text-zinc-300 dark:hover:text-white active:scale-95 transition-all items-center justify-center cursor-pointer"
-                >
-                  <Menu className="w-[18px] h-[18px]" />
-                </button>
-              </div>
-
-              {/* Right: Top-Right Capsule [Toggle Transkrip | •••] */}
-              <div className="relative" ref={voiceOptionsMenuRef}>
-                <div className="bg-zinc-100 border border-zinc-200 dark:bg-[#1e1f22] dark:border-white/[0.08] rounded-full px-3 py-1.5 flex items-center gap-3 shadow-md">
-                  {/* (a) Tombol Toggle Transkrip (ikon dokumen/teks dicoret) */}
-                  <button
-                    type="button"
-                    onClick={() => setShowVoiceTranscript((prev) => !prev)}
-                    aria-pressed={showVoiceTranscript}
-                    title={
-                      showVoiceTranscript
-                        ? "Sembunyikan teks percakapan"
-                        : "Tampilkan teks percakapan"
-                    }
-                    aria-label={
-                      showVoiceTranscript
-                        ? "Sembunyikan teks percakapan"
-                        : "Tampilkan teks percakapan"
-                    }
-                    className={`p-0.5 rounded-full transition-colors cursor-pointer ${
-                      showVoiceTranscript
-                        ? "text-zinc-900 hover:text-zinc-700 dark:text-white dark:hover:text-zinc-200"
-                        : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200"
-                    }`}
-                  >
-                    <svg
-                      width="19"
-                      height="19"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.9"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <rect x="3" y="5" width="18" height="14" rx="3" />
-                      <path d="M7 10h6" />
-                      <path d="M7 14h9" />
-                      {!showVoiceTranscript && <path d="M3 3l18 18" />}
-                    </svg>
-                  </button>
-
-                  {/* (b) Tombol Menu Opsi (•••) */}
-                  <button
-                    type="button"
-                    onClick={() => setIsVoiceOptionsMenuOpen((prev) => !prev)}
-                    aria-haspopup="menu"
-                    aria-expanded={isVoiceOptionsMenuOpen}
-                    title="Opsi Mode Suara"
-                    aria-label="Opsi Mode Suara"
-                    className="p-0.5 rounded-full text-zinc-700 hover:text-zinc-900 dark:text-zinc-200 dark:hover:text-white transition-colors cursor-pointer"
-                  >
-                    <Ellipsis className="w-[18px] h-[18px]" />
-                  </button>
-                </div>
-
-                {/* Voice Options Dropdown Menu */}
-                {isVoiceOptionsMenuOpen && (
-                  <div
-                    role="menu"
-                    aria-label="Opsi Mode Suara"
-                    className="absolute right-0 top-full mt-2 w-64 rounded-2xl bg-white border border-zinc-200 dark:bg-[#1e1f20] dark:border-white/[0.08] p-2 shadow-2xl z-50 space-y-1.5 animate-fade-up"
-                  >
-                    {/* Profil / Akun */}
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsVoiceOptionsMenuOpen(false);
-                        setIsProfileDropdownOpen(true);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-zinc-100 dark:hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
-                    >
-                      <div className="w-7 h-7 rounded-full bg-zinc-200 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:text-zinc-100 dark:border-white/10 flex items-center justify-center text-xs font-semibold shrink-0">
-                        {authUser ? (
-                          (userName || "N").trim().charAt(0).toUpperCase()
-                        ) : (
-                          <User className="w-3.5 h-3.5 text-current" strokeWidth={1.75} />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-[13px] font-medium text-zinc-900 dark:text-white truncate">
-                          {authUser ? userName : "Mode Tamu"}
-                        </div>
-                        <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                          {authUser ? "Profil Akun" : "Hubungkan Akun"}
-                        </div>
-                      </div>
-                    </button>
-
-                    <div className="border-t border-zinc-200 dark:border-white/[0.06]" />
-
-                    {/* Pilihan Suara Axioma */}
-                    <div className="px-3 py-1.5 space-y-1.5">
-                      <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                        Suara Axioma
-                      </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {(
-                          [
-                            { id: "id-ID-ArdiNeural", label: "Ardi" },
-                            { id: "id-ID-GadisNeural", label: "Gadis" },
-                          ] as const
-                        ).map((v) => (
-                          <button
-                            key={v.id}
-                            type="button"
-                            onClick={() => setVoiceNeuralName(v.id)}
-                            className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                              voiceNeuralName === v.id
-                                ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-[#141416] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
-                            }`}
-                          >
-                            {v.label}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Kecepatan Bicara */}
-                    <div className="px-3 py-1.5 space-y-1.5">
-                      <div className="text-[11px] font-medium text-zinc-500 dark:text-zinc-400">
-                        Kecepatan Suara
-                      </div>
-                      <div className="grid grid-cols-3 gap-1.5">
-                        {[0.95, 1.08, 1.2].map((rate) => (
-                          <button
-                            key={rate}
-                            type="button"
-                            onClick={() => setVoiceSpeechRate(rate)}
-                            className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-colors cursor-pointer ${
-                              voiceSpeechRate === rate
-                                ? "bg-zinc-900 text-white dark:bg-white dark:text-black"
-                                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-[#141416] dark:text-zinc-300 dark:hover:bg-white/[0.08]"
-                            }`}
-                          >
-                            {rate}x
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-
-                    <div className="border-t border-zinc-200 dark:border-white/[0.06]" />
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsVoiceOptionsMenuOpen(false);
-                        openSettingsModal("main");
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-zinc-700 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-white/[0.06] transition-colors text-left cursor-pointer"
-                    >
-                      <Settings className="w-4 h-4 text-zinc-500 dark:text-zinc-400 shrink-0" />
-                      <span>Setelan</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      role="menuitem"
-                      onClick={() => {
-                        setIsVoiceOptionsMenuOpen(false);
-                        setIsVoiceModeOpen(false);
-                      }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[13px] text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30 transition-colors text-left cursor-pointer"
-                    >
-                      <X className="w-4 h-4 shrink-0" />
-                      <span>Tutup Mode Suara</span>
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <>
-              {/* Unified Minimalist Top Bar (Mobile & Desktop) */}
-              <div className="min-h-[36px] w-full flex items-center justify-between gap-2.5">
-                {/* Sisi Kiri: Tombol Sidebar (rounded-xl) + Pemilih Model (relative + dropdown rata kiri) */}
-                <div className="flex items-center gap-2.5 min-w-0">
-                  {/* Mobile Drawer Trigger (< md, Apple HIG 40x40px touch target) */}
-                  <button
-                    type="button"
-                    onClick={() => setIsMobileSidebarOpen(true)}
-                    className="md:hidden w-10 h-10 min-w-[40px] min-h-[40px] shrink-0 rounded-xl bg-white hover:bg-zinc-100 dark:bg-[#161618] dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-white/[0.08] text-zinc-700 dark:text-zinc-300 active:scale-[0.96] transition-all duration-150 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                    aria-label="Buka bilah sisi"
-                  >
-                    <Menu className="w-[18px] h-[18px]" strokeWidth={1.75} />
-                  </button>
-
-                  {/* Desktop Sidebar Toggle (>= md) */}
-                  <button
-                    type="button"
-                    onClick={toggleDesktopSidebar}
-                    title={isDesktopSidebarCollapsed ? "Perluas bilah sisi" : "Ciutkan bilah sisi"}
-                    aria-label={isDesktopSidebarCollapsed ? "Perluas bilah sisi" : "Ciutkan bilah sisi"}
-                    className="hidden md:flex w-9 h-9 shrink-0 rounded-xl bg-white hover:bg-zinc-100 dark:bg-[#161618] dark:hover:bg-zinc-800 border border-zinc-200/80 dark:border-white/[0.08] text-zinc-700 dark:text-zinc-300 active:scale-[0.96] transition-all duration-200 items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                  >
-                    {isDesktopSidebarCollapsed ? (
-                      <PanelLeft className="w-4 h-4" strokeWidth={1.75} />
-                    ) : (
-                      <PanelLeftClose className="w-4 h-4" strokeWidth={1.75} />
-                    )}
-                  </button>
-
-                  {/* Quiet Active Workspace Label (only when a Project Space is active) */}
-                  {activeWorkspace && (
-                    <span
-                      title={activeWorkspace.instructions || activeWorkspace.name}
-                      className="inline-flex items-center gap-1.5 max-w-[150px] sm:max-w-[220px] px-2.5 py-1 rounded-full border border-black/[0.08] dark:border-white/[0.08] text-[11px] font-medium tracking-tight text-zinc-600 dark:text-zinc-300 truncate select-none"
-                    >
-                      <span className="w-1.5 h-1.5 rounded-full bg-zinc-900/70 dark:bg-white/70 shrink-0" />
-                      <span className="truncate">{activeWorkspace.name}</span>
-                    </span>
-                  )}
-
-                </div>
-
-                {/* Sisi Kanan: Tombol Checkpoint Minimalis (saat >= 2 pesan) + Tombol Profil Mobile */}
-                <div className="flex items-center gap-2 shrink-0">
-                  {currentMessages.length >= 2 && (
-                    <button
-                      type="button"
-                      onClick={() => setIsCheckpointModalOpen(true)}
-                      aria-label="Buka panel konteks dan checkpoint percakapan"
-                      title="Konteks & Checkpoint"
-                      className="h-9 px-2.5 rounded-full inline-flex items-center gap-1.5 bg-transparent hover:bg-black/[0.05] text-zinc-600 hover:text-zinc-900 border border-black/[0.08] dark:hover:bg-white/[0.06] dark:text-zinc-400 dark:hover:text-zinc-100 dark:border-white/[0.08] text-[11.5px] font-medium tracking-tight transition-colors cursor-pointer active:scale-[0.97] whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                    >
-                      <Bookmark className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                      <span className="hidden min-[380px]:inline">Checkpoint</span>
-                      {hasActiveChatContext(chatContextState) && (
-                        <span
-                          aria-hidden="true"
-                          className="w-1.5 h-1.5 rounded-full bg-zinc-900/70 dark:bg-white/70 shrink-0"
-                        />
-                      )}
-                    </button>
-                  )}
-
-                  <button
-                    ref={headerProfileTriggerRef}
-                    type="button"
-                    onClick={() => {
-                      if (isProfileDropdownOpen && profileAnchor === "header") {
-                        setIsProfileDropdownOpen(false);
-                      } else {
-                        setProfileAnchor("header");
-                        setIsProfileDropdownOpen(true);
-                      }
-                    }}
-                    aria-label="Buka menu profil dan akun"
-                    title={authUser ? "Profil Akun" : "Mode Tamu — Hubungkan Akun"}
-                    className="w-10 h-10 min-w-[40px] min-h-[40px] shrink-0 rounded-xl flex md:hidden items-center justify-center cursor-pointer select-none overflow-hidden active:scale-[0.96] transition-all duration-150 text-sm font-semibold uppercase bg-zinc-200 hover:bg-zinc-300/80 text-zinc-900 border border-zinc-300 dark:bg-zinc-800 dark:hover:bg-zinc-700/80 dark:text-zinc-100 dark:border-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                  >
-                    {authUser ? (
-                      <span className="uppercase font-semibold select-none text-[13.5px]">
-                        {(userName || "N").trim().charAt(0).toUpperCase()}
-                      </span>
-                    ) : (
-                      <User className="w-4 h-4 text-current" strokeWidth={1.75} />
-                    )}
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </header>
+        {/* Streamlined Minimalist Top Header (Modular ChatHeader) */}
+        <ChatHeader
+          isVoiceModeOpen={isVoiceModeOpen}
+          isDesktopSidebarCollapsed={isDesktopSidebarCollapsed}
+          hasMessages={hasMessages}
+          messageCount={currentMessages.length}
+          activeChatTitle={
+            activeChatId && activeChatId !== "new-chat"
+              ? chats.find((c) => c.id === activeChatId)?.title
+              : undefined
+          }
+          activeWorkspace={activeWorkspace}
+          hasActiveContext={hasActiveChatContext(chatContextState)}
+          isAuthenticated={Boolean(authUser)}
+          userName={userName}
+          headerProfileTriggerRef={headerProfileTriggerRef}
+          onOpenMobileSidebar={() => setIsMobileSidebarOpen(true)}
+          onToggleDesktopSidebar={toggleDesktopSidebar}
+          onCreateNewChat={handleCreateNewChat}
+          onOpenCheckpointModal={() => setIsCheckpointModalOpen(true)}
+          onToggleProfileDropdown={() => {
+            if (isProfileDropdownOpen && profileAnchor === "header") {
+              setIsProfileDropdownOpen(false);
+            } else {
+              setProfileAnchor("header");
+              setIsProfileDropdownOpen(true);
+            }
+          }}
+          showVoiceTranscript={showVoiceTranscript}
+          onToggleVoiceTranscript={() => setShowVoiceTranscript((prev) => !prev)}
+          isVoiceOptionsMenuOpen={isVoiceOptionsMenuOpen}
+          onToggleVoiceOptionsMenu={() => setIsVoiceOptionsMenuOpen((prev) => !prev)}
+          voiceOptionsMenuRef={voiceOptionsMenuRef}
+          voiceNeuralName={voiceNeuralName}
+          onChangeVoiceNeuralName={setVoiceNeuralName}
+          voiceSpeechRate={voiceSpeechRate}
+          onChangeVoiceSpeechRate={setVoiceSpeechRate}
+          onOpenProfileFromVoice={() => {
+            setIsVoiceOptionsMenuOpen(false);
+            setIsProfileDropdownOpen(true);
+          }}
+          onOpenSettingsFromVoice={() => {
+            setIsVoiceOptionsMenuOpen(false);
+            openSettingsModal("main");
+          }}
+          onCloseVoiceMode={() => {
+            setIsVoiceOptionsMenuOpen(false);
+            setIsVoiceModeOpen(false);
+          }}
+        />
 
         {/* Dynamic Chat Workspace */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden relative">
@@ -9932,26 +9693,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   isChatAreaLoading &&
                   Boolean(initialChatId || (activeChatId && activeChatId !== "new-chat"))
                 ) && (
-                  <div
-                    className={`md:hidden flex-1 min-h-0 w-full overflow-hidden flex flex-col items-center justify-center px-5 -mt-6 text-center pointer-events-none ${
-                      isEmptyDecorationsExiting ? "opacity-0 scale-95" : "opacity-100 scale-100"
-                    }`}
-                  >
-                    <div className="w-full max-w-[340px] mx-auto flex flex-col items-center">
-                      {/* Clean Brand Logo */}
-                      <div className="mb-3.5 flex items-center justify-center animate-axioma-fade-up select-none">
-                        <AxiomaLogoMark className="w-10 h-10" />
-                      </div>
-
-                      {/* Sapaan Personal Kontekstual Minimalis */}
-                      <h1
-                        style={{ animationDelay: "60ms" }}
-                        className="font-heading text-[22px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 text-center text-balance animate-axioma-fade-up select-none"
-                      >
-                        {contextualGreeting}
-                      </h1>
-                    </div>
-                  </div>
+                  <ChatEmptyState
+                    variant="mobile"
+                    greeting={contextualGreeting}
+                    isExiting={isEmptyDecorationsExiting}
+                  />
                 )}
 
               {/* Active State History with Smooth Message Entrance Animations */}
@@ -9963,7 +9709,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               hasMessages || isLoadingExistingChat
                 ? "opacity-100 pt-4 md:pt-6 pb-[calc(9.5rem+env(safe-area-inset-bottom,0px))] md:pb-44 px-3.5 md:px-6 flex"
                 : "hidden"
-            } w-full max-w-none md:max-w-[720px] md:mx-auto flex-col gap-6`}
+            } w-full max-w-none md:max-w-[720px] md:mx-auto flex-col gap-7`}
           >
             {isChatAreaLoading &&
               currentMessages.length === 0 &&
@@ -10118,10 +9864,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         </div>
                       )}
 
-                      {/* Compact timestamp + copy/edit actions underneath user bubble */}
-                      <div className="flex items-center gap-2 mt-1.5 text-zinc-500 opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
+                      {/* Subtle copy/edit actions underneath user bubble (hover-revealed on desktop, ultra-compact muted icons without prominent timestamp on mobile) */}
+                      <div className="flex items-center gap-1 mt-1 text-zinc-400 dark:text-zinc-500 opacity-65 hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
                         {userTime && (
-                          <span className="text-[11.5px] font-normal text-zinc-500 select-none tabular-nums">
+                          <span className="hidden md:inline text-[11px] font-normal text-zinc-500 dark:text-zinc-500 pr-1 select-none tabular-nums">
                             {userTime}
                           </span>
                         )}
@@ -10131,12 +9877,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onClick={() => handleCopy(message.content, `user-${message.id}`, 1500)}
                             title="Salin pesan"
                             aria-label="Salin pesan pengguna"
-                            className="min-w-[40px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-500 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] active:scale-[0.95] transition-all duration-150 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
                           >
                             {copiedId === `user-${message.id}` ? (
                               <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
                             ) : (
-                              <Copy className="w-3.5 h-3.5" strokeWidth={1.75} />
+                              <Copy className="w-3.5 h-3.5" strokeWidth={1.5} />
                             )}
                           </button>
                           {copiedId === `user-${message.id}` && (
@@ -10151,9 +9897,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           onClick={() => handleStartEditUserMessage(message)}
                           title="Edit pesan"
                           aria-label="Edit pesan pengguna"
-                          className="p-1.5 rounded-lg text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-500 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] active:scale-[0.95] transition-all duration-150 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
                         >
-                          <Pencil className="w-3.5 h-3.5" strokeWidth={1.75} />
+                          <Pencil className="w-3.5 h-3.5" strokeWidth={1.5} />
                         </button>
                       </div>
                     </div>
@@ -10264,7 +10010,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             onMouseUp={() =>
                               handleAiMessageTextSelect(message.id, message.content)
                             }
-                            className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 font-normal text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-[1.7] tracking-[-0.005em] break-words transition-opacity duration-200 ${
+                            className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 font-normal text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-relaxed tracking-[-0.005em] break-words transition-opacity duration-200 ${
                               isStreamingThisMessage ? "streaming-prose" : ""
                             }`}
                           >
@@ -10447,192 +10193,44 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       );
                     })()}
 
-                    {/* Message Action Icons: fade-in after streaming finishes */}
-                    <div
-                      aria-hidden={isStreamingThisMessage}
-                      className={`w-full flex items-center gap-2 pt-0.5 transition-[opacity,transform] duration-200 ease-out motion-safe-transform ${
-                        isStreamingThisMessage
-                          ? "opacity-0 translate-y-1 pointer-events-none select-none"
-                          : "opacity-100 translate-y-0"
-                      }`}
-                    >
-                      <div className="flex items-center gap-1.5 -ml-1.5 text-zinc-500 dark:text-zinc-400 transition-opacity duration-200">
-                        {/* 1. Primary Action: Salin (Copy) */}
-                        <div className="relative flex items-center">
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(sanitizeAxiomaMessageContent(message.content), message.id, 1500)}
-                            title={copiedId === message.id ? "Disalin" : "Salin jawaban"}
-                            className="min-h-[40px] lg:min-h-0 px-2 py-1.5 rounded-lg text-xs font-medium tracking-tight text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 cursor-pointer inline-flex items-center gap-1 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                            aria-label="Salin teks"
-                          >
-                            {copiedId === message.id ? (
-                              <>
-                                <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" strokeWidth={1.75} />
-                                <span className="text-zinc-900 dark:text-zinc-100">Tersalin</span>
-                              </>
-                            ) : (
-                              <>
-                                <Copy className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                                <span>Salin</span>
-                              </>
-                            )}
-                          </button>
-                        </div>
+                    {/* Minimalist Message Actions: Salin + ··· Overflow Menu (Salin WA, Ulangi, Lanjutkan, Cabang, Feedback) */}
+                    <MessageActionBar
+                      messageId={message.id}
+                      isStreaming={isStreamingThisMessage}
+                      isBusy={isLoading || isGenerating}
+                      isCopied={copiedId === message.id}
+                      isWaCopied={copiedId === `wa-${message.id}`}
+                      isMenuOpen={openAiActionMenuId === message.id}
+                      feedback={msgFeedback}
+                      showFeedbackSavedNotice={feedbackSavedNoticeId === message.id}
+                      showStructuredFeedbackThanks={structuredFeedbackThanksId === message.id}
+                      onCopy={() =>
+                        handleCopy(sanitizeAxiomaMessageContent(message.content), message.id, 1500)
+                      }
+                      onCopyWhatsApp={() =>
+                        handleCopy(
+                          formatForWhatsApp(sanitizeAxiomaMessageContent(message.content)),
+                          `wa-${message.id}`,
+                          1500
+                        )
+                      }
+                      onToggleMenu={() =>
+                        setOpenAiActionMenuId((prev) => (prev === message.id ? null : message.id))
+                      }
+                      onCloseMenu={() => setOpenAiActionMenuId(null)}
+                      onBranch={() => handleBranchFromMessage(message.id)}
+                      onContinue={() => {
+                        void handleSendMessage(
+                          "Lanjutkan penjelasan sebelumnya secara langsung dan runtut dari poin terakhir tanpa mengulang."
+                        );
+                      }}
+                      onRegenerate={() => handleRegenerateLastReply(message.id)}
+                      onFeedback={(rating) => {
+                        void handleFeedback(message.id, rating);
+                      }}
+                    />
 
-                        {/* 2. Primary Action: Salin WA */}
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleCopy(
-                              formatForWhatsApp(sanitizeAxiomaMessageContent(message.content)),
-                              `wa-${message.id}`,
-                              1500
-                            )
-                          }
-                          title={copiedId === `wa-${message.id}` ? "Tersalin untuk WhatsApp" : "Salin format siap WhatsApp"}
-                          aria-label="Salin untuk WhatsApp"
-                          className="min-h-[40px] lg:min-h-0 px-2 py-1.5 rounded-lg text-xs font-medium tracking-tight text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800 active:scale-[0.96] transition-all duration-200 cursor-pointer inline-flex items-center gap-1 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                        >
-                          {copiedId === `wa-${message.id}` ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" strokeWidth={1.75} />
-                              <span className="text-zinc-900 dark:text-zinc-100">Tersalin</span>
-                            </>
-                          ) : (
-                            <span>Salin WA</span>
-                          )}
-                        </button>
-
-                        {/* 3. Secondary Actions Overflow Menu (···) */}
-                        <div className="relative" data-ai-action-menu="true">
-                          <button
-                            type="button"
-                            aria-haspopup="menu"
-                            aria-expanded={openAiActionMenuId === message.id}
-                            aria-label="Aksi lainnya"
-                            title="Aksi lainnya"
-                            onClick={() =>
-                              setOpenAiActionMenuId((prev) =>
-                                prev === message.id ? null : message.id
-                              )
-                            }
-                            className={`min-w-[36px] min-h-[40px] lg:min-w-0 lg:min-h-0 p-1.5 rounded-lg active:scale-[0.96] transition-all duration-200 cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
-                              openAiActionMenuId === message.id
-                                ? "bg-zinc-200/80 text-zinc-900 dark:bg-zinc-800 dark:text-zinc-100"
-                                : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-zinc-800"
-                            }`}
-                          >
-                            <MoreHorizontal className="w-4 h-4" strokeWidth={1.75} />
-                          </button>
-
-                          {openAiActionMenuId === message.id && (
-                            <div
-                              role="menu"
-                              aria-label="Aksi tambahan balasan"
-                              className="ios-glass absolute right-0 sm:left-0 sm:right-auto bottom-full mb-1.5 z-40 min-w-[184px] rounded-xl p-1 bg-white/95 dark:bg-[#0e0e10]/95 border border-zinc-200 dark:border-white/[0.08] shadow-xl animate-axioma-scale-in"
-                            >
-                              <button
-                                type="button"
-                                role="menuitem"
-                                disabled={isLoading || isGenerating}
-                                onClick={() => {
-                                  setOpenAiActionMenuId(null);
-                                  handleBranchFromMessage(message.id);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                <GitBranch className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                                <span>Cabang</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                role="menuitem"
-                                disabled={isLoading || isGenerating}
-                                onClick={() => {
-                                  setOpenAiActionMenuId(null);
-                                  void handleSendMessage(
-                                    "Lanjutkan penjelasan sebelumnya secara langsung dan runtut dari poin terakhir tanpa mengulang."
-                                  );
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                <CornerDownRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                                <span>Lanjutkan</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                role="menuitem"
-                                disabled={isLoading || isGenerating}
-                                onClick={() => {
-                                  setOpenAiActionMenuId(null);
-                                  handleRegenerateLastReply(message.id);
-                                }}
-                                className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg text-xs font-medium text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08] transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
-                              >
-                                <RotateCw className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                                <span>Ulangi</span>
-                              </button>
-
-                              <div className="border-t border-zinc-200 dark:border-white/[0.08] my-1" />
-
-                              <div className="grid grid-cols-2 gap-1">
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  aria-pressed={msgFeedback === "up"}
-                                  onClick={() => {
-                                    setOpenAiActionMenuId(null);
-                                    void handleFeedback(message.id, "up");
-                                  }}
-                                  className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
-                                    msgFeedback === "up"
-                                      ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
-                                      : "text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08]"
-                                  }`}
-                                >
-                                  <ThumbsUp className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                                  <span>Bagus</span>
-                                </button>
-
-                                <button
-                                  type="button"
-                                  role="menuitem"
-                                  aria-pressed={msgFeedback === "down"}
-                                  onClick={() => {
-                                    setOpenAiActionMenuId(null);
-                                    void handleFeedback(message.id, "down");
-                                  }}
-                                  className={`flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg text-[11px] font-medium transition-colors cursor-pointer ${
-                                    msgFeedback === "down"
-                                      ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950"
-                                      : "text-zinc-700 hover:text-zinc-950 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-zinc-100 dark:hover:bg-white/[0.08]"
-                                  }`}
-                                >
-                                  <ThumbsDown className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                                  <span>Kurang</span>
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-
-                        {feedbackSavedNoticeId === message.id && (
-                          <span className="text-[11px] text-zinc-600 dark:text-zinc-400 pl-1">
-                            Masukan tersimpan ✓
-                          </span>
-                        )}
-                        {structuredFeedbackThanksId === message.id && (
-                          <span className="text-[11px] text-text-muted pl-1">
-                            Terima kasih
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Adaptive Answer Quick Chips (only under the latest non-error AI reply when idle) */}
+                    {/* Single-Row Horizontally Scrollable Quick Follow-Up Chips (ONLY under the latest non-error AI reply when idle) */}
                     {(() => {
                       const lastAiMsg = [...currentMessages]
                         .reverse()
@@ -10642,26 +10240,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         return null;
                       }
                       return (
-                        <div
-                          role="group"
-                          aria-label="Tindakan lanjutan cepat"
-                          className="flex flex-wrap items-center gap-1.5 pt-1.5"
-                        >
-                          {ADAPTIVE_ANSWER_ACTIONS.map((action) => (
-                            <button
-                              key={action.id}
-                              type="button"
-                              onClick={() =>
-                                void handleSendMessage(action.prompt, {
-                                  taskBreakdownMode: action.taskBreakdownMode,
-                                })
-                              }
-                              className="px-2.5 py-1 rounded-full text-[11px] font-medium tracking-tight bg-zinc-100 text-zinc-700 hover:bg-zinc-200 border border-zinc-200 dark:bg-white/[0.06] dark:text-zinc-300 dark:hover:bg-white/[0.12] dark:border-white/[0.08] transition-colors cursor-pointer active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                            >
-                              {action.label}
-                            </button>
-                          ))}
-                        </div>
+                        <FollowUpChips
+                          onSelectAction={(action) => {
+                            void handleSendMessage(action.prompt, {
+                              taskBreakdownMode: action.taskBreakdownMode,
+                            });
+                          }}
+                        />
                       );
                     })()}
 
@@ -10833,70 +10418,24 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div ref={messagesEndRef} className="h-6 shrink-0" />
           </div>
 
-          {/* Input Console (Rounded floating card on Mobile & Desktop with iPhone safe-area bottom) */}
-          <div
-            className={`w-full bg-transparent px-3 sm:px-4 md:px-6 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 ${
-              hasMessages
-                ? "absolute bottom-0 inset-x-0 z-20 pointer-events-none"
-                : isDesktopEmptyState
-                ? "relative z-20 shrink-0 md:shrink md:flex-1 md:min-h-0 md:overflow-y-auto scrollbar-none overscroll-y-contain md:flex md:flex-col"
-                : "relative z-20 shrink-0"
-            }`}
-          >
-            {/* Floating "Scroll to Bottom" button anchored dynamically above input box (parent kept free of opacity/scale for Safari iOS backdrop-filter) */}
-            {hasMessages && (
-              <div className="pointer-events-none absolute left-1/2 -translate-x-1/2 bottom-full mb-3 z-30">
-                <button
-                  type="button"
-                  tabIndex={isUserScrolledUp ? 0 : -1}
-                  aria-hidden={!isUserScrolledUp}
-                  onClick={() => scrollToBottom(true)}
-                  title="Kembali ke pesan terbaru"
-                  aria-label="Gulir ke bawah"
-                  className={`ios-glass w-10 h-10 min-w-[40px] min-h-[40px] rounded-full text-zinc-800 dark:text-zinc-100 flex items-center justify-center transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform active:scale-[0.96] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
-                    isUserScrolledUp
-                      ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
-                      : "opacity-0 translate-y-2 scale-90 pointer-events-none"
-                  }`}
-                >
-                  <ArrowDown className="w-4 h-4" strokeWidth={1.75} />
-                </button>
-              </div>
-            )}
-            <div
-              className={`w-full max-w-[680px] lg:max-w-[720px] mx-auto flex flex-col items-center ${
-                isDesktopEmptyState ? "md:flex-1 md:justify-center" : ""
-              }`}
-            >
-              <div
-                className={`relative w-full flex flex-col items-center ${
-                  isDesktopEmptyState ? "md:-mt-8" : ""
-                }`}
-              >
-                {/* Desktop Empty State Hero (>= md) */}
-                {isDesktopEmptyState && (
-                  <div className="hidden md:flex flex-col items-center text-center pointer-events-none select-none w-full mb-6">
-                    <div className="mb-3.5 flex items-center justify-center animate-axioma-fade-up">
-                      <AxiomaLogoMark className="w-10 h-10" />
-                    </div>
-                    {isChatAreaLoading ? (
-                      <div
-                        role="status"
-                        aria-label="Memuat ruang kerja"
-                        className="flex flex-col items-center"
-                      >
-                        <div className="h-8 w-[320px] rounded-xl bg-border-subtle animate-pulse" />
-                      </div>
-                    ) : (
-                      <h1
-                        style={{ animationDelay: "60ms" }}
-                        className="font-heading text-[26px] font-medium leading-[1.3] tracking-[-0.02em] text-zinc-900 dark:text-zinc-100 text-center text-balance animate-axioma-fade-up"
-                      >
-                        {contextualGreeting}
-                      </h1>
-                    )}
-                  </div>
-                )}
+          {/* Input Console (Modular ChatComposer: rounded floating card + minimalist toolbar) */}
+          <ChatComposer
+            hasMessages={hasMessages}
+            isDesktopEmptyState={isDesktopEmptyState}
+            isUserScrolledUp={isUserScrolledUp}
+            onScrollToBottom={() => scrollToBottom(true)}
+            showDisclaimer={currentMessages.length > 0}
+            heroSlot={
+              isDesktopEmptyState ? (
+                <ChatEmptyState
+                  variant="desktop"
+                  greeting={contextualGreeting}
+                  isLoading={isChatAreaLoading}
+                />
+              ) : null
+            }
+            aboveInputSlot={
+              <>
 
 
                 {/* Pending Attachment Chips Preview */}
@@ -11282,707 +10821,657 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Axioma Organic Minimalist Input Box (rounded-[24px], 2-Row, Native iOS Glass) */}
-                <div
-                  style={!hasMessages ? { animationDelay: "120ms" } : undefined}
-                  className={`group/input relative pointer-events-auto max-w-[720px] mx-auto w-full rounded-[24px] px-4 pt-3 pb-2.5 flex flex-col gap-1.5 ${
-                    !hasMessages ? "animate-axioma-fade-up" : ""
-                  }`}
-                >
-                  {/* Dedicated .ios-glass backdrop layer (keeps parent free of backdrop-filter so nested Model Dropdown blurs cleanly in Safari iOS) */}
-                  <div
-                    aria-hidden="true"
-                    className="ios-glass absolute inset-0 rounded-[24px] border border-zinc-200/90 dark:border-white/10 shadow-[0_6px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_28px_rgba(0,0,0,0.45)] pointer-events-none transition-all duration-200 group-focus-within/input:border-zinc-400/50 dark:group-focus-within/input:border-white/25"
-                  />
-                  {/* Baris Atas: Textarea Auto-Expand / Recording Waveform / Transcribing */}
-                  <div className="relative z-10 w-full min-w-0 flex items-center">
-                    {isRecording ? (
-                      <InlineVoiceWaveform
-                        analyser={dictationAnalyser}
-                        recordingSeconds={recordingSeconds}
-                        onSpeechDetected={() => {
-                          hasSpokenRef.current = true;
+              </>
+            }
+            inputFieldSlot={
+              isRecording ? (
+                <InlineVoiceWaveform
+                  analyser={dictationAnalyser}
+                  recordingSeconds={recordingSeconds}
+                  onSpeechDetected={() => {
+                    hasSpokenRef.current = true;
+                  }}
+                />
+              ) : isTranscribingVoice ? (
+                <div className="flex-1 min-w-0 flex items-center justify-center gap-2 py-1.5 px-2 animate-in fade-in duration-150">
+                  <div className="flex items-center gap-1.5" aria-hidden="true">
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 dark:bg-zinc-400 animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 dark:bg-zinc-400 animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 dark:bg-zinc-400 animate-bounce" />
+                  </div>
+                  <span className="text-xs text-text-muted font-medium select-none">
+                    Mentranskripsikan...
+                  </span>
+                </div>
+              ) : (
+                <textarea
+                  ref={textareaRef}
+                  rows={1}
+                  tabIndex={0}
+                  enterKeyHint="send"
+                  autoComplete="off"
+                  autoCorrect="on"
+                  spellCheck={true}
+                  value={inputText}
+                  onChange={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
+                  onFocus={() => {
+                    if (typeof window !== "undefined" && (window.scrollY !== 0 || window.scrollX !== 0)) {
+                      window.scrollTo(0, 0);
+                    }
+                  }}
+                  aria-label="Tulis pesan ke Axioma"
+                  placeholder={
+                    activeMediaMode === "image"
+                      ? "Deskripsikan gambar yang ingin dibuat..."
+                      : activeMediaMode === "video"
+                      ? "Deskripsikan video sinematik yang ingin dibuat..."
+                      : isGenerating || isLoading
+                      ? "Axioma sedang merespons..."
+                      : hasMessages
+                      ? "Lanjutkan percakapan..."
+                      : DYNAMIC_PLACEHOLDERS[placeholderIndex]
+                  }
+                  style={{ height: "28px" }}
+                  className="flex-1 min-w-0 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-base md:text-sm leading-[1.45] font-normal py-0.5 px-0.5 min-h-[28px] max-h-[140px] overflow-y-auto tracking-normal transition-colors duration-300 ease-out touch-manipulation"
+                />
+              )
+            }
+            leftToolbarSlot={
+              <>
+                {/* Active Attachment & Quick Actions (+) Button */}
+                {(() => {
+                  const isAttachmentsFull = pendingAttachments.length >= 4;
+                  return (
+                    <div className="relative shrink-0 group" ref={attachmentMenuRef}>
+                      <button
+                        ref={attachmentTriggerRef}
+                        type="button"
+                        aria-haspopup="menu"
+                        aria-expanded={isAttachmentMenuOpen}
+                        onMouseDown={(e) => {
+                          e.preventDefault();
                         }}
-                      />
-                    ) : isTranscribingVoice ? (
-                      <div className="flex-1 min-w-0 flex items-center justify-center gap-2 py-1.5 px-2 animate-in fade-in duration-150">
-                        <div className="flex items-center gap-1.5" aria-hidden="true">
-                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 dark:bg-zinc-400 animate-bounce [animation-delay:-0.3s]" />
-                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 dark:bg-zinc-400 animate-bounce [animation-delay:-0.15s]" />
-                          <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 dark:bg-zinc-400 animate-bounce" />
-                        </div>
-                        <span className="text-xs text-text-muted font-medium select-none">
-                          Mentranskripsikan...
-                        </span>
-                      </div>
-                    ) : (
-                      <textarea
-                        ref={textareaRef}
-                        rows={1}
-                        tabIndex={0}
-                        enterKeyHint="send"
-                        autoComplete="off"
-                        autoCorrect="on"
-                        spellCheck={true}
-                        value={inputText}
-                        onChange={handleTextareaChange}
-                        onKeyDown={handleKeyDown}
-                        onPaste={handlePaste}
-                        onFocus={() => {
-                          if (typeof window !== "undefined" && (window.scrollY !== 0 || window.scrollX !== 0)) {
-                            window.scrollTo(0, 0);
+                        onClick={() => {
+                          if (isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice) return;
+                          textareaRef.current?.blur();
+                          setIsAttachmentMenuOpen((prev) => !prev);
+                        }}
+                        onKeyDown={(e) => {
+                          if (isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice) return;
+                          if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+                            e.preventDefault();
+                            setIsAttachmentMenuOpen(true);
                           }
                         }}
-                        aria-label="Tulis pesan ke Axioma"
-                        placeholder={
-                          activeMediaMode === "image"
-                            ? "Deskripsikan gambar yang ingin dibuat..."
-                            : activeMediaMode === "video"
-                            ? "Deskripsikan video sinematik yang ingin dibuat..."
-                            : isGenerating || isLoading
-                            ? "Axioma sedang merespons..."
-                            : hasMessages
-                            ? "Lanjutkan percakapan..."
-                            : DYNAMIC_PLACEHOLDERS[placeholderIndex]
-                        }
-                        style={{ height: "28px" }}
-                        className="flex-1 min-w-0 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-base md:text-sm leading-[1.45] font-normal py-0.5 px-0.5 min-h-[28px] max-h-[140px] overflow-y-auto tracking-normal transition-colors duration-300 ease-out touch-manipulation"
+                        disabled={isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice}
+                        title={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas & aksi cepat"}
+                        aria-label={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas dan aksi cepat"}
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150 ${
+                          isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice
+                            ? "text-zinc-400 dark:text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none"
+                            : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] active:scale-[0.96] cursor-pointer"
+                        }`}
+                      >
+                        <Plus className="w-[18px] h-[18px]" strokeWidth={1.75} />
+                      </button>
+
+                      {/* Tooltip when 4 attachments reached */}
+                      {isAttachmentsFull && (
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute left-0 bottom-full mb-2 px-2.5 py-1 rounded-md bg-bg-elevated border border-border-subtle text-[11px] text-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shadow-lg z-30"
+                        >
+                          Maksimal 4 file per pesan
+                        </span>
+                      )}
+
+                      {/* Attachment Popover Menu */}
+                      {shouldRenderAttachmentMenu && (
+                        <>
+                          <div
+                            className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-30 bg-black/70 md:hidden transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                              isAttachmentMenuEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
+                            }`}
+                            onClick={() => closeAttachmentMenu(true)}
+                            aria-hidden="true"
+                          />
+                          <div
+                            role="menu"
+                            aria-label="Pilihan lampiran dan aksi cepat"
+                            onKeyDown={(e) =>
+                              handleMenuArrowKeyDown(e, attachmentItemRefs.current, () =>
+                                closeAttachmentMenu(true)
+                              )
+                            }
+                            className={`absolute -left-2 bottom-full mb-2 md:mb-2.5 z-40 w-[264px] sm:w-72 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto overscroll-contain scrollbar-none rounded-2xl bg-white dark:bg-[#18181d] border border-zinc-200/90 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-2xl origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
+                              isAttachmentMenuEntered
+                                ? "scale-100 opacity-100 translate-y-0"
+                                : "scale-95 opacity-0 translate-y-1 pointer-events-none"
+                            }`}
+                          >
+                            {/* Grup 1: LAMPIRKAN & MEDIA */}
+                            <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3 pt-2 pb-1 select-none">
+                              LAMPIRKAN &amp; MEDIA
+                            </div>
+                            <div className="space-y-0.5">
+                              {/* 1. Foto & Gambar */}
+                              <button
+                                ref={(el) => {
+                                  attachmentItemRefs.current[0] = el;
+                                }}
+                                role="menuitem"
+                                type="button"
+                                onClick={() => {
+                                  closeAttachmentMenu(false);
+                                  visionInputRef.current?.click();
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                              >
+                                <ImageIcon
+                                  className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                  strokeWidth={1.5}
+                                />
+                                <span className="flex-1 truncate">Foto &amp; Gambar</span>
+                              </button>
+
+                              {/* 2. Bedah Dokumen PDF */}
+                              <button
+                                ref={(el) => {
+                                  attachmentItemRefs.current[1] = el;
+                                }}
+                                role="menuitem"
+                                type="button"
+                                onClick={() => {
+                                  closeAttachmentMenu(false);
+                                  smartPdfInputRef.current?.click();
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                              >
+                                <FileText
+                                  className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                  strokeWidth={1.5}
+                                />
+                                <span className="flex-1 truncate">Bedah Dokumen PDF</span>
+                              </button>
+
+                              {/* 3. Buat Gambar */}
+                              <button
+                                ref={(el) => {
+                                  attachmentItemRefs.current[2] = el;
+                                }}
+                                role="menuitem"
+                                type="button"
+                                onClick={() => {
+                                  closeAttachmentMenu(false);
+                                  setActiveMediaMode("image");
+                                  activeMediaModeRef.current = "image";
+                                  setInputText("");
+                                  requestAnimationFrame(() => {
+                                    const el = textareaRef.current;
+                                    if (el) {
+                                      el.focus();
+                                      adjustTextareaHeight();
+                                    }
+                                  });
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                              >
+                                <Palette
+                                  className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                  strokeWidth={1.5}
+                                />
+                                <span className="flex-1 truncate">Buat Gambar</span>
+                              </button>
+
+                              {/* 4. Buat Video */}
+                              <button
+                                ref={(el) => {
+                                  attachmentItemRefs.current[3] = el;
+                                }}
+                                role="menuitem"
+                                type="button"
+                                onClick={() => {
+                                  closeAttachmentMenu(false);
+                                  setActiveMediaMode("video");
+                                  activeMediaModeRef.current = "video";
+                                  setInputText("");
+                                  requestAnimationFrame(() => {
+                                    const el = textareaRef.current;
+                                    if (el) {
+                                      el.focus();
+                                      adjustTextareaHeight();
+                                    }
+                                  });
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                              >
+                                <Video
+                                  className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                  strokeWidth={1.5}
+                                />
+                                <span className="flex-1 truncate">Buat Video</span>
+                              </button>
+                            </div>
+
+                            <div className="border-t border-zinc-200/80 dark:border-white/[0.08] my-1.5" />
+
+                            {/* Grup 2: AKSI CEPAT */}
+                            <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3 pt-1 pb-1 select-none">
+                              AKSI CEPAT
+                            </div>
+                            <div className="space-y-0.5">
+                              {/* 5. Bandingkan 2 Opsi (/lens) */}
+                              <button
+                                ref={(el) => {
+                                  attachmentItemRefs.current[4] = el;
+                                }}
+                                role="menuitem"
+                                type="button"
+                                onClick={() => {
+                                  closeAttachmentMenu(false);
+                                  const draft = "/lens ";
+                                  setInputText(draft);
+                                  requestAnimationFrame(() => {
+                                    const el = textareaRef.current;
+                                    if (el) {
+                                      el.value = draft;
+                                      el.focus();
+                                      el.setSelectionRange(draft.length, draft.length);
+                                      adjustTextareaHeight();
+                                    }
+                                  });
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                              >
+                                <Scale
+                                  className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                  strokeWidth={1.5}
+                                />
+                                <span className="flex-1 truncate">Bandingkan 2 Opsi</span>
+                              </button>
+
+                              {/* 6. Simulasi Roleplay */}
+                              <button
+                                ref={(el) => {
+                                  attachmentItemRefs.current[5] = el;
+                                }}
+                                role="menuitem"
+                                type="button"
+                                onClick={() => {
+                                  closeAttachmentMenu(false);
+                                  setIsRoleplayModalOpen(true);
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                              >
+                                <Users
+                                  className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                  strokeWidth={1.5}
+                                />
+                                <span className="flex-1 truncate">Simulasi Roleplay</span>
+                              </button>
+
+                              {/* 7. Bedah Surat / Kontrak */}
+                              <button
+                                ref={(el) => {
+                                  attachmentItemRefs.current[6] = el;
+                                }}
+                                role="menuitem"
+                                type="button"
+                                onClick={() => {
+                                  closeAttachmentMenu(false);
+                                  const draft =
+                                    "Tolong bedah hak, kewajiban, dan poin yang perlu diwaspadai dari teks ini:\n\n";
+                                  setInputText(draft);
+                                  requestAnimationFrame(() => {
+                                    const el = textareaRef.current;
+                                    if (el) {
+                                      el.value = draft;
+                                      el.focus();
+                                      el.setSelectionRange(draft.length, draft.length);
+                                      adjustTextareaHeight();
+                                    }
+                                  });
+                                }}
+                                className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
+                              >
+                                <ShieldCheck
+                                  className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
+                                  strokeWidth={1.5}
+                                />
+                                <span className="flex-1 truncate">Bedah Surat / Kontrak</span>
+                              </button>
+                            </div>
+
+                            <div className="border-t border-zinc-200/80 dark:border-white/[0.08] pt-2 pb-1 px-3 mt-1.5">
+                              <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
+                                Maks. 4 file · 10 MB per file · PDF maks. 30 halaman
+                              </p>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Minimalist Borderless Mode Toggle (Cepat / Mendalam / Kritis & Kontrol Konteks) */}
+                {!isRecording && !isTranscribingVoice && (
+                  <LanguageToneSelector
+                    thinkingMode={thinkingMode}
+                    contextControl={contextControl}
+                    isPrivateMode={isPrivateMode}
+                    disabled={isLoading || isGenerating}
+                    onBeforeOpen={() => {
+                      if (typeof window !== "undefined" && window.innerWidth < 768) {
+                        textareaRef.current?.blur();
+                      }
+                    }}
+                    onThinkingModeChange={(nextMode) => {
+                      setThinkingMode(nextMode);
+                      safeSetLocalStorage(STORAGE_KEYS.THINKING_MODE, nextMode);
+                    }}
+                    onContextControlChange={handleUpdateContextControl}
+                    onPrivateModeChange={(nextPrivate) => {
+                      setIsPrivateMode(nextPrivate);
+                      if (nextPrivate) {
+                        showToastNotice("Mode Privat aktif · Tidak disimpan", 2000);
+                      }
+                    }}
+                  />
+                )}
+
+                {/* Prompt Enhancement Icon Button (only visible when input >= 12 chars) */}
+                {!isRecording &&
+                  !isTranscribingVoice &&
+                  inputText.trim().length >= 12 && (
+                    <button
+                      type="button"
+                      disabled={isLoading || isGenerating || isEnhancingPrompt}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => void handleEnhancePrompt()}
+                      title="Rapikan Prompt"
+                      aria-label="Rapikan Prompt"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer active:scale-[0.96] disabled:opacity-45 shrink-0"
+                    >
+                      {isEnhancingPrompt ? (
+                        <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.5} />
+                      ) : (
+                        <PenLine className="w-4 h-4" strokeWidth={1.5} />
+                      )}
+                    </button>
+                  )}
+              </>
+            }
+            rightToolbarSlot={
+              <>
+                {/* Compact Borderless Model Selector */}
+                <div className="relative min-w-0">
+                  <button
+                    ref={headerAgentTriggerRef}
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={isHeaderAgentMenuOpen}
+                    onClick={() => {
+                      if (typeof window !== "undefined" && window.innerWidth < 768) {
+                        textareaRef.current?.blur();
+                      }
+                      toggleHeaderAgentMenu();
+                    }}
+                    aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
+                    className="h-8 px-2 max-w-[140px] sm:max-w-none rounded-lg flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer whitespace-nowrap active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                  >
+                    <span className="truncate">
+                      <span className="hidden min-[380px]:inline">Axioma </span>
+                      {selectedAgent.shortName}
+                    </span>
+                    <ChevronDown
+                      className={`w-3.5 h-3.5 opacity-70 shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                        isHeaderAgentMenuOpen ? "rotate-180" : ""
+                      }`}
+                      strokeWidth={1.75}
+                    />
+                  </button>
+
+                  {shouldRenderHeaderAgentMenu && (
+                    <>
+                      <div
+                        className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-40 ${
+                          isHeaderAgentMenuEntered ? "pointer-events-auto" : "pointer-events-none"
+                        }`}
+                        onClick={() => closeHeaderAgentMenu(false)}
+                        aria-hidden="true"
                       />
+
+                      <div
+                        ref={headerAgentMenuRef}
+                        role="menu"
+                        aria-label="Pilih model AI"
+                        onKeyDown={(e) =>
+                          handleMenuArrowKeyDown(e, headerAgentItemRefs.current, () =>
+                            closeHeaderAgentMenu(true)
+                          )
+                        }
+                        className={`ios-glass absolute right-0 ${
+                          agentDropdownDirection === "down"
+                            ? "top-full mt-2 origin-top-right"
+                            : "bottom-full mb-2 origin-bottom-right"
+                        } w-[min(280px,calc(100vw-2rem))] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[min(65vh,calc(var(--app-height)-140px))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] scrollbar-none rounded-2xl p-1.5 space-y-1 focus:outline-none transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                          isHeaderAgentMenuEntered
+                            ? "scale-100 opacity-100 translate-y-0"
+                            : `scale-95 opacity-0 ${
+                                agentDropdownDirection === "down" ? "-translate-y-1" : "translate-y-1"
+                              } pointer-events-none`
+                        }`}
+                      >
+                        {AVAILABLE_AGENTS.map((agent, idx) => {
+                          const isSelected = agent.id === selectedAgent.id;
+                          return (
+                            <button
+                              ref={(el) => {
+                                headerAgentItemRefs.current[idx] = el;
+                              }}
+                              type="button"
+                              role="menuitemradio"
+                              aria-checked={isSelected}
+                              key={agent.id}
+                              onClick={() => {
+                                handleSelectAgent(agent);
+                                closeHeaderAgentMenu(true);
+                              }}
+                              className={`w-full text-left p-2.5 rounded-xl text-xs tracking-tight active:scale-[0.99] transition-colors flex flex-col gap-1 focus:outline-none cursor-pointer border ${
+                                isSelected
+                                  ? "bg-black/[0.06] dark:bg-white/[0.1] border-black/[0.06] dark:border-white/[0.1] text-zinc-900 dark:text-zinc-100"
+                                  : "border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2 w-full">
+                                <div className="flex items-center gap-1.5 min-w-0">
+                                  <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-[13.5px] tracking-tight truncate">
+                                    {agent.name}
+                                  </span>
+                                  {isSelected && (
+                                    <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" />
+                                  )}
+                                </div>
+                                <span className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-200/70 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium shrink-0 whitespace-nowrap">
+                                  {agent.tag}
+                                </span>
+                              </div>
+                              <p className="text-[12.5px] text-zinc-500 dark:text-zinc-400 leading-snug break-words">
+                                {agent.description}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* Voice Dictation Mic Button (positioned cleanly on the right beside Send/Voice) */}
+                {!isRecording && !isTranscribingVoice && (
+                  <div className="relative group shrink-0">
+                    {isSpeechSupported ? (
+                      <button
+                        type="button"
+                        onMouseDown={(e) => {
+                          e.preventDefault();
+                        }}
+                        onClick={() => {
+                          textareaRef.current?.blur();
+                          handleToggleVoiceRecording();
+                        }}
+                        title="Dikte suara (Bahasa Indonesia)"
+                        aria-label="Mulai dikte"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer active:scale-[0.96]"
+                      >
+                        <Mic className="w-[17px] h-[17px]" strokeWidth={1.6} />
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          disabled
+                          aria-disabled="true"
+                          title="Perangkat tidak mendukung input mikrofon"
+                          aria-label="Perangkat tidak mendukung input mikrofon"
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-icon-muted opacity-50 cursor-not-allowed"
+                        >
+                          <MicOff className="w-[17px] h-[17px]" strokeWidth={1.6} />
+                        </button>
+                        <span
+                          role="tooltip"
+                          className="pointer-events-none absolute right-0 bottom-full mb-2 px-2 py-1 rounded-md bg-bg-elevated border border-border-subtle text-[11px] text-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shadow-lg z-30"
+                        >
+                          Mikrofon tidak didukung
+                        </span>
+                      </>
                     )}
                   </div>
+                )}
 
-                  {/* Baris Bawah: Toolbar Kiri (+, Mic, & Pemilih Bahasa/Gaya) | Aksi Utama Kanan (non-wrapping di 360px+) */}
-                  <div className="relative z-10 w-full flex flex-nowrap items-center justify-between gap-1.5 sm:gap-2 pt-0.5 min-w-0">
-                    {/* Kiri: Tombol + Lampiran, Mikrofon & Pemilih Bahasa/Gaya */}
-                    <div className="flex items-center gap-1 sm:gap-1.5 min-w-0 shrink">
-                      {/* Active Attachment Button & Popover Menu */}
-                      {(() => {
-                        const isAttachmentsFull = pendingAttachments.length >= 4;
-                        return (
-                          <div className="relative shrink-0 group" ref={attachmentMenuRef}>
-                            <button
-                              ref={attachmentTriggerRef}
-                              type="button"
-                              aria-haspopup="menu"
-                              aria-expanded={isAttachmentMenuOpen}
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                              }}
-                              onClick={() => {
-                                if (isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice) return;
-                                textareaRef.current?.blur();
-                                setIsAttachmentMenuOpen((prev) => !prev);
-                              }}
-                              onKeyDown={(e) => {
-                                if (isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice) return;
-                                if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-                                  e.preventDefault();
-                                  setIsAttachmentMenuOpen(true);
-                                }
-                              }}
-                              disabled={isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice}
-                              title={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
-                              aria-label={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas"}
-                              className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150 ${
-                                isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice
-                                  ? "text-zinc-400 dark:text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none"
-                                  : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] active:scale-[0.96] cursor-pointer"
-                              }`}
-                            >
-                              <Plus className="w-[18px] h-[18px]" />
-                            </button>
+                {/* Primary Morphing Action Button (Voice Mode <-> Send / Stop / Recording) */}
+                {isRecording ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => stopVoiceRecording("stop")}
+                      aria-label="Hentikan rekaman"
+                      title="Hentikan rekaman (masukkan teks ke kotak input)"
+                      className="w-8 h-8 rounded-full bg-zinc-200/80 hover:bg-zinc-300 dark:bg-white/10 dark:hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-zinc-700 dark:text-white/90"
+                    >
+                      <Square className="w-3.5 h-3.5 fill-current rounded-xs" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => stopVoiceRecording("send")}
+                      aria-label="Kirim rekaman"
+                      title="Kirim rekaman langsung"
+                      className="w-8 h-8 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-white dark:text-zinc-900"
+                    >
+                      <ArrowUp className="w-4 h-4 stroke-[2.5]" />
+                    </button>
+                  </>
+                ) : isTranscribingVoice ? (
+                  <div className="w-8 h-8 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
+                    <Loader2 className="w-4 h-4 animate-spin text-zinc-500 dark:text-zinc-400" />
+                  </div>
+                ) : isGenerating ? (
+                  <button
+                    type="button"
+                    onMouseDown={(e) => {
+                      e.preventDefault();
+                    }}
+                    onClick={handleStopGeneration}
+                    title="Hentikan respons"
+                    aria-label="Hentikan respons"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                  </button>
+                ) : (() => {
+                  const isUploadingAttachment = pendingAttachments.some(
+                    (a) => a.status === "uploading" || a.status === "compressing"
+                  );
+                  const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
+                  const hasUserTextOrAttachments =
+                    Boolean(inputText.trim()) ||
+                    hasReadyAttachments ||
+                    Boolean(pendingVisionPhoto) ||
+                    Boolean(pendingPdfDoc);
+                  const isSendDisabled =
+                    !isOnline ||
+                    isUploadingAttachment ||
+                    isLoading ||
+                    isGenerating ||
+                    isVisionLoading ||
+                    isSubmitting;
 
-                            {/* Tooltip when 4 attachments reached */}
-                            {isAttachmentsFull && (
-                              <span
-                                role="tooltip"
-                                className="pointer-events-none absolute left-0 bottom-full mb-2 px-2.5 py-1 rounded-md bg-bg-elevated border border-border-subtle text-[11px] text-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shadow-lg z-30"
-                              >
-                                Maksimal 4 file per pesan
-                              </span>
-                            )}
-
-                            {/* Attachment Popover Menu */}
-                            {shouldRenderAttachmentMenu && (
-                              <>
-                                <div
-                                  className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-30 bg-black/70 md:hidden transition-opacity duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                                    isAttachmentMenuEntered ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
-                                  }`}
-                                  onClick={() => closeAttachmentMenu(true)}
-                                  aria-hidden="true"
-                                />
-                                <div
-                                  role="menu"
-                                  aria-label="Pilihan lampiran dan aksi cepat"
-                                  onKeyDown={(e) =>
-                                    handleMenuArrowKeyDown(e, attachmentItemRefs.current, () =>
-                                      closeAttachmentMenu(true)
-                                    )
-                                  }
-                                  className={`absolute -left-2 bottom-full mb-2 md:mb-2.5 z-40 w-[264px] sm:w-72 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto overscroll-contain scrollbar-none rounded-2xl bg-white dark:bg-[#18181d] border border-zinc-200/90 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-2xl origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
-                                    isAttachmentMenuEntered
-                                      ? "scale-100 opacity-100 translate-y-0"
-                                      : "scale-95 opacity-0 translate-y-1 pointer-events-none"
-                                  }`}
-                                >
-                                  {/* Grup 1: LAMPIRKAN & MEDIA */}
-                                  <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3 pt-2 pb-1 select-none">
-                                    LAMPIRKAN &amp; MEDIA
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    {/* 1. Foto & Gambar (Vision / tabel / catatan) */}
-                                    <button
-                                      ref={(el) => {
-                                        attachmentItemRefs.current[0] = el;
-                                      }}
-                                      role="menuitem"
-                                      type="button"
-                                      onClick={() => {
-                                        closeAttachmentMenu(false);
-                                        visionInputRef.current?.click();
-                                      }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                    >
-                                      <ImageIcon
-                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
-                                        strokeWidth={1.5}
-                                      />
-                                      <span className="flex-1 truncate">Foto &amp; Gambar</span>
-                                    </button>
-
-                                    {/* 2. Bedah Dokumen PDF */}
-                                    <button
-                                      ref={(el) => {
-                                        attachmentItemRefs.current[1] = el;
-                                      }}
-                                      role="menuitem"
-                                      type="button"
-                                      onClick={() => {
-                                        closeAttachmentMenu(false);
-                                        smartPdfInputRef.current?.click();
-                                      }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                    >
-                                      <FileText
-                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
-                                        strokeWidth={1.5}
-                                      />
-                                      <span className="flex-1 truncate">Bedah Dokumen PDF</span>
-                                    </button>
-
-                                    {/* 3. Buat Gambar */}
-                                    <button
-                                      ref={(el) => {
-                                        attachmentItemRefs.current[2] = el;
-                                      }}
-                                      role="menuitem"
-                                      type="button"
-                                      onClick={() => {
-                                        closeAttachmentMenu(false);
-                                        setActiveMediaMode("image");
-                                        activeMediaModeRef.current = "image";
-                                        setInputText("");
-                                        requestAnimationFrame(() => {
-                                          const el = textareaRef.current;
-                                          if (el) {
-                                            el.focus();
-                                            adjustTextareaHeight();
-                                          }
-                                        });
-                                      }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                    >
-                                      <Palette
-                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
-                                        strokeWidth={1.5}
-                                      />
-                                      <span className="flex-1 truncate">Buat Gambar</span>
-                                    </button>
-
-                                    {/* 4. Buat Video */}
-                                    <button
-                                      ref={(el) => {
-                                        attachmentItemRefs.current[3] = el;
-                                      }}
-                                      role="menuitem"
-                                      type="button"
-                                      onClick={() => {
-                                        closeAttachmentMenu(false);
-                                        setActiveMediaMode("video");
-                                        activeMediaModeRef.current = "video";
-                                        setInputText("");
-                                        requestAnimationFrame(() => {
-                                          const el = textareaRef.current;
-                                          if (el) {
-                                            el.focus();
-                                            adjustTextareaHeight();
-                                          }
-                                        });
-                                      }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                    >
-                                      <Video
-                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
-                                        strokeWidth={1.5}
-                                      />
-                                      <span className="flex-1 truncate">Buat Video</span>
-                                    </button>
-                                  </div>
-
-                                  <div className="border-t border-zinc-200/80 dark:border-white/[0.08] my-1.5" />
-
-                                  {/* Grup 2: AKSI CEPAT */}
-                                  <div className="text-[10px] font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 px-3 pt-1 pb-1 select-none">
-                                    AKSI CEPAT
-                                  </div>
-                                  <div className="space-y-0.5">
-                                    {/* 5. Bandingkan 2 Opsi (/lens) */}
-                                    <button
-                                      ref={(el) => {
-                                        attachmentItemRefs.current[4] = el;
-                                      }}
-                                      role="menuitem"
-                                      type="button"
-                                      onClick={() => {
-                                        closeAttachmentMenu(false);
-                                        const draft = "/lens ";
-                                        setInputText(draft);
-                                        requestAnimationFrame(() => {
-                                          const el = textareaRef.current;
-                                          if (el) {
-                                            el.value = draft;
-                                            el.focus();
-                                            el.setSelectionRange(draft.length, draft.length);
-                                            adjustTextareaHeight();
-                                          }
-                                        });
-                                      }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                    >
-                                      <Scale
-                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
-                                        strokeWidth={1.5}
-                                      />
-                                      <span className="flex-1 truncate">Bandingkan 2 Opsi</span>
-                                    </button>
-
-                                    {/* 6. Simulasi Roleplay */}
-                                    <button
-                                      ref={(el) => {
-                                        attachmentItemRefs.current[5] = el;
-                                      }}
-                                      role="menuitem"
-                                      type="button"
-                                      onClick={() => {
-                                        closeAttachmentMenu(false);
-                                        setIsRoleplayModalOpen(true);
-                                      }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                    >
-                                      <Users
-                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
-                                        strokeWidth={1.5}
-                                      />
-                                      <span className="flex-1 truncate">Simulasi Roleplay</span>
-                                    </button>
-
-                                    {/* 7. Bedah Surat / Kontrak */}
-                                    <button
-                                      ref={(el) => {
-                                        attachmentItemRefs.current[6] = el;
-                                      }}
-                                      role="menuitem"
-                                      type="button"
-                                      onClick={() => {
-                                        closeAttachmentMenu(false);
-                                        const draft =
-                                          "Tolong bedah hak, kewajiban, dan poin yang perlu diwaspadai dari teks ini:\n\n";
-                                        setInputText(draft);
-                                        requestAnimationFrame(() => {
-                                          const el = textareaRef.current;
-                                          if (el) {
-                                            el.value = draft;
-                                            el.focus();
-                                            el.setSelectionRange(draft.length, draft.length);
-                                            adjustTextareaHeight();
-                                          }
-                                        });
-                                      }}
-                                      className="w-full flex items-center gap-3 px-3 py-2 min-h-[40px] rounded-xl text-[13.5px] font-medium text-zinc-800 hover:bg-zinc-100/90 dark:text-zinc-100 dark:hover:bg-white/[0.06] active:bg-zinc-200/70 dark:active:bg-white/[0.1] transition-colors cursor-pointer text-left focus:outline-none focus:bg-zinc-100 dark:focus:bg-white/[0.06]"
-                                    >
-                                      <ShieldCheck
-                                        className="w-4 h-4 text-zinc-600 dark:text-zinc-300 shrink-0"
-                                        strokeWidth={1.5}
-                                      />
-                                      <span className="flex-1 truncate">Bedah Surat / Kontrak</span>
-                                    </button>
-                                  </div>
-
-                                  <div className="border-t border-zinc-200/80 dark:border-white/[0.08] pt-2 pb-1 px-3 mt-1.5">
-                                    <p className="text-[11px] text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                                      Maks. 4 file · 10 MB per file · PDF maks. 30 halaman
-                                    </p>
-                                  </div>
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        );
-                      })()}
-
-                      {/* Voice Input Mic Button (Dikte) */}
-                      {!isRecording && !isTranscribingVoice && (
-                        <div className="relative group shrink-0">
-                          {isSpeechSupported ? (
-                            <button
-                              type="button"
-                              onMouseDown={(e) => {
-                                e.preventDefault();
-                              }}
-                              onClick={() => {
-                                textareaRef.current?.blur();
-                                handleToggleVoiceRecording();
-                              }}
-                              title="Dikte suara (Bahasa Indonesia)"
-                              aria-label="Mulai dikte"
-                              className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer active:scale-[0.96]"
-                            >
-                              <Mic className="w-[17px] h-[17px]" />
-                            </button>
-                          ) : (
-                            <>
-                              <button
-                                type="button"
-                                disabled
-                                aria-disabled="true"
-                                title="Perangkat tidak mendukung input mikrofon"
-                                aria-label="Perangkat tidak mendukung input mikrofon"
-                                className="w-8 h-8 rounded-lg flex items-center justify-center text-icon-muted opacity-50 cursor-not-allowed"
-                              >
-                                <MicOff className="w-[17px] h-[17px]" />
-                              </button>
-                              <span
-                                role="tooltip"
-                                className="pointer-events-none absolute left-0 bottom-full mb-2 px-2 py-1 rounded-md bg-bg-elevated border border-border-subtle text-[11px] text-text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity shadow-lg z-30"
-                              >
-                                Mikrofon tidak didukung
-                              </span>
-                            </>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Compact Quick Settings Pill Selector (Mode Berpikir & Kontrol Konteks) */}
-                      {!isRecording && !isTranscribingVoice && (
-                        <LanguageToneSelector
-                          thinkingMode={thinkingMode}
-                          contextControl={contextControl}
-                          isPrivateMode={isPrivateMode}
-                          disabled={isLoading || isGenerating}
-                          onBeforeOpen={() => {
-                            if (typeof window !== "undefined" && window.innerWidth < 768) {
-                              textareaRef.current?.blur();
-                            }
-                          }}
-                          onThinkingModeChange={(nextMode) => {
-                            setThinkingMode(nextMode);
-                            safeSetLocalStorage(STORAGE_KEYS.THINKING_MODE, nextMode);
-                          }}
-                          onContextControlChange={handleUpdateContextControl}
-                          onPrivateModeChange={(nextPrivate) => {
-                            setIsPrivateMode(nextPrivate);
-                            if (nextPrivate) {
-                              showToastNotice("Mode Privat aktif · Tidak disimpan", 2000);
-                            }
-                          }}
-                        />
-                      )}
-
-                      {/* Stage 6: Prompt Enhancement Icon Button (only visible when input >= 12 chars) */}
-                      {!isRecording &&
-                        !isTranscribingVoice &&
-                        inputText.trim().length >= 12 && (
-                          <button
-                            type="button"
-                            disabled={isLoading || isGenerating || isEnhancingPrompt}
-                            onMouseDown={(e) => e.preventDefault()}
-                            onClick={() => void handleEnhancePrompt()}
-                            title="Rapikan Prompt"
-                            aria-label="Rapikan Prompt"
-                            className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-100 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer active:scale-[0.96] disabled:opacity-45 shrink-0"
-                          >
-                            {isEnhancingPrompt ? (
-                              <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.5} />
-                            ) : (
-                              <PenLine className="w-4 h-4" strokeWidth={1.5} />
-                            )}
-                          </button>
-                        )}
-                    </div>
-
-                    {/* Kanan: Pemilih Model + Tombol Aksi Utama (w-8 h-8 rounded-xl) */}
-                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 shrink-0">
-                      {/* Compact Model Selector inside Input Box (opens upward on mobile, viewport-aware on desktop) */}
-                      <div className="relative min-w-0">
+                  return (
+                    <div className="relative w-8 h-8 shrink-0">
+                      {hasUserTextOrAttachments ? (
                         <button
-                          ref={headerAgentTriggerRef}
-                          type="button"
-                          aria-haspopup="menu"
-                          aria-expanded={isHeaderAgentMenuOpen}
-                          onClick={() => {
-                            if (typeof window !== "undefined" && window.innerWidth < 768) {
-                              textareaRef.current?.blur();
-                            }
-                            toggleHeaderAgentMenu();
-                          }}
-                          aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
-                          className="h-8 px-2 sm:px-2.5 max-w-[155px] sm:max-w-none rounded-full flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer whitespace-nowrap active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                        >
-                          <span className="truncate">
-                            <span className="hidden min-[380px]:inline">Axioma </span>
-                            {selectedAgent.shortName}
-                          </span>
-                          <ChevronDown
-                            className={`w-3.5 h-3.5 opacity-70 shrink-0 transition-transform duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                              isHeaderAgentMenuOpen ? "rotate-180" : ""
-                            }`}
-                            strokeWidth={1.75}
-                          />
-                        </button>
-
-                        {shouldRenderHeaderAgentMenu && (
-                          <>
-                            {/* Transparent click-outside backdrop */}
-                            <div
-                              className={`fixed top-0 left-0 right-0 h-[var(--app-height)] z-40 ${
-                                isHeaderAgentMenuEntered ? "pointer-events-auto" : "pointer-events-none"
-                              }`}
-                              onClick={() => closeHeaderAgentMenu(false)}
-                              aria-hidden="true"
-                            />
-
-                            {/* Viewport-aware frosted glass dropdown menu (automatically opens down/up based on available space) */}
-                            <div
-                              ref={headerAgentMenuRef}
-                              role="menu"
-                              aria-label="Pilih model AI"
-                              onKeyDown={(e) =>
-                                handleMenuArrowKeyDown(e, headerAgentItemRefs.current, () =>
-                                  closeHeaderAgentMenu(true)
-                                )
-                              }
-                              className={`ios-glass absolute right-0 ${
-                                agentDropdownDirection === "down"
-                                  ? "top-full mt-2 origin-top-right"
-                                  : "bottom-full mb-2 origin-bottom-right"
-                              } w-[min(280px,calc(100vw-2rem))] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[min(65vh,calc(var(--app-height)-140px))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] scrollbar-none rounded-2xl p-1.5 space-y-1 focus:outline-none transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
-                                isHeaderAgentMenuEntered
-                                  ? "scale-100 opacity-100 translate-y-0"
-                                  : `scale-95 opacity-0 ${
-                                      agentDropdownDirection === "down" ? "-translate-y-1" : "translate-y-1"
-                                    } pointer-events-none`
-                              }`}
-                            >
-                              {AVAILABLE_AGENTS.map((agent, idx) => {
-                                const isSelected = agent.id === selectedAgent.id;
-                                return (
-                                  <button
-                                    ref={(el) => {
-                                      headerAgentItemRefs.current[idx] = el;
-                                    }}
-                                    type="button"
-                                    role="menuitemradio"
-                                    aria-checked={isSelected}
-                                    key={agent.id}
-                                    onClick={() => {
-                                      handleSelectAgent(agent);
-                                      closeHeaderAgentMenu(true);
-                                    }}
-                                    className={`w-full text-left p-2.5 rounded-xl text-xs tracking-tight active:scale-[0.99] transition-colors flex flex-col gap-1 focus:outline-none cursor-pointer border ${
-                                      isSelected
-                                        ? "bg-black/[0.06] dark:bg-white/[0.1] border-black/[0.06] dark:border-white/[0.1] text-zinc-900 dark:text-zinc-100"
-                                        : "border-transparent text-zinc-700 dark:text-zinc-300 hover:bg-black/[0.04] dark:hover:bg-white/[0.06]"
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-between gap-2 w-full">
-                                      <div className="flex items-center gap-1.5 min-w-0">
-                                        <span className="font-semibold text-zinc-900 dark:text-zinc-100 text-[13.5px] tracking-tight truncate">
-                                          {agent.name}
-                                        </span>
-                                        {isSelected && (
-                                          <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" />
-                                        )}
-                                      </div>
-                                      <span className="text-[11px] px-2 py-0.5 rounded-md bg-zinc-200/70 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-300 font-medium shrink-0 whitespace-nowrap">
-                                        {agent.tag}
-                                      </span>
-                                    </div>
-                                    <p className="text-[12.5px] text-zinc-500 dark:text-zinc-400 leading-snug break-words">
-                                      {agent.description}
-                                    </p>
-                                  </button>
-                                );
-                              })}
-                            </div>
-                          </>
-                        )}
-                      </div>
-                      {isRecording ? (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => stopVoiceRecording("stop")}
-                            aria-label="Hentikan rekaman"
-                            title="Hentikan rekaman (masukkan teks ke kotak input)"
-                            className="w-8 h-8 rounded-xl bg-zinc-200/80 hover:bg-zinc-300 dark:bg-white/10 dark:hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-zinc-700 dark:text-white/90"
-                          >
-                            <Square className="w-3.5 h-3.5 fill-current rounded-xs" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => stopVoiceRecording("send")}
-                            aria-label="Kirim rekaman"
-                            title="Kirim rekaman langsung"
-                            className="w-8 h-8 rounded-xl bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-white dark:text-zinc-900"
-                          >
-                            <ArrowUp className="w-4 h-4 stroke-[2.5]" />
-                          </button>
-                        </>
-                      ) : isTranscribingVoice ? (
-                        <div className="w-8 h-8 rounded-xl bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center">
-                          <Loader2 className="w-4 h-4 animate-spin text-zinc-500 dark:text-zinc-400" />
-                        </div>
-                      ) : isGenerating ? (
-                        <button
+                          key="send-btn"
                           type="button"
                           onMouseDown={(e) => {
                             e.preventDefault();
                           }}
-                          onClick={handleStopGeneration}
-                          title="Hentikan respons"
-                          aria-label="Hentikan respons"
-                          className="w-8 h-8 rounded-xl flex items-center justify-center bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer"
+                          onTouchEnd={(e) => {
+                            e.preventDefault();
+                            if (!isSendDisabled) {
+                              void handleSendMessage();
+                              textareaRef.current?.blur();
+                            }
+                          }}
+                          onClick={() => {
+                            if (!isSendDisabled) {
+                              void handleSendMessage();
+                              textareaRef.current?.blur();
+                            }
+                          }}
+                          disabled={isSendDisabled}
+                          title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
+                          aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center animate-axioma-scale-in transition-all duration-150 select-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
+                            !isSendDisabled
+                              ? `bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 active:scale-[0.95] cursor-pointer ${
+                                  isSendPressed ? "scale-[0.94]" : "scale-100"
+                                }`
+                              : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
+                          }`}
                         >
-                          <Square className="w-3.5 h-3.5 fill-current" />
+                          {isUploadingAttachment ? (
+                            <Loader2 className="w-4 h-4 animate-spin text-current" strokeWidth={1.75} />
+                          ) : (
+                            <ArrowUp className="w-4 h-4 text-current" strokeWidth={2.25} />
+                          )}
                         </button>
-                      ) : (() => {
-                        const isUploadingAttachment = pendingAttachments.some(
-                          (a) => a.status === "uploading" || a.status === "compressing"
-                        );
-                        const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
-                        const hasUserTextOrAttachments =
-                          Boolean(inputText.trim()) ||
-                          hasReadyAttachments ||
-                          Boolean(pendingVisionPhoto) ||
-                          Boolean(pendingPdfDoc);
-                        const isSendDisabled =
-                          !isOnline ||
-                          isUploadingAttachment ||
-                          isLoading ||
-                          isGenerating ||
-                          isVisionLoading ||
-                          isSubmitting;
-
-                        return (
-                          <div className="flex items-center gap-2">
-                            {/* Morphing Action Button Container (VN <-> Send: scale-in bounce) */}
-                            <div className="relative w-8 h-8">
-                              {hasUserTextOrAttachments ? (
-                                /* Send Button */
-                                <button
-                                  key="send-btn"
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                  }}
-                                  onTouchEnd={(e) => {
-                                    e.preventDefault();
-                                    if (!isSendDisabled) {
-                                      void handleSendMessage();
-                                      textareaRef.current?.blur();
-                                    }
-                                  }}
-                                  onClick={() => {
-                                    if (!isSendDisabled) {
-                                      void handleSendMessage();
-                                      textareaRef.current?.blur();
-                                    }
-                                  }}
-                                  disabled={isSendDisabled}
-                                  title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                                  aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                                  className={`w-8 h-8 rounded-xl flex items-center justify-center animate-axioma-scale-in transition-all duration-150 select-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
-                                    !isSendDisabled
-                                      ? `bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 active:scale-[0.96] cursor-pointer ${
-                                          isSendPressed ? "scale-[0.94]" : "scale-100"
-                                        }`
-                                      : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
-                                  }`}
-                                >
-                                  {isUploadingAttachment ? (
-                                    <Loader2 className="w-4 h-4 animate-spin text-current" strokeWidth={1.75} />
-                                  ) : (
-                                    <ArrowUp className="w-4 h-4 text-current" strokeWidth={2.25} />
-                                  )}
-                                </button>
-                              ) : (
-                                /* Voice Mode (VN) Button */
-                                <button
-                                  key="vn-btn"
-                                  type="button"
-                                  onMouseDown={(e) => {
-                                    e.preventDefault();
-                                  }}
-                                  onClick={() => {
-                                    textareaRef.current?.blur();
-                                    handleOpenVoiceMode();
-                                  }}
-                                  title="Mode Suara (Percakapan langsung)"
-                                  aria-label="Mode Suara (Percakapan langsung)"
-                                  className="w-8 h-8 rounded-xl flex items-center justify-center animate-axioma-scale-in bg-zinc-100 hover:bg-zinc-200/80 text-zinc-600 dark:bg-zinc-800/80 dark:hover:bg-zinc-800 dark:text-zinc-300 border border-zinc-200/80 dark:border-white/[0.08] active:scale-[0.96] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                                >
-                                  <AudioLines className="w-4 h-4" strokeWidth={1.75} />
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        );
-                      })()}
+                      ) : (
+                        <button
+                          key="vn-btn"
+                          type="button"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                          }}
+                          onClick={() => {
+                            textareaRef.current?.blur();
+                            handleOpenVoiceMode();
+                          }}
+                          title="Mode Suara (Percakapan langsung)"
+                          aria-label="Mode Suara (Percakapan langsung)"
+                          className="w-8 h-8 rounded-full flex items-center justify-center animate-axioma-scale-in bg-zinc-200/75 hover:bg-zinc-300/80 text-zinc-800 dark:bg-white/[0.09] dark:hover:bg-white/[0.15] dark:text-zinc-100 active:scale-[0.95] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                        >
+                          <AudioLines className="w-4 h-4" strokeWidth={1.75} />
+                        </button>
+                      )}
                     </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
-            <p
-              className={`pointer-events-none shrink-0 mt-2 mb-0 py-0.5 md:pt-1.5 md:pb-3 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal [[data-kb="open"]_&]:hidden ${
-                currentMessages.length === 0
-                  ? "hidden"
-                  : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5"
-              }`}
-            >
-              <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
-              <span className="hidden md:inline">Axioma dapat membuat kesalahan. Periksa kembali informasi penting.</span>
-              <span className="hidden md:inline text-border-strong">•</span>
-              <span className="hidden md:inline-flex items-center gap-2 pointer-events-auto">
-                <Link
-                  href="/privasi"
-                  className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
-                >
-                  Privasi
-                </Link>
-                <span className="text-border-strong">·</span>
-                <Link
-                  href="/ketentuan"
-                  className="py-1.5 px-2 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
-                >
-                  Ketentuan
-                </Link>
-              </span>
-            </p>
-          </div>
+                  );
+                })()}
+              </>
+            }
+          />
             </>
           )}
         </div>

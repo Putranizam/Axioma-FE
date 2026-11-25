@@ -93,8 +93,8 @@ export function LanguageToneSelector({
 
   return (
     <div ref={containerRef} className="sm:relative min-w-0 shrink">
-      {/* Ultra-minimalist monochrome pill trigger */}
-      <div className="inline-flex items-center max-w-[144px] sm:max-w-none bg-transparent hover:bg-black/[0.05] text-zinc-600 hover:text-zinc-900 border border-black/[0.1] dark:bg-transparent dark:hover:bg-white/[0.06] dark:text-zinc-400 dark:hover:text-zinc-200 dark:border-white/[0.08] rounded-full transition-colors">
+      {/* Minimalist borderless mode toggle pill */}
+      <div className="inline-flex items-center max-w-[132px] sm:max-w-none bg-transparent hover:bg-zinc-200/60 text-zinc-600 hover:text-zinc-900 dark:bg-transparent dark:hover:bg-white/[0.07] dark:text-zinc-400 dark:hover:text-zinc-100 rounded-lg transition-colors">
         <button
           ref={triggerRef}
           type="button"
@@ -107,7 +107,7 @@ export function LanguageToneSelector({
             e.preventDefault();
           }}
           onClick={handleToggle}
-          className={`inline-flex items-center gap-1.5 min-w-0 px-2.5 py-1 text-[11px] font-medium tracking-tight whitespace-nowrap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 rounded-full ${
+          className={`inline-flex items-center gap-1.5 h-8 min-w-0 px-2 text-xs font-medium tracking-tight whitespace-nowrap active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 rounded-lg ${
             disabled ? "opacity-40 cursor-not-allowed pointer-events-none" : "cursor-pointer"
           }`}
         >
