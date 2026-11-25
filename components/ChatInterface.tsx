@@ -12,12 +12,11 @@ import {
   DEFAULT_CONTEXT_CONTROL,
 } from "./LanguageToneSelector";
 import {
-  ContextCheckpointModal,
-  ChatContextState,
+  type ChatContextState,
   loadChatContextState,
   saveChatContextState,
   hasActiveChatContext,
-} from "./ContextCheckpointModal";
+} from "@/lib/chatContextStorage";
 import {
   WorkspaceSidebarSection,
   WorkspaceItem,
@@ -26,15 +25,25 @@ import {
   loadActiveWorkspaceId,
   saveActiveWorkspaceId,
 } from "./WorkspaceSidebarSection";
-import { AxiomaLensCard, AxiomaLensData } from "./AxiomaLensCard";
-import { RoleplayModal } from "./RoleplayModal";
-import { LivePreviewModal } from "./LivePreviewModal";
-import { UpgradeModal, type QuotaModalInfo } from "./UpgradeModal";
+import type { AxiomaLensData } from "./AxiomaLensCard";
+import type { QuotaModalInfo } from "./UpgradeModal";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ChatEmptyState } from "./chat/ChatEmptyState";
-import { MessageActionBar } from "./chat/MessageActionBar";
-import { FollowUpChips } from "./chat/FollowUpChips";
 import { ChatComposer } from "./chat/ChatComposer";
+import {
+  MessageItem,
+  sanitizeAxiomaMessageContent,
+  type RetryPayloadRecord,
+} from "./chat/MessageItem";
+import { SidebarChatItem } from "./chat/SidebarChatItem";
+import {
+  ComposerTextStore,
+  ComposerTextarea,
+  ComposerSlashMenu,
+  ComposerEnhanceButton,
+  ComposerSendOrVoiceButton,
+  type SlashMenuRuntimeRef,
+} from "./chat/ComposerInputControls";
 import {
   DEFAULT_LANGUAGE,
   DEFAULT_TONE,
@@ -46,18 +55,13 @@ import {
   ThinkingMode,
   AnswerStyle,
   SocialTarget,
+  type AdaptiveAnswerAction,
   isValidLanguageCode,
   isValidToneStyle,
   isValidThinkingMode,
   isValidAnswerStyle,
   isValidSocialTarget,
 } from "@/constants/language";
-import { formatForWhatsApp } from "@/utils/whatsappFormat";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
-import remarkMath from "remark-math";
-import rehypeKatex from "rehype-katex";
-import "katex/dist/katex.min.css";
 import {
   Plus,
   SquarePen,
@@ -148,25 +152,51 @@ import {
   transcribeAudioBlob,
 } from "../lib/voice";
 
-// Dynamic imports for code splitting & faster First Load JS
-const CodeBlock = dynamic(() => import("./CodeBlock").then((mod) => mod.CodeBlock), {
-  ssr: false,
-});
-
+// Dynamic imports for code splitting & faster First Load JS (SSR disabled for interactive modals & overlays)
 const AuthModal = dynamic(() => import("./AuthModal"), {
   ssr: false,
 });
 
-import VoiceModeOverlay from "./VoiceModeOverlay";
-import { AboutSettingsView, FeedbackSettingsView } from "./AboutAxiomaModal";
+const VoiceModeOverlay = dynamic(() => import("./VoiceModeOverlay"), {
+  ssr: false,
+});
+
+const ContextCheckpointModal = dynamic(
+  () => import("./ContextCheckpointModal").then((mod) => mod.ContextCheckpointModal),
+  { ssr: false }
+);
+
+const RoleplayModal = dynamic(
+  () => import("./RoleplayModal").then((mod) => mod.RoleplayModal),
+  { ssr: false }
+);
+
+const LivePreviewModal = dynamic(
+  () => import("./LivePreviewModal").then((mod) => mod.LivePreviewModal),
+  { ssr: false }
+);
+
+const UpgradeModal = dynamic(
+  () => import("./UpgradeModal").then((mod) => mod.UpgradeModal),
+  { ssr: false }
+);
+
+const AboutSettingsView = dynamic(
+  () => import("./AboutAxiomaModal").then((mod) => mod.AboutSettingsView),
+  { ssr: false }
+);
+
+const FeedbackSettingsView = dynamic(
+  () => import("./AboutAxiomaModal").then((mod) => mod.FeedbackSettingsView),
+  { ssr: false }
+);
+
 import {
   computeDropdownDirection,
   computeClampedPopoverStyle,
   formatRelativeTimeId,
   type DropdownDirection,
 } from "@/lib/viewportPlacement";
-import { AiImageCard } from "./AiImageCard";
-import { AiVideoCard } from "./AiVideoCard";
 
 import {
   supabase,
@@ -414,7 +444,7 @@ function formatMessageTime(isoOrTimestamp?: string): string {
   }
 }
 
-const PreBlockContext = React.createContext<boolean>(false);
+// PreBlockContext moved to ./chat/MessageItem.tsx
 
 const UUID_PATH_REGEX = /^\/c\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\/?$/i;
 const VALID_UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -980,40 +1010,7 @@ function extractStructuredMediaPayload(payload: any): {
   };
 }
 
-function sanitizeAxiomaMessageContent(raw: string): string {
-  if (!raw || typeof raw !== "string") return "";
-  let text = raw;
-
-  // 1. Remove "🎨 Mengoptimalkan prompt visual..." loading status line
-  text = text.replace(/^[^\w\n]*Mengoptimalkan prompt visual[^\n]*\n*/gim, "");
-  text = text.replace(/^[^\w\n]*Sedang merender[^\n]*\n*/gim, "");
-  text = text.replace(/.*Gemini AI\.\.\..*\n*/gi, "");
-
-  // 2. Standardize introduction text to clean format
-  text = text.replace(
-    /Berikut adalah hasil gambar berkualitas tinggi yang dihasilkan berdasarkan permintaan Anda:/gi,
-    "Berikut visualisasi untuk permintaan Anda:"
-  );
-  text = text.replace(
-    /Berikut visual yang telah disiapkan:/gi,
-    "Berikut visualisasi untuk permintaan Anda:"
-  );
-  text = text.replace(
-    /Berikut hasil visualnya:/gi,
-    "Berikut visualisasi untuk permintaan Anda:"
-  );
-
-  // 3. Remove prompt enhancement blocks and machine labels
-  text = text.replace(/>\s*\*?\*?✨?\s*Prompt yang Disempurnakan[^\n]*\n*(?:>\s*[^\n]*\n*)*/gi, "");
-  text = text.replace(/>\s*\*?Mesin:[^\n]*\n*/gi, "");
-  text = text.replace(/>\s*\*?Status Layanan Google Veo[^\n]*\n*(?:[^\n]*\n*)*/gi, "");
-  text = text.replace(/💡\s*\*?Tips:[^\n]*\n*/gi, "");
-
-  // 4. Clean consecutive blank lines
-  text = text.replace(/\n{3,}/g, "\n\n").trim();
-
-  return text;
-}
+// Duplicate sanitizeAxiomaMessageContent moved to ./chat/MessageItem.tsx
 
 interface UserAvatarProps {
   url?: string | null;
@@ -1201,7 +1198,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     DEFAULT_CONTEXT_CONTROL
   );
   const [pendingTaskBreakdown, setPendingTaskBreakdown] = useState<boolean>(false);
-  const [slashMenuIndex, setSlashMenuIndex] = useState<number>(0);
+  // slashMenuIndex state isolated inside ComposerSlashMenu
   const [enhancedPromptPreview, setEnhancedPromptPreview] = useState<string | null>(null);
   const [isEnhancingPrompt, setIsEnhancingPrompt] = useState<boolean>(false);
   const [structuredFeedbackThanksId, setStructuredFeedbackThanksId] = useState<string | null>(
@@ -1309,7 +1306,26 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
   } | null>(null);
   const [isSubmittingEdit, setIsSubmittingEdit] = useState<boolean>(false);
 
-  const [inputText, setInputText] = useState<string>("");
+  // Isolated typing store: keystrokes never re-render ChatInterface, MessageItem list, or Sidebar
+  const composerTextStoreRef = useRef<ComposerTextStore | null>(null);
+  if (!composerTextStoreRef.current) {
+    composerTextStoreRef.current = new ComposerTextStore();
+  }
+  const composerTextStore = composerTextStoreRef.current;
+  const inputTextRef = useRef<string>("");
+  const slashMenuRuntimeRef = useRef<SlashMenuRuntimeRef>({
+    matches: [],
+    selectedIndex: 0,
+    setSelectedIndex: () => {},
+  });
+  const setInputText = useCallback(
+    (next: string | ((prev: string) => string)) => {
+      const resolved = typeof next === "function" ? next(inputTextRef.current) : next;
+      inputTextRef.current = resolved;
+      composerTextStore.set(resolved);
+    },
+    [composerTextStore]
+  );
   const [contextualGreeting, setContextualGreeting] = useState<string>(
     "Halo, mau bahas apa hari ini?"
   );
@@ -1865,33 +1881,27 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     };
   }, [initialChatId, showToastNotice]);
 
-  // Supabase Auth session detection & auth state subscriber
+  // Supabase Auth session detection & auth state subscriber (deduplicated to prevent double initial fetch)
+  const lastAuthIdentityRef = useRef<{ userId: string | null; token: string | null }>({
+    userId: null,
+    token: null,
+  });
+
   useEffect(() => {
     if (!supabase) return;
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const applySession = (session: { user: SupabaseUser; access_token: string } | null) => {
       if (session) {
-        setAuthUser(session.user);
-        setAuthToken(session.access_token);
-        const name =
-          session.user.user_metadata?.full_name ||
-          session.user.user_metadata?.name ||
-          session.user.email?.split("@")[0];
-        if (name) {
-          const formatted = toTitleCase(name);
-          setDisplayName(formatted);
-          setSettingsNameInput(formatted);
-          safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, formatted);
+        const nextUserId = session.user.id || null;
+        const nextToken = session.access_token || null;
+        const prev = lastAuthIdentityRef.current;
+        if (prev.userId !== nextUserId || prev.token !== nextToken) {
+          lastAuthIdentityRef.current = { userId: nextUserId, token: nextToken };
+          if (prev.userId !== nextUserId) {
+            setAuthUser(session.user);
+          }
+          setAuthToken(nextToken);
         }
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        setAuthUser(session.user);
-        setAuthToken(session.access_token);
         const name =
           session.user.user_metadata?.full_name ||
           session.user.user_metadata?.name ||
@@ -1903,11 +1913,26 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           safeSetLocalStorage(STORAGE_KEYS.DISPLAY_NAME, formatted);
         }
       } else {
-        setAuthUser(null);
-        setAuthToken(null);
+        if (lastAuthIdentityRef.current.userId !== null || lastAuthIdentityRef.current.token !== null) {
+          lastAuthIdentityRef.current = { userId: null, token: null };
+          setAuthUser(null);
+          setAuthToken(null);
+        }
         setDisplayName(DEFAULT_DISPLAY_NAME);
         safeRemoveLocalStorage(STORAGE_KEYS.DISPLAY_NAME);
       }
+    };
+
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        applySession(session);
+      }
+    });
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      applySession(session);
     });
 
     return () => {
@@ -1937,9 +1962,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, [chatHistory, authUser, isPrivateMode]);
 
-  // Guest Mode: Debounced persist chat session messages in localStorage (skipped in Mode Privat)
+  // Guest Mode: Debounced persist chat session messages in localStorage (deferred while streaming/loading; skipped in Mode Privat)
   useEffect(() => {
-    if (!authUser && !isPrivateMode && chats.length > 0) {
+    if (!authUser && !isPrivateMode && !isLoading && !isGenerating && chats.length > 0) {
       const timer = setTimeout(() => {
         for (const c of chats) {
           if (c.messages && c.messages.length > 0) {
@@ -1949,7 +1974,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       }, 300);
       return () => clearTimeout(timer);
     }
-  }, [chats, authUser, isPrivateMode]);
+  }, [chats, authUser, isPrivateMode, isLoading, isGenerating]);
 
   // Handle click outside Profile Dropdown
   useEffect(() => {
@@ -2220,74 +2245,91 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, [authUser, buildAuthHeaders]);
 
-  // Fetch daily credit quota status for authenticated users (`GET /api/quota`)
-  const fetchUserQuota = useCallback(async () => {
-    if (!authUser) {
-      setQuotaInfo(null);
-      return;
-    }
-    try {
-      const headers = await buildAuthHeaders();
-      const response = await fetch(`${BACKEND_URL}/api/quota`, {
-        method: "GET",
-        headers,
-        credentials: "include",
-        cache: "no-store",
-      });
-      if (!response.ok) return;
-      const data = await response.json().catch(() => null);
-      if (data && typeof data === "object") {
-        const nextCredits =
-          typeof data.remainingCredits === "number" && Number.isFinite(data.remainingCredits)
-            ? data.remainingCredits
-            : undefined;
-        setQuotaInfo((prev) => ({
-          ...(prev || {}),
-          plan: data.plan === "pro" ? "pro" : "free",
-          unlimited: Boolean(data.unlimited),
-          remainingCredits: nextCredits ?? prev?.remainingCredits,
-          remaining: nextCredits ?? prev?.remaining,
-          dailyCredits:
-            typeof data.dailyCredits === "number" && Number.isFinite(data.dailyCredits)
-              ? data.dailyCredits
-              : prev?.dailyCredits,
-          dailyLimit:
-            typeof data.dailyLimit === "number" && Number.isFinite(data.dailyLimit)
-              ? data.dailyLimit
-              : prev?.dailyLimit ?? 30,
-          usedToday:
-            typeof data.usedToday === "number" && Number.isFinite(data.usedToday)
-              ? data.usedToday
-              : prev?.usedToday,
-          bonusCredits:
-            typeof data.bonusCredits === "number" && Number.isFinite(data.bonusCredits)
-              ? data.bonusCredits
-              : prev?.bonusCredits,
-          resetAt: typeof data.resetAt === "string" ? data.resetAt : prev?.resetAt,
-          expiresAt:
-            typeof data.expiresAt === "string" ? data.expiresAt : prev?.expiresAt,
-          triggeredByLimit: prev?.triggeredByLimit ?? false,
-        }));
+  // Fetch daily credit quota status for authenticated users (`GET /api/quota`) with in-flight guard & 30s cooldown
+  const quotaInFlightRef = useRef<boolean>(false);
+  const lastQuotaFetchedAtRef = useRef<number>(0);
+
+  const fetchUserQuota = useCallback(
+    async (options?: { force?: boolean }) => {
+      if (!authUser) {
+        setQuotaInfo(null);
+        lastQuotaFetchedAtRef.current = 0;
+        return;
       }
-    } catch {
-      // Non-blocking: ignore transient network errors when refreshing quota badge
-    }
-  }, [authUser, buildAuthHeaders]);
+      if (quotaInFlightRef.current) return;
+      const now = Date.now();
+      const shouldForce = options?.force ?? true;
+      if (!shouldForce && now - lastQuotaFetchedAtRef.current < 30_000) {
+        return;
+      }
+      quotaInFlightRef.current = true;
+      try {
+        const headers = await buildAuthHeaders();
+        const response = await fetch(`${BACKEND_URL}/api/quota`, {
+          method: "GET",
+          headers,
+          credentials: "include",
+          cache: "no-store",
+        });
+        if (!response.ok) return;
+        const data = await response.json().catch(() => null);
+        if (data && typeof data === "object") {
+          lastQuotaFetchedAtRef.current = Date.now();
+          const nextCredits =
+            typeof data.remainingCredits === "number" && Number.isFinite(data.remainingCredits)
+              ? data.remainingCredits
+              : undefined;
+          setQuotaInfo((prev) => ({
+            ...(prev || {}),
+            plan: data.plan === "pro" ? "pro" : "free",
+            unlimited: Boolean(data.unlimited),
+            remainingCredits: nextCredits ?? prev?.remainingCredits,
+            remaining: nextCredits ?? prev?.remaining,
+            dailyCredits:
+              typeof data.dailyCredits === "number" && Number.isFinite(data.dailyCredits)
+                ? data.dailyCredits
+                : prev?.dailyCredits,
+            dailyLimit:
+              typeof data.dailyLimit === "number" && Number.isFinite(data.dailyLimit)
+                ? data.dailyLimit
+                : prev?.dailyLimit ?? 30,
+            usedToday:
+              typeof data.usedToday === "number" && Number.isFinite(data.usedToday)
+                ? data.usedToday
+                : prev?.usedToday,
+            bonusCredits:
+              typeof data.bonusCredits === "number" && Number.isFinite(data.bonusCredits)
+                ? data.bonusCredits
+                : prev?.bonusCredits,
+            resetAt: typeof data.resetAt === "string" ? data.resetAt : prev?.resetAt,
+            expiresAt:
+              typeof data.expiresAt === "string" ? data.expiresAt : prev?.expiresAt,
+            triggeredByLimit: prev?.triggeredByLimit ?? false,
+          }));
+        }
+      } catch {
+        // Non-blocking: ignore transient network errors when refreshing quota badge
+      } finally {
+        quotaInFlightRef.current = false;
+      }
+    },
+    [authUser, buildAuthHeaders]
+  );
 
   useEffect(() => {
     if (authUser) {
-      void fetchUserQuota();
+      void fetchUserQuota({ force: true });
     } else {
       setQuotaInfo(null);
     }
   }, [authUser, fetchUserQuota]);
 
-  // Real-time quota sync when returning to the browser tab or opening Kelola Akun / Pengaturan
+  // Real-time quota sync when returning to the browser tab (30s cooldown prevents burst double-fetch)
   useEffect(() => {
     if (!authUser || typeof document === "undefined") return;
     const handleVisibilityOrFocus = () => {
       if (document.visibilityState === "visible") {
-        void fetchUserQuota();
+        void fetchUserQuota({ force: false });
       }
     };
     document.addEventListener("visibilitychange", handleVisibilityOrFocus);
@@ -2307,7 +2349,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         expandedSettingsSection === "quota" ||
         isSettingsModalOpen)
     ) {
-      void fetchUserQuota();
+      void fetchUserQuota({ force: true });
     }
   }, [
     authUser,
@@ -3335,24 +3377,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     []
   );
 
-  const matchingSlashCommands = useMemo(() => {
-    const trimmed = inputText.trimStart();
-    if (!trimmed.startsWith("/")) return [];
-    const firstToken = trimmed.split(/\s+/)[0].toLowerCase();
-    // Only show menu while typing the slash command token (no space after it yet)
-    if (trimmed.includes(" ")) return [];
-    return SLASH_COMMANDS.filter((item) => item.cmd.startsWith(firstToken));
-  }, [inputText, SLASH_COMMANDS]);
-
-  useEffect(() => {
-    if (slashMenuIndex >= matchingSlashCommands.length) {
-      setSlashMenuIndex(0);
-    }
-  }, [matchingSlashCommands.length, slashMenuIndex]);
-
   const handleApplySlashCommand = useCallback(
     (cmd: string) => {
-      const remaining = inputText.replace(/^\s*\/\S*\s*/, "");
+      const remaining = inputTextRef.current.replace(/^\s*\/\S*\s*/, "");
       if (cmd === "/wa") {
         const nextSocial = socialTarget === "none" ? "teman" : socialTarget;
         setSocialTarget(nextSocial);
@@ -3379,7 +3406,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       } else if (cmd === "/lens") {
         setInputText(remaining ? `/lens ${remaining}` : "/lens ");
       }
-      setSlashMenuIndex(0);
+      slashMenuRuntimeRef.current.setSelectedIndex(0);
       requestAnimationFrame(() => {
         const el = textareaRef.current;
         if (el) {
@@ -3388,11 +3415,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         }
       });
     },
-    [inputText, socialTarget, showToastNotice]
+    [socialTarget, showToastNotice, setInputText]
   );
 
   const handleEnhancePrompt = useCallback(async () => {
-    const draft = inputText.trim();
+    const draft = inputTextRef.current.trim();
     if (draft.length < 12 || isEnhancingPrompt) return;
 
     setIsEnhancingPrompt(true);
@@ -3418,7 +3445,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     } finally {
       setIsEnhancingPrompt(false);
     }
-  }, [inputText, isEnhancingPrompt, language, showToastNotice]);
+  }, [isEnhancingPrompt, language, showToastNotice]);
 
   const handleSendStructuredFeedback = useCallback(
     async (messageId: string, rating: "up" | "down", reason?: string) => {
@@ -3532,22 +3559,34 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, [isLoading, isLensLoading, isVisionLoading, showThinkingIndicator]);
 
+  const textareaResizeRafRef = useRef<number | null>(null);
   const adjustTextareaHeight = useCallback(() => {
-    const textarea = textareaRef.current;
-    if (!textarea) return;
-    const minHeight = 28;
-    const maxHeight = 140; // auto-grow hingga ~5 baris lalu scroll internal
-    const val = textarea.value || "";
-    if (!val || (!val.includes("\n") && val.length < 40)) {
-      textarea.style.height = `${minHeight}px`;
-      textarea.style.overflowY = "hidden";
-      return;
+    if (typeof window === "undefined") return;
+    if (textareaResizeRafRef.current !== null) {
+      cancelAnimationFrame(textareaResizeRafRef.current);
     }
-    textarea.style.height = "auto";
-    const nextHeight = Math.max(minHeight, Math.min(textarea.scrollHeight, maxHeight));
-    textarea.style.height = `${nextHeight}px`;
-    textarea.style.overflowY =
-      textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+    textareaResizeRafRef.current = requestAnimationFrame(() => {
+      textareaResizeRafRef.current = null;
+      const textarea = textareaRef.current;
+      if (!textarea) return;
+      const minHeight = 28;
+      const maxHeight = 140; // auto-grow hingga ~5 baris lalu scroll internal
+      const val = textarea.value || "";
+      if (!val || (!val.includes("\n") && val.length < 40)) {
+        if (textarea.style.height !== `${minHeight}px`) {
+          textarea.style.height = `${minHeight}px`;
+        }
+        if (textarea.style.overflowY !== "hidden") {
+          textarea.style.overflowY = "hidden";
+        }
+        return;
+      }
+      textarea.style.height = "auto";
+      const scrollHeight = textarea.scrollHeight;
+      const nextHeight = Math.max(minHeight, Math.min(scrollHeight, maxHeight));
+      textarea.style.height = `${nextHeight}px`;
+      textarea.style.overflowY = scrollHeight > maxHeight ? "auto" : "hidden";
+    });
   }, []);
 
   // Dictation Cancel & Stop functions (Inline Dictation & Gemini style)
@@ -3752,7 +3791,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }
 
           const cleanTranscript = transcript.trim();
-          const currentText = textareaRef.current ? textareaRef.current.value : inputText;
+          const currentText = textareaRef.current ? textareaRef.current.value : inputTextRef.current;
           const combined = currentText.trim()
             ? `${currentText.trim()} ${cleanTranscript}`
             : cleanTranscript;
@@ -3823,7 +3862,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     showToastNotice,
     buildAuthHeaders,
     getTurnstileToken,
-    inputText,
+    setInputText,
     currentChatKey,
     adjustTextareaHeight,
   ]);
@@ -3931,19 +3970,50 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     setIsVoiceModeOpen(true);
   }, [isRecording, cancelVoiceRecording, getSilentUnlockWavUri]);
 
-  const inputTextRef = useRef<string>("");
-  useEffect(() => {
-    inputTextRef.current = inputText;
-  }, [inputText]);
+  const draftSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const currentChatKeyRef = useRef<string>(currentChatKey);
+  currentChatKeyRef.current = currentChatKey;
 
-  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const nextVal = e.target.value;
-    setInputText(nextVal);
-    adjustTextareaHeight();
-    if (currentChatKey) {
-      safeSetChatDraft(currentChatKey, nextVal);
+  const flushPendingChatDraft = useCallback(() => {
+    if (draftSaveTimerRef.current !== null) {
+      clearTimeout(draftSaveTimerRef.current);
+      draftSaveTimerRef.current = null;
     }
-  };
+    if (currentChatKeyRef.current) {
+      safeSetChatDraft(currentChatKeyRef.current, inputTextRef.current);
+    }
+  }, []);
+
+  const scheduleSaveChatDraft = useCallback((chatKey: string, nextVal: string) => {
+    if (!chatKey) return;
+    if (draftSaveTimerRef.current !== null) {
+      clearTimeout(draftSaveTimerRef.current);
+    }
+    draftSaveTimerRef.current = setTimeout(() => {
+      draftSaveTimerRef.current = null;
+      safeSetChatDraft(chatKey, nextVal);
+    }, 400);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (textareaResizeRafRef.current !== null) {
+        cancelAnimationFrame(textareaResizeRafRef.current);
+      }
+      flushPendingChatDraft();
+    };
+  }, [flushPendingChatDraft]);
+
+  const handleTextareaChange = useCallback(
+    (nextVal: string) => {
+      setInputText(nextVal);
+      adjustTextareaHeight();
+      if (currentChatKeyRef.current) {
+        scheduleSaveChatDraft(currentChatKeyRef.current, nextVal);
+      }
+    },
+    [setInputText, adjustTextareaHeight, scheduleSaveChatDraft]
+  );
 
   const prevChatKeyRef = useRef<string>("");
   const isInitialDraftLoadedRef = useRef<boolean>(false);
@@ -3957,22 +4027,26 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       const initialDraft = safeGetChatDraft(currentChatKey);
       if (initialDraft) {
         setInputText(initialDraft);
-        requestAnimationFrame(() => adjustTextareaHeight());
+        adjustTextareaHeight();
       }
       prevChatKeyRef.current = currentChatKey;
       return;
     }
 
     if (prevChatKeyRef.current !== currentChatKey) {
+      if (draftSaveTimerRef.current !== null) {
+        clearTimeout(draftSaveTimerRef.current);
+        draftSaveTimerRef.current = null;
+      }
       if (prevChatKeyRef.current) {
         safeSetChatDraft(prevChatKeyRef.current, inputTextRef.current);
       }
       const draft = safeGetChatDraft(currentChatKey);
       setInputText(draft);
       prevChatKeyRef.current = currentChatKey;
-      requestAnimationFrame(() => adjustTextareaHeight());
+      adjustTextareaHeight();
     }
-  }, [currentChatKey, adjustTextareaHeight]);
+  }, [currentChatKey, adjustTextareaHeight, setInputText]);
 
   // Contextual time-based greeting + periodic relative timestamp refresh (hydration-safe via useEffect)
   useEffect(() => {
@@ -4068,12 +4142,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   // Rotating calm placeholder every 4.5s while input is empty in empty state
   useEffect(() => {
-    if (inputText.length > 0 || activeMediaMode || hasMessages || isGenerating || isLoading) return;
+    if (activeMediaMode || hasMessages || isGenerating || isLoading) return;
     const timer = setInterval(() => {
+      if (inputTextRef.current.length > 0) return;
       setPlaceholderIndex((prev) => (prev + 1) % DYNAMIC_PLACEHOLDERS.length);
     }, 4500);
     return () => clearInterval(timer);
-  }, [inputText.length, activeMediaMode, hasMessages, isGenerating, isLoading]);
+  }, [activeMediaMode, hasMessages, isGenerating, isLoading]);
 
   // Phased thinking indicator timer (0-2s, >2s, >=25s)
   useEffect(() => {
@@ -4106,9 +4181,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       const prefersReducedMotion =
         typeof window !== "undefined" &&
         window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      // Instant "auto" scroll during streaming prevents iPhone Safari rubber-banding;
+      // reserve "smooth" strictly for explicit user click on the Scroll-to-Bottom button (force === true).
       el.scrollTo({
         top: el.scrollHeight,
-        behavior: prefersReducedMotion ? "auto" : "smooth",
+        behavior: force && !prefersReducedMotion ? "smooth" : "auto",
       });
     });
   }, []);
@@ -4298,225 +4375,215 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     setEditingUserMsgText("");
   }, []);
 
-  // Global Escape and outside-click handlers for menus, drawers, and modals + global shortcuts (#6)
-  useEffect(() => {
-    const handleGlobalKeyDown = (e: KeyboardEvent) => {
-      // Ctrl+K or Cmd+K: Focus search input (Item 6)
-      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+  // Global Escape and outside-click handlers stored in ref so listeners mount ONCE and never reattach on state changes (#6)
+  const globalHandlersRef = useRef<{
+    onKeyDown: (e: KeyboardEvent) => void;
+    onMouseDown: (e: MouseEvent) => void;
+  }>({
+    onKeyDown: () => {},
+    onMouseDown: () => {},
+  });
+
+  globalHandlersRef.current.onKeyDown = (e: KeyboardEvent) => {
+    // Ctrl+K or Cmd+K: Focus search input (Item 6)
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k") {
+      e.preventDefault();
+      if (typeof window !== "undefined" && window.innerWidth < 1024) {
+        setIsMobileSidebarOpen(true);
+      } else if (isDesktopSidebarCollapsed) {
+        setIsDesktopSidebarCollapsed(false);
+      }
+      requestAnimationFrame(() => {
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      });
+      return;
+    }
+
+    // Ctrl+Shift+O or Cmd+Shift+O: New chat (Item 6)
+    if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") {
+      e.preventDefault();
+      handleCreateNewChat();
+      return;
+    }
+
+    if (e.key === "Escape") {
+      // Stop AI generation if currently streaming (Item 6)
+      if (isGenerating) {
         e.preventDefault();
-        if (typeof window !== "undefined" && window.innerWidth < 1024) {
-          setIsMobileSidebarOpen(true);
-        } else if (isDesktopSidebarCollapsed) {
-          setIsDesktopSidebarCollapsed(false);
-        }
-        requestAnimationFrame(() => {
-          searchInputRef.current?.focus();
-          searchInputRef.current?.select();
-        });
+        handleStopGeneration();
         return;
       }
 
-      // Ctrl+Shift+O or Cmd+Shift+O: New chat (Item 6)
-      if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === "o") {
+      if (isGuestLimitModalOpen) {
         e.preventDefault();
-        handleCreateNewChat();
+        setIsGuestLimitModalOpen(false);
         return;
       }
 
-      if (e.key === "Escape") {
-        // Stop AI generation if currently streaming (Item 6)
-        if (isGenerating) {
-          e.preventDefault();
-          handleStopGeneration();
-          return;
-        }
-
-        if (isGuestLimitModalOpen) {
-          e.preventDefault();
-          setIsGuestLimitModalOpen(false);
-          return;
-        }
-
-        if (editConfirmTarget) {
-          e.preventDefault();
-          setEditConfirmTarget(null);
-          return;
-        }
-
-        if (editingUserMsgId) {
-          e.preventDefault();
-          setEditingUserMsgId(null);
-          setEditingUserMsgText("");
-          return;
-        }
-
-        if (isClearAllConfirmOpen) {
-          e.preventDefault();
-          if (!isClearingAllChats) setIsClearAllConfirmOpen(false);
-          return;
-        }
-        if (isSettingsModalOpen) {
-          e.preventDefault();
-          if (settingsView !== "main") {
-            setSettingsView("main");
-          } else {
-            setIsSettingsModalOpen(false);
-          }
-          return;
-        }
-        if (desktopSettingsPage) {
-          e.preventDefault();
-          setDesktopSettingsPage(null);
-          return;
-        }
-        if (undoToastChat) {
-          e.preventDefault();
-          const pending = pendingDeleteRef.current;
-          if (pending && !pending.isCancelled) {
-            clearTimeout(pending.timerId);
-            pending.isCancelled = true;
-            pendingDeleteRef.current = null;
-            setUndoToastChat(null);
-            void commitDeleteChatServer(pending.chat.id);
-          } else {
-            setUndoToastChat(null);
-          }
-          return;
-        }
-        if (openFeedbackCommentId) {
-          e.preventDefault();
-          setOpenFeedbackCommentId(null);
-          return;
-        }
-        if (editingChatId) {
-          e.preventDefault();
-          setEditingChatId(null);
-          setEditingTitleValue("");
-          return;
-        }
-        if (openChatMenuId) {
-          e.preventDefault();
-          closeChatItemMenu(openChatMenuId, true);
-          return;
-        }
-        if (lightboxImage) {
-          e.preventDefault();
-          setLightboxImage(null);
-          return;
-        }
-        if (isAttachmentMenuOpen) {
-          e.preventDefault();
-          closeAttachmentMenu(true);
-          return;
-        }
-        if (isAgentMenuOpen) {
-          e.preventDefault();
-          closeDesktopAgentMenu(true);
-          return;
-        }
-        if (isHeaderAgentMenuOpen) {
-          e.preventDefault();
-          closeHeaderAgentMenu(true);
-          return;
-        }
-        if (isSettingsMenuOpen) {
-          e.preventDefault();
-          closeSettingsMenu(true);
-          return;
-        }
-        if (isVoiceOptionsMenuOpen) {
-          e.preventDefault();
-          setIsVoiceOptionsMenuOpen(false);
-          return;
-        }
-        if (isMobileSidebarOpen) {
-          e.preventDefault();
-          setIsMobileSidebarOpen(false);
-        }
-      }
-    };
-
-    const handleGlobalMouseDown = (e: MouseEvent) => {
-      const target = e.target as Node;
-
-      if (
-        isVoiceOptionsMenuOpen &&
-        !voiceOptionsMenuRef.current?.contains(target)
-      ) {
-        setIsVoiceOptionsMenuOpen(false);
+      if (editConfirmTarget) {
+        e.preventDefault();
+        setEditConfirmTarget(null);
+        return;
       }
 
-      if (
-        isAgentMenuOpen &&
-        !desktopAgentMenuRef.current?.contains(target) &&
-        !desktopAgentTriggerRef.current?.contains(target)
-      ) {
-        closeDesktopAgentMenu(false);
+      if (editingUserMsgId) {
+        e.preventDefault();
+        setEditingUserMsgId(null);
+        setEditingUserMsgText("");
+        return;
       }
 
-      if (
-        isAttachmentMenuOpen &&
-        !attachmentMenuRef.current?.contains(target) &&
-        !attachmentTriggerRef.current?.contains(target)
-      ) {
-        closeAttachmentMenu(false);
+      if (isClearAllConfirmOpen) {
+        e.preventDefault();
+        if (!isClearingAllChats) setIsClearAllConfirmOpen(false);
+        return;
       }
-
-      if (
-        isHeaderAgentMenuOpen &&
-        !headerAgentMenuRef.current?.contains(target) &&
-        !headerAgentTriggerRef.current?.contains(target) &&
-        !tabletAgentTriggerRef.current?.contains(target)
-      ) {
-        closeHeaderAgentMenu(false);
+      if (isSettingsModalOpen) {
+        e.preventDefault();
+        if (settingsView !== "main") {
+          setSettingsView("main");
+        } else {
+          setIsSettingsModalOpen(false);
+        }
+        return;
       }
-
+      if (desktopSettingsPage) {
+        e.preventDefault();
+        setDesktopSettingsPage(null);
+        return;
+      }
+      if (undoToastChat) {
+        e.preventDefault();
+        const pending = pendingDeleteRef.current;
+        if (pending && !pending.isCancelled) {
+          clearTimeout(pending.timerId);
+          pending.isCancelled = true;
+          pendingDeleteRef.current = null;
+          setUndoToastChat(null);
+          void commitDeleteChatServer(pending.chat.id);
+        } else {
+          setUndoToastChat(null);
+        }
+        return;
+      }
+      if (openFeedbackCommentId) {
+        e.preventDefault();
+        setOpenFeedbackCommentId(null);
+        return;
+      }
+      if (editingChatId) {
+        e.preventDefault();
+        setEditingChatId(null);
+        setEditingTitleValue("");
+        return;
+      }
       if (openChatMenuId) {
-        const triggerEl = chatMenuTriggerRefs.current[openChatMenuId];
-        if (
-          !chatMenuContainerRef.current?.contains(target) &&
-          !triggerEl?.contains(target)
-        ) {
-          closeChatItemMenu(openChatMenuId, false);
-        }
+        e.preventDefault();
+        closeChatItemMenu(openChatMenuId, true);
+        return;
       }
+      if (lightboxImage) {
+        e.preventDefault();
+        setLightboxImage(null);
+        return;
+      }
+      if (isAttachmentMenuOpen) {
+        e.preventDefault();
+        closeAttachmentMenu(true);
+        return;
+      }
+      if (isAgentMenuOpen) {
+        e.preventDefault();
+        closeDesktopAgentMenu(true);
+        return;
+      }
+      if (isHeaderAgentMenuOpen) {
+        e.preventDefault();
+        closeHeaderAgentMenu(true);
+        return;
+      }
+      if (isSettingsMenuOpen) {
+        e.preventDefault();
+        closeSettingsMenu(true);
+        return;
+      }
+      if (isVoiceOptionsMenuOpen) {
+        e.preventDefault();
+        setIsVoiceOptionsMenuOpen(false);
+        return;
+      }
+      if (isMobileSidebarOpen) {
+        e.preventDefault();
+        setIsMobileSidebarOpen(false);
+      }
+    }
+  };
 
+  globalHandlersRef.current.onMouseDown = (e: MouseEvent) => {
+    const target = e.target as Node;
+
+    if (
+      isVoiceOptionsMenuOpen &&
+      !voiceOptionsMenuRef.current?.contains(target)
+    ) {
+      setIsVoiceOptionsMenuOpen(false);
+    }
+
+    if (
+      isAgentMenuOpen &&
+      !desktopAgentMenuRef.current?.contains(target) &&
+      !desktopAgentTriggerRef.current?.contains(target)
+    ) {
+      closeDesktopAgentMenu(false);
+    }
+
+    if (
+      isAttachmentMenuOpen &&
+      !attachmentMenuRef.current?.contains(target) &&
+      !attachmentTriggerRef.current?.contains(target)
+    ) {
+      closeAttachmentMenu(false);
+    }
+
+    if (
+      isHeaderAgentMenuOpen &&
+      !headerAgentMenuRef.current?.contains(target) &&
+      !headerAgentTriggerRef.current?.contains(target) &&
+      !tabletAgentTriggerRef.current?.contains(target)
+    ) {
+      closeHeaderAgentMenu(false);
+    }
+
+    if (openChatMenuId) {
+      const triggerEl = chatMenuTriggerRefs.current[openChatMenuId];
       if (
-        isSettingsMenuOpen &&
-        !settingsMenuRef.current?.contains(target) &&
-        !settingsTriggerRef.current?.contains(target)
+        !chatMenuContainerRef.current?.contains(target) &&
+        !triggerEl?.contains(target)
       ) {
-        closeSettingsMenu(false);
+        closeChatItemMenu(openChatMenuId, false);
       }
-    };
+    }
 
-    window.addEventListener("keydown", handleGlobalKeyDown);
-    window.addEventListener("mousedown", handleGlobalMouseDown);
+    if (
+      isSettingsMenuOpen &&
+      !settingsMenuRef.current?.contains(target) &&
+      !settingsTriggerRef.current?.contains(target)
+    ) {
+      closeSettingsMenu(false);
+    }
+  };
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => globalHandlersRef.current.onKeyDown(e);
+    const onMouseDown = (e: MouseEvent) => globalHandlersRef.current.onMouseDown(e);
+    window.addEventListener("keydown", onKeyDown);
+    window.addEventListener("mousedown", onMouseDown);
     return () => {
-      window.removeEventListener("keydown", handleGlobalKeyDown);
-      window.removeEventListener("mousedown", handleGlobalMouseDown);
+      window.removeEventListener("keydown", onKeyDown);
+      window.removeEventListener("mousedown", onMouseDown);
     };
-  }, [
-    isClearAllConfirmOpen,
-    isClearingAllChats,
-    isSettingsModalOpen,
-    settingsView,
-    undoToastChat,
-    openFeedbackCommentId,
-    editingChatId,
-    openChatMenuId,
-    isAgentMenuOpen,
-    isHeaderAgentMenuOpen,
-    isSettingsMenuOpen,
-    isAttachmentMenuOpen,
-    isMobileSidebarOpen,
-    closeChatItemMenu,
-    closeDesktopAgentMenu,
-    closeHeaderAgentMenu,
-    closeSettingsMenu,
-    closeAttachmentMenu,
-    isVoiceOptionsMenuOpen,
-  ]);
+  }, []);
 
   const handleMenuArrowKeyDown = (
     e: React.KeyboardEvent,
@@ -5798,6 +5865,78 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }
         };
 
+        // Coalesce incoming SSE text chunks into ~36ms / rAF frames to prevent per-token React re-render storms
+        const SSE_CHUNK_FLUSH_INTERVAL_MS = 36;
+        let sseFlushTimerId: ReturnType<typeof setTimeout> | null = null;
+        let sseFlushRafId: number | null = null;
+        let hasPendingChunkFlush = false;
+        let lastChunkFlushMs = 0;
+
+        const cancelPendingChunkFlush = () => {
+          if (sseFlushTimerId !== null) {
+            clearTimeout(sseFlushTimerId);
+            sseFlushTimerId = null;
+          }
+          if (sseFlushRafId !== null) {
+            cancelAnimationFrame(sseFlushRafId);
+            sseFlushRafId = null;
+          }
+        };
+
+        const flushBufferedChunk = () => {
+          cancelPendingChunkFlush();
+          if (!hasPendingChunkFlush || !streamBubbleCreated) return;
+          hasPendingChunkFlush = false;
+          lastChunkFlushMs =
+            typeof performance !== "undefined" ? performance.now() : Date.now();
+          const currentText = accumulatedText;
+          const targetMsgId = activeAiMsgId;
+          setChats((prev) =>
+            prev.map((chat) =>
+              chat.id === targetChatId
+                ? {
+                    ...chat,
+                    messages: chat.messages.map((m) =>
+                      m.id === targetMsgId
+                        ? {
+                            ...m,
+                            content: currentText,
+                            imageUrl: returnedImageUrl ?? m.imageUrl,
+                            videoUrl: returnedVideoUrl ?? m.videoUrl,
+                            mediaType: returnedMediaType ?? m.mediaType,
+                            mediaTitle: returnedMediaTitle ?? m.mediaTitle,
+                            revisedPrompt: returnedRevisedPrompt ?? m.revisedPrompt,
+                          }
+                        : m
+                    ),
+                  }
+                : chat
+            )
+          );
+          scrollToBottom(false);
+        };
+
+        const scheduleBufferedChunkFlush = () => {
+          if (sseFlushTimerId !== null || sseFlushRafId !== null) return;
+          const nowMs =
+            typeof performance !== "undefined" ? performance.now() : Date.now();
+          const elapsed = nowMs - lastChunkFlushMs;
+          const queueRaf = () => {
+            sseFlushRafId = requestAnimationFrame(() => {
+              sseFlushRafId = null;
+              flushBufferedChunk();
+            });
+          };
+          if (elapsed >= SSE_CHUNK_FLUSH_INTERVAL_MS) {
+            queueRaf();
+          } else {
+            sseFlushTimerId = setTimeout(() => {
+              sseFlushTimerId = null;
+              queueRaf();
+            }, Math.max(0, SSE_CHUNK_FLUSH_INTERVAL_MS - elapsed));
+          }
+        };
+
         const processRawSseEvent = (rawEvent: string) => {
           const line = rawEvent.split(/\r?\n/).find((l) => l.startsWith("data:"));
           if (!line) return;
@@ -5879,6 +6018,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             accumulatedText += payload.text;
             if (!streamBubbleCreated) {
               streamBubbleCreated = true;
+              lastChunkFlushMs =
+                typeof performance !== "undefined" ? performance.now() : Date.now();
               setChatLoading(targetChatId, false);
               setChatStreamingMsgId(targetChatId, activeAiMsgId);
               appendMessageToChat(targetChatId, {
@@ -5895,33 +6036,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               });
               scrollToBottom(false);
             } else {
-              const currentText = accumulatedText;
-              const targetMsgId = activeAiMsgId;
-              setChats((prev) =>
-                prev.map((chat) =>
-                  chat.id === targetChatId
-                    ? {
-                        ...chat,
-                        messages: chat.messages.map((m) =>
-                          m.id === targetMsgId
-                            ? {
-                                ...m,
-                                content: currentText,
-                                imageUrl: returnedImageUrl ?? m.imageUrl,
-                                videoUrl: returnedVideoUrl ?? m.videoUrl,
-                                mediaType: returnedMediaType ?? m.mediaType,
-                                mediaTitle: returnedMediaTitle ?? m.mediaTitle,
-                                revisedPrompt: returnedRevisedPrompt ?? m.revisedPrompt,
-                              }
-                            : m
-                        ),
-                      }
-                    : chat
-                )
-              );
-              scrollToBottom(false);
+              hasPendingChunkFlush = true;
+              scheduleBufferedChunkFlush();
             }
           } else if (payload.type === "done") {
+            flushBufferedChunk();
             if (
               typeof payload.data === "string" &&
               payload.data.length > accumulatedText.length
@@ -5956,6 +6075,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               upsertStreamMediaBubble();
             }
           } else if (payload.type === "error") {
+            flushBufferedChunk();
             if (process.env.NODE_ENV !== "production") {
               console.warn("[SSE_EVENT_ERROR]", { rawEvent, payload });
             }
@@ -5977,35 +6097,40 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }
         };
 
-        while (true) {
-          const { value, done } = await reader.read();
-          // Reset 30s idle timeout on each received chunk (#1)
-          resetIdleTimeout();
+        try {
+          while (true) {
+            const { value, done } = await reader.read();
+            // Reset 30s idle timeout on each received chunk (#1)
+            resetIdleTimeout();
 
-          if (done) {
-            if (idleTimeoutId) {
-              clearTimeout(idleTimeoutId);
-              idleTimeoutId = null;
+            if (done) {
+              if (idleTimeoutId) {
+                clearTimeout(idleTimeoutId);
+                idleTimeoutId = null;
+              }
+              buffer += decoder.decode();
+              break;
             }
-            buffer += decoder.decode();
-            break;
-          }
-          buffer += decoder.decode(value, { stream: true });
+            buffer += decoder.decode(value, { stream: true });
 
-          const events = buffer.split(/\r?\n\r?\n/);
-          buffer = events.pop() || "";
+            const events = buffer.split(/\r?\n\r?\n/);
+            buffer = events.pop() || "";
 
-          for (const rawEvent of events) {
-            processRawSseEvent(rawEvent);
-          }
-        }
-
-        if (buffer.trim()) {
-          for (const rawEvent of buffer.split(/\r?\n\r?\n/)) {
-            if (rawEvent.trim()) {
+            for (const rawEvent of events) {
               processRawSseEvent(rawEvent);
             }
           }
+
+          if (buffer.trim()) {
+            for (const rawEvent of buffer.split(/\r?\n\r?\n/)) {
+              if (rawEvent.trim()) {
+                processRawSseEvent(rawEvent);
+              }
+            }
+          }
+        } finally {
+          // Ensure final buffered text is committed cleanly on done, abort, or error
+          flushBufferedChunk();
         }
 
         const hasStructuredMedia = Boolean(returnedImageUrl || returnedVideoUrl);
@@ -6811,7 +6936,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         ? textOverride
         : textareaRef.current
         ? textareaRef.current.value
-        : inputText;
+        : inputTextRef.current;
 
     // Stage 8 & 9: Intercept Multimodal Vision Photo or Smart PDF before standard chat flow
     if (pendingPdfDoc) {
@@ -6864,52 +6989,60 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     handleSendMessageRef.current = handleSendMessage;
   });
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    // 1. Ignore IME composition events (Gboard, Samsung keyboard, etc.)
-    if (e.nativeEvent.isComposing || e.keyCode === 229) {
-      return;
-    }
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+      // 1. Ignore IME composition events (Gboard, Samsung keyboard, etc.)
+      if (e.nativeEvent.isComposing || e.keyCode === 229) {
+        return;
+      }
 
-    // 1b. Slash Commands keyboard navigation & Enter selection
-    if (matchingSlashCommands.length > 0) {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSlashMenuIndex((prev) => (prev + 1) % matchingSlashCommands.length);
-        return;
+      // 1b. Slash Commands keyboard navigation & Enter selection (reads isolated ref)
+      const slashRuntime = slashMenuRuntimeRef.current;
+      if (slashRuntime.matches.length > 0) {
+        if (e.key === "ArrowDown") {
+          e.preventDefault();
+          slashRuntime.setSelectedIndex(
+            (slashRuntime.selectedIndex + 1) % slashRuntime.matches.length
+          );
+          return;
+        }
+        if (e.key === "ArrowUp") {
+          e.preventDefault();
+          slashRuntime.setSelectedIndex(
+            (slashRuntime.selectedIndex - 1 + slashRuntime.matches.length) %
+              slashRuntime.matches.length
+          );
+          return;
+        }
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setInputText("");
+          return;
+        }
+        if (e.key === "Enter" && !e.shiftKey) {
+          e.preventDefault();
+          const chosen =
+            slashRuntime.matches[slashRuntime.selectedIndex] || slashRuntime.matches[0];
+          if (chosen) {
+            handleApplySlashCommand(chosen.cmd);
+          }
+          return;
+        }
       }
-      if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSlashMenuIndex(
-          (prev) => (prev - 1 + matchingSlashCommands.length) % matchingSlashCommands.length
-        );
-        return;
-      }
-      if (e.key === "Escape") {
-        e.preventDefault();
-        setInputText("");
-        return;
-      }
+
+      // 2. Enter sends (Shift+Enter inserts newline), works on desktop and mobile virtual keyboard
       if (e.key === "Enter" && !e.shiftKey) {
         e.preventDefault();
-        const chosen = matchingSlashCommands[slashMenuIndex] || matchingSlashCommands[0];
-        if (chosen) {
-          handleApplySlashCommand(chosen.cmd);
-        }
-        return;
+        if (!isOnline) return;
+        if (isLoading || isGenerating || isSubmittingRef.current) return;
+        void handleSendMessageRef.current?.();
+        textareaRef.current?.blur();
       }
-    }
+    },
+    [isOnline, isLoading, isGenerating, handleApplySlashCommand, setInputText]
+  );
 
-    // 2. Enter sends (Shift+Enter inserts newline), works on desktop and mobile virtual keyboard
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      if (!isOnline) return;
-      if (isLoading || isGenerating || isSubmittingRef.current) return;
-      void handleSendMessage();
-      textareaRef.current?.blur();
-    }
-  };
-
-  const handleCopy = (text: string, id: string, durationMs = 1500) => {
+  const handleCopy = useCallback((text: string, id: string, durationMs = 1500) => {
     try {
       if (
         typeof navigator !== "undefined" &&
@@ -6935,7 +7068,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       setCopied(false);
       copiedTimerRef.current = null;
     }, durationMs);
-  };
+  }, []);
 
   // Feedback 👍 / 👎 toggle + optional comment for 👎 (server-backed with real UUIDs) (#4)
   const handleFeedback = async (messageId: string, type: "up" | "down") => {
@@ -7050,6 +7183,192 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   };
 
+  // Precomputed once per message list update (eliminates O(N^2) reverse().find() inside message loop)
+  const lastUserContentForError = useMemo(() => {
+    for (let i = currentMessages.length - 1; i >= 0; i--) {
+      const m = currentMessages[i];
+      if (m.sender === "user" && m.content.trim()) return m.content;
+    }
+    return null;
+  }, [currentMessages]);
+
+  // Eternally stable callback wrappers for React.memo(MessageItem), React.memo(SidebarChatItem), and Composer controls
+  const latestActionHandlersRef = useRef({
+    handleSelectChat,
+    startEditingChat,
+    submitRenameChat,
+    cancelEditingChat,
+    handleInitiateDeleteChat,
+    handleMenuArrowKeyDown,
+    handleImageLoadError,
+    handleSubmitEditUserMessage,
+    handleRetry,
+    handleSendMessage,
+    handleAiMessageTextSelect,
+    handleToggleChecklistItem,
+    handleBranchFromMessage,
+    handleRegenerateLastReply,
+    handleFeedback,
+    handleSendStructuredFeedback,
+    handleSubmitFeedbackComment,
+    handleOpenVoiceMode,
+  });
+  latestActionHandlersRef.current = {
+    handleSelectChat,
+    startEditingChat,
+    submitRenameChat,
+    cancelEditingChat,
+    handleInitiateDeleteChat,
+    handleMenuArrowKeyDown,
+    handleImageLoadError,
+    handleSubmitEditUserMessage,
+    handleRetry,
+    handleSendMessage,
+    handleAiMessageTextSelect,
+    handleToggleChecklistItem,
+    handleBranchFromMessage,
+    handleRegenerateLastReply,
+    handleFeedback,
+    handleSendStructuredFeedback,
+    handleSubmitFeedbackComment,
+    handleOpenVoiceMode,
+  };
+
+  const handleRegisterChatMenuTrigger = useCallback(
+    (chatId: string, el: HTMLButtonElement | null) => {
+      chatMenuTriggerRefs.current[chatId] = el;
+    },
+    []
+  );
+  const handleSelectChatStable = useCallback((chatId: string) => {
+    void latestActionHandlersRef.current.handleSelectChat(chatId);
+  }, []);
+  const handleToggleChatMenu = useCallback((chatId: string) => {
+    setOpenChatMenuId((prev) => (prev === chatId ? null : chatId));
+  }, []);
+  const handleOpenChatMenu = useCallback((chatId: string) => {
+    setOpenChatMenuId(chatId);
+  }, []);
+  const handleStartEditingChatStable = useCallback((chat: ChatHistoryItem) => {
+    latestActionHandlersRef.current.startEditingChat(chat);
+  }, []);
+  const handleSubmitRenameChatStable = useCallback((chatId: string) => {
+    void latestActionHandlersRef.current.submitRenameChat(chatId);
+  }, []);
+  const handleCancelEditingChatStable = useCallback(() => {
+    latestActionHandlersRef.current.cancelEditingChat();
+  }, []);
+  const handleInitiateDeleteChatStable = useCallback((chat: ChatHistoryItem) => {
+    latestActionHandlersRef.current.handleInitiateDeleteChat(chat);
+  }, []);
+  const handleMenuArrowKeyDownStable = useCallback(
+    (
+      e: React.KeyboardEvent,
+      items: (HTMLButtonElement | null)[],
+      onEscape: () => void
+    ) => {
+      latestActionHandlersRef.current.handleMenuArrowKeyDown(e, items, onEscape);
+    },
+    []
+  );
+
+  const handleOpenLightbox = useCallback((url: string, name: string) => {
+    setLightboxImage({ url, name });
+  }, []);
+  const handleImageLoadErrorStable = useCallback(
+    (att: AttachmentItem, messageId: string) => {
+      void latestActionHandlersRef.current.handleImageLoadError(att, messageId);
+    },
+    []
+  );
+  const handleSubmitEditUserMessageStable = useCallback(
+    (messageId: string, nextText: string) => {
+      void latestActionHandlersRef.current.handleSubmitEditUserMessage(messageId, nextText);
+    },
+    []
+  );
+  const handleRetryErrorStable = useCallback(
+    (
+      messageId: string,
+      retryPayload?: RetryPayloadRecord,
+      fallbackUserContent?: string | null
+    ) => {
+      if (retryPayload) {
+        latestActionHandlersRef.current.handleRetry(messageId, retryPayload);
+      } else if (fallbackUserContent) {
+        void latestActionHandlersRef.current.handleSendMessage(fallbackUserContent);
+      }
+    },
+    []
+  );
+  const handleAiMessageTextSelectStable = useCallback(
+    (messageId: string, content: string) => {
+      latestActionHandlersRef.current.handleAiMessageTextSelect(messageId, content);
+    },
+    []
+  );
+  const handleToggleChecklistItemStable = useCallback(
+    (messageId: string, idx: number, isChecked: boolean) => {
+      latestActionHandlersRef.current.handleToggleChecklistItem(messageId, idx, isChecked);
+    },
+    []
+  );
+  const handleRunLivePreview = useCallback((htmlCode: string) => {
+    setLivePreviewCode(htmlCode);
+  }, []);
+  const handleToggleActionMenu = useCallback((messageId: string) => {
+    setOpenAiActionMenuId((prev) => (prev === messageId ? null : messageId));
+  }, []);
+  const handleCloseActionMenu = useCallback(() => {
+    setOpenAiActionMenuId(null);
+  }, []);
+  const handleBranchFromMessageStable = useCallback((messageId: string) => {
+    latestActionHandlersRef.current.handleBranchFromMessage(messageId);
+  }, []);
+  const handleContinueMessageStable = useCallback(() => {
+    void latestActionHandlersRef.current.handleSendMessage(
+      "Lanjutkan penjelasan sebelumnya secara langsung dan runtut dari poin terakhir tanpa mengulang."
+    );
+  }, []);
+  const handleRegenerateLastReplyStable = useCallback((messageId: string) => {
+    latestActionHandlersRef.current.handleRegenerateLastReply(messageId);
+  }, []);
+  const handleFeedbackStable = useCallback((messageId: string, rating: "up" | "down") => {
+    void latestActionHandlersRef.current.handleFeedback(messageId, rating);
+  }, []);
+  const handleSelectFollowUpActionStable = useCallback((action: AdaptiveAnswerAction) => {
+    void latestActionHandlersRef.current.handleSendMessage(action.prompt, {
+      taskBreakdownMode: action.taskBreakdownMode,
+    });
+  }, []);
+  const handleSendStructuredFeedbackStable = useCallback(
+    (messageId: string, rating: "up" | "down", reason: string) => {
+      void latestActionHandlersRef.current.handleSendStructuredFeedback(messageId, rating, reason);
+    },
+    []
+  );
+  const handleFeedbackCommentDraftChange = useCallback((messageId: string, value: string) => {
+    setFeedbackCommentDraft((prev) => ({
+      ...prev,
+      [messageId]: value,
+    }));
+  }, []);
+  const handleSubmitFeedbackCommentStable = useCallback((messageId: string) => {
+    void latestActionHandlersRef.current.handleSubmitFeedbackComment(messageId);
+  }, []);
+  const handleCloseFeedbackComment = useCallback(() => {
+    setOpenFeedbackCommentId(null);
+  }, []);
+
+  const handleComposerSendClick = useCallback(() => {
+    void latestActionHandlersRef.current.handleSendMessage();
+    textareaRef.current?.blur();
+  }, []);
+  const handleComposerVoiceClick = useCallback(() => {
+    textareaRef.current?.blur();
+    latestActionHandlersRef.current.handleOpenVoiceMode();
+  }, []);
+
   return (
     <div
       onDragOver={(e) => {
@@ -7097,7 +7416,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           onClick={() => setLightboxImage(null)}
         >
           <div
-            className={`relative max-w-[95vw] max-h-[92vh] flex flex-col items-center transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`relative max-w-[95vw] max-h-[92vh] flex flex-col items-center transition-[opacity,transform] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isLightboxEntered ? "scale-100 opacity-100" : "scale-95 opacity-0"
             }`}
             onClick={(e) => e.stopPropagation()}
@@ -7132,7 +7451,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       window.open(displayLightbox.url, "_blank");
                     }
                   }}
-                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white text-zinc-900 text-xs font-medium hover:bg-white/90 active:scale-[0.96] transition-all duration-200 ease-out shadow cursor-pointer"
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-white text-zinc-900 text-xs font-medium hover:bg-white/90 active:scale-[0.96] transition-[background-color,transform] duration-200 ease-out shadow cursor-pointer"
                   title="Unduh resolusi tinggi"
                   aria-label="Unduh gambar HD"
                 >
@@ -7142,7 +7461,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 <button
                   type="button"
                   onClick={() => setLightboxImage(null)}
-                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-[0.96] transition-all duration-200 ease-out text-white cursor-pointer"
+                  className="p-1.5 rounded-lg bg-white/10 hover:bg-white/20 active:scale-[0.96] transition-[background-color,transform] duration-200 ease-out text-white cursor-pointer"
                   title="Tutup (Esc)"
                   aria-label="Tutup pratinjau"
                 >
@@ -7170,7 +7489,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <button
             type="button"
             onClick={handleUndoDeleteChat}
-            className="font-semibold text-text-primary underline underline-offset-4 hover:opacity-80 active:scale-95 transition-all cursor-pointer py-0.5 px-1 rounded hover:bg-bg-surface"
+            className="font-semibold text-text-primary underline underline-offset-4 hover:opacity-80 active:scale-95 transition-[opacity,transform,background-color] cursor-pointer py-0.5 px-1 rounded hover:bg-bg-surface"
           >
             Urungkan
           </button>
@@ -7211,7 +7530,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[440px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-4 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[440px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-4 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-[opacity,transform] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isClearAllConfirmEntered ? "translate-y-0 opacity-100 md:scale-100" : "translate-y-4 opacity-0 md:translate-y-0 md:scale-95"
             }`}
           >
@@ -7324,7 +7643,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     type="button"
                     onClick={() => setIsSettingsModalOpen(false)}
                     aria-label="Tutup setelan"
-                    className="w-9 h-9 rounded-full bg-zinc-200/80 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition-all duration-200 ease-out flex items-center justify-center cursor-pointer shrink-0"
+                    className="w-9 h-9 rounded-full bg-zinc-200/80 hover:bg-zinc-200 text-zinc-700 hover:text-zinc-900 dark:bg-zinc-800/80 dark:hover:bg-zinc-700 dark:text-zinc-300 dark:hover:text-white active:scale-[0.96] transition-[color,background-color,transform] duration-200 ease-out flex items-center justify-center cursor-pointer shrink-0"
                   >
                     <X className="w-4 h-4" />
                   </button>
@@ -7663,7 +7982,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 <div className="w-full h-2 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
                                   <div
                                     style={{ width: `${dailyCreditsPercent}%` }}
-                                    className={`h-full rounded-full transition-all duration-300 ${
+                                    className={`h-full rounded-full transition-[width] duration-300 ${
                                       !isProPlan && dailyCreditsPercent <= 20
                                         ? "bg-red-500/85 dark:bg-red-400/85"
                                         : !isProPlan && dailyCreditsPercent <= 40
@@ -7739,7 +8058,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                       )
                                     )}%`,
                                   }}
-                                  className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all duration-300"
+                                  className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-[width] duration-300"
                                 />
                               </div>
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
@@ -8127,7 +8446,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 ? { transform: `translate3d(0, ${profileSwipeDeltaY}px, 0)`, transition: "none" }
                 : profilePopoverStyle
             }
-            className={`ios-glass relative z-10 w-full h-auto max-h-[90%] rounded-t-[28px] border-x-0 border-b-0 px-5 pt-3 pb-[calc(var(--safe-bottom)+16px)] flex flex-col overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-all duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] md:fixed md:z-50 md:w-[310px] md:max-h-[82vh] md:rounded-2xl md:border md:p-3 ${
+            className={`ios-glass relative z-10 w-full h-auto max-h-[90%] rounded-t-[28px] border-x-0 border-b-0 px-5 pt-3 pb-[calc(var(--safe-bottom)+16px)] flex flex-col overflow-y-auto overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-[opacity,transform] duration-300 md:duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] md:fixed md:z-50 md:w-[310px] md:max-h-[82vh] md:rounded-2xl md:border md:p-3 ${
               profileAnchor === "sidebar"
                 ? "md:inset-auto md:bottom-16 md:left-4 md:origin-bottom-left"
                 : "md:inset-auto md:top-16 md:right-4 md:origin-top-right"
@@ -8179,7 +8498,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <button
                     type="button"
                     onClick={() => setIsProfileDropdownOpen(false)}
-                    className="min-h-[44px] inline-flex items-center px-1 text-[15px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 active:scale-[0.96] transition-all duration-200 ease-out cursor-pointer"
+                    className="min-h-[44px] inline-flex items-center px-1 text-[15px] font-medium text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-200 active:scale-[0.96] transition-[color,transform] duration-200 ease-out cursor-pointer"
                   >
                     Selesai
                   </button>
@@ -8251,7 +8570,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       openSettingsModal("main", "account");
                     }
                   }}
-                  className="w-full bg-white/90 hover:bg-zinc-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center justify-between text-[15px] md:text-[13.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
+                  className="w-full bg-white/90 hover:bg-zinc-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center justify-between text-[15px] md:text-[13.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-[background-color,transform] duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
                 >
                   <div className="flex items-center gap-3.5 md:gap-2.5 min-w-0">
                     <svg className="w-5 h-5 md:w-4 md:h-4 shrink-0" viewBox="0 0 24 24">
@@ -8273,7 +8592,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     setIsProfileDropdownOpen(false);
                     openSettingsModal("main");
                   }}
-                  className="w-full bg-white/90 hover:bg-zinc-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center justify-between text-[15px] md:text-[13.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
+                  className="w-full bg-white/90 hover:bg-zinc-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-zinc-800 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center justify-between text-[15px] md:text-[13.5px] font-medium leading-snug text-zinc-900 dark:text-zinc-100 transition-[background-color,transform] duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
                 >
                   <div className="flex items-center gap-3.5 md:gap-2.5">
                     <Settings className="w-5 h-5 md:w-4 md:h-4 text-zinc-600 dark:text-zinc-300 shrink-0" strokeWidth={1.75} />
@@ -8297,7 +8616,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       showToastNotice("Berhasil keluar dari akun.");
                       void refreshChatHistory();
                     }}
-                    className="w-full bg-white/90 hover:bg-red-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-red-950/30 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center gap-3.5 md:gap-2.5 text-[15px] md:text-[13.5px] font-medium leading-snug text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-all duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
+                    className="w-full bg-white/90 hover:bg-red-50 dark:bg-[#1c1c1f]/90 dark:hover:bg-red-950/30 active:scale-[0.98] rounded-2xl md:rounded-xl px-5 py-4 md:px-3.5 md:py-2.5 flex items-center gap-3.5 md:gap-2.5 text-[15px] md:text-[13.5px] font-medium leading-snug text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 transition-[color,background-color,transform] duration-150 cursor-pointer text-left border border-zinc-200/80 dark:border-white/[0.06] shadow-sm md:shadow-none"
                   >
                     <LogOut className="w-5 h-5 md:w-4 md:h-4 text-red-600 dark:text-red-400 shrink-0" strokeWidth={1.75} />
                     <span>Keluar dari Akun</span>
@@ -8349,7 +8668,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       {/* Responsive Sidebar (Mobile Drawer < 768px | Desktop Full 260px / Mini Rail 64px >= 768px) */}
       <aside
         aria-label="Riwayat percakapan"
-        className={`fixed inset-y-0 left-0 h-[var(--app-height,100dvh)] min-h-[100dvh] md:static md:h-full md:min-h-0 z-40 w-[82vw] max-w-[320px] md:max-w-none m-0 pt-0 pb-0 bg-[#f3f3f1] dark:bg-[#0a0a0c] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-white/[0.08] flex flex-col shrink-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+        className={`fixed inset-y-0 left-0 h-[var(--app-height,100dvh)] min-h-[100dvh] md:static md:h-full md:min-h-0 z-40 w-[82vw] max-w-[320px] md:max-w-none m-0 pt-0 pb-0 bg-[#f3f3f1] dark:bg-[#0a0a0c] border-r-0 md:border-r border-zinc-200/80 dark:border-r dark:border-white/[0.08] flex flex-col shrink-0 transition-[transform,width] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
           isDesktopSidebarCollapsed
             ? "md:w-[64px] md:opacity-100 md:visible md:translate-x-0"
             : "md:w-[260px] md:opacity-100 md:visible md:translate-x-0"
@@ -8381,7 +8700,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           <button
             type="button"
             onClick={() => setIsMobileSidebarOpen(false)}
-            className="md:hidden w-9 h-9 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800/80 active:scale-[0.96] transition-all duration-200 flex items-center justify-center cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+            className="md:hidden w-9 h-9 rounded-xl text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/70 dark:text-zinc-400 dark:hover:text-white dark:hover:bg-zinc-800/80 active:scale-[0.96] transition-[color,background-color,transform] duration-200 flex items-center justify-center cursor-pointer shrink-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
             aria-label="Tutup menu"
           >
             <X className="w-4 h-4" strokeWidth={1.75} />
@@ -8400,7 +8719,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               }}
               title="Sesi Baru"
               aria-label="Sesi Baru"
-              className={`w-full flex items-center rounded-xl bg-white hover:bg-zinc-100/90 dark:bg-[#161618] dark:hover:bg-zinc-800/90 text-zinc-900 dark:text-zinc-100 border border-zinc-200/80 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none h-10 px-3.5 text-[14px] font-medium leading-snug transition-all duration-200 cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
+              className={`w-full flex items-center rounded-xl bg-white hover:bg-zinc-100/90 dark:bg-[#161618] dark:hover:bg-zinc-800/90 text-zinc-900 dark:text-zinc-100 border border-zinc-200/80 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none h-10 px-3.5 text-[14px] font-medium leading-snug transition-[color,background-color,transform] duration-200 cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
                 isDesktopSidebarCollapsed ? "justify-start md:w-10 md:px-0 md:mx-auto md:justify-center" : "justify-between"
               }`}
             >
@@ -8433,7 +8752,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsMobileSidebarOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full h-10 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/10 text-[14px] font-medium leading-snug transition-all duration-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                className="w-full h-10 rounded-xl bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-800 dark:text-zinc-100 dark:hover:bg-zinc-700 border border-zinc-200 dark:border-white/10 text-[14px] font-medium leading-snug transition-[color,background-color,transform] duration-200 shadow-xs flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
               >
                 <span>Hubungkan Akun</span>
               </button>
@@ -8450,7 +8769,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               }}
               title="Sesi Baru"
               aria-label="Sesi Baru"
-              className={`w-full flex items-center rounded-xl bg-white hover:bg-zinc-100/90 dark:bg-[#161618] dark:hover:bg-zinc-800/90 text-zinc-900 dark:text-zinc-100 border border-zinc-200/80 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none h-10 px-3.5 text-[14px] font-medium leading-snug transition-all duration-200 cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
+              className={`w-full flex items-center rounded-xl bg-white hover:bg-zinc-100/90 dark:bg-[#161618] dark:hover:bg-zinc-800/90 text-zinc-900 dark:text-zinc-100 border border-zinc-200/80 dark:border-white/[0.08] shadow-[0_1px_3px_rgba(0,0,0,0.03)] dark:shadow-none h-10 px-3.5 text-[14px] font-medium leading-snug transition-[color,background-color,transform] duration-200 cursor-pointer active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
                 isDesktopSidebarCollapsed ? "justify-start md:w-10 md:px-0 md:mx-auto md:justify-center" : "justify-between"
               }`}
             >
@@ -8538,148 +8857,35 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   {group.label}
                 </div>
                 {group.items.map((chat) => {
-                  const isActive = chat.id === activeChatId;
-                  const isMenuOpen = openChatMenuId === chat.id;
                   const isEditing = editingChatId === chat.id;
+                  const relativeTimeLabel = clientNow
+                    ? formatRelativeTimeId(getChatTimestamp(chat), clientNow)
+                    : null;
 
                   return (
-                    <div
+                    <SidebarChatItem
                       key={chat.id}
-                      className={`group relative flex items-center min-h-11 md:min-h-0 rounded-lg transition-colors ${
-                        isActive
-                          ? "bg-zinc-200/80 dark:bg-zinc-800/80 text-zinc-900 dark:text-zinc-100 font-semibold"
-                          : "text-text-secondary hover:text-text-primary hover:bg-zinc-200/50 dark:hover:bg-zinc-800/50"
-                      }`}
-                    >
-                      {isEditing ? (
-                        <div className="flex-1 flex items-center gap-2 px-2.5 py-1.5 min-h-11 lg:min-h-0">
-                          <MessageSquare className="w-3.5 h-3.5 shrink-0 text-icon-muted" />
-                          <input
-                            ref={renameInputRef}
-                            type="text"
-                            value={editingTitleValue}
-                            onChange={(e) => setEditingTitleValue(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                void submitRenameChat(chat.id);
-                              } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                cancelEditingChat();
-                              }
-                            }}
-                            onBlur={() => void submitRenameChat(chat.id)}
-                            aria-label="Ubah judul percakapan"
-                            className="flex-1 min-w-0 bg-bg-elevated border border-border-strong rounded px-2 py-0.5 text-[16px] sm:text-[15px] lg:text-xs text-text-primary focus:outline-none focus:border-border-strong"
-                          />
-                        </div>
-                      ) : (
-                        <>
-                          <button
-                            type="button"
-                            onClick={() => void handleSelectChat(chat.id)}
-                            title={chat.title}
-                            className="flex-1 min-w-0 min-h-11 lg:min-h-0 text-left pl-2.5 pr-11 py-2 rounded-lg text-[13px] sm:text-sm tracking-tight flex items-center gap-2.5 cursor-pointer"
-                          >
-                            <MessageSquare className="w-3.5 h-3.5 shrink-0 text-icon-muted" />
-                            <div className="min-w-0 flex-1 flex flex-col">
-                              <span
-                                className={`truncate ${
-                                  isActive
-                                    ? "font-semibold text-text-primary"
-                                    : "font-medium text-text-secondary group-hover:text-text-primary"
-                                }`}
-                              >
-                                {chat.title}
-                              </span>
-                              {clientNow && (
-                                <span className="text-[11px] text-zinc-400 dark:text-zinc-500 truncate tabular-nums">
-                                  {formatRelativeTimeId(getChatTimestamp(chat), clientNow)}
-                                </span>
-                              )}
-                            </div>
-                          </button>
-
-                          {/* ⋯ trigger: min 44x44 touch target on mobile/tablet */}
-                          <button
-                            ref={(el) => {
-                              chatMenuTriggerRefs.current[chat.id] = el;
-                            }}
-                            type="button"
-                            aria-haspopup="menu"
-                            aria-expanded={isMenuOpen}
-                            aria-label={`Opsi untuk ${chat.title}`}
-                            title={`Opsi untuk ${chat.title}`}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setOpenChatMenuId((prev) =>
-                                prev === chat.id ? null : chat.id
-                              );
-                            }}
-                            onKeyDown={(e) => {
-                              if (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ") {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                setOpenChatMenuId(chat.id);
-                              }
-                            }}
-                            className={`absolute right-1 w-11 h-11 min-w-[44px] min-h-[44px] lg:w-7 lg:h-7 lg:min-w-0 lg:min-h-0 p-2 lg:p-1 rounded-md text-icon-muted hover:text-text-primary hover:bg-bg-surface transition-opacity flex items-center justify-center cursor-pointer ${
-                              isActive || isMenuOpen
-                                ? "opacity-100"
-                                : "opacity-100 lg:opacity-0 lg:group-hover:opacity-100 focus-visible:opacity-100"
-                            }`}
-                          >
-                            <Ellipsis className="w-4 h-4" />
-                          </button>
-
-                          {isMenuOpen && (
-                            <div
-                              ref={chatMenuContainerRef}
-                              role="menu"
-                              aria-label="Kelola percakapan"
-                              onKeyDown={(e) =>
-                                handleMenuArrowKeyDown(e, chatMenuItemRefs.current, () =>
-                                  closeChatItemMenu(chat.id, true)
-                                )
-                              }
-                              className="absolute right-1 top-full mt-1 z-50 w-40 rounded-xl bg-bg-elevated border border-border-subtle p-1 shadow-2xl space-y-0.5"
-                            >
-                              <button
-                                ref={(el) => {
-                                  chatMenuItemRefs.current[0] = el;
-                                }}
-                                type="button"
-                                role="menuitem"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  startEditingChat(chat);
-                                }}
-                                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-text-secondary hover:text-text-primary hover:bg-bg-surface focus:bg-bg-surface focus:text-text-primary focus:outline-none flex items-center gap-2 transition-colors cursor-pointer"
-                              >
-                                <Pencil className="w-3.5 h-3.5 text-icon-muted" />
-                                <span>Ganti nama</span>
-                              </button>
-                              <button
-                                ref={(el) => {
-                                  chatMenuItemRefs.current[1] = el;
-                                }}
-                                type="button"
-                                role="menuitem"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setOpenChatMenuId(null);
-                                  handleInitiateDeleteChat(chat);
-                                }}
-                                className="w-full text-left px-2.5 py-2 rounded-lg text-xs text-red-600 hover:text-red-700 hover:bg-red-50 focus:bg-red-50 focus:text-red-700 dark:text-red-400 dark:hover:text-red-300 dark:hover:bg-red-950/40 dark:focus:bg-red-950/40 dark:focus:text-red-300 focus:outline-none flex items-center gap-2 transition-colors cursor-pointer"
-                              >
-                                <Trash className="w-3.5 h-3.5 text-red-600 dark:text-red-400" />
-                                <span>Hapus</span>
-                              </button>
-                            </div>
-                          )}
-                        </>
-                      )}
-                    </div>
+                      chat={chat}
+                      isActive={chat.id === activeChatId}
+                      isMenuOpen={openChatMenuId === chat.id}
+                      isEditing={isEditing}
+                      editingTitleValue={isEditing ? editingTitleValue : ""}
+                      relativeTimeLabel={relativeTimeLabel}
+                      renameInputRef={renameInputRef}
+                      chatMenuContainerRef={chatMenuContainerRef}
+                      chatMenuItemRefs={chatMenuItemRefs}
+                      onRegisterTriggerRef={handleRegisterChatMenuTrigger}
+                      onSelect={handleSelectChatStable}
+                      onToggleMenu={handleToggleChatMenu}
+                      onOpenMenu={handleOpenChatMenu}
+                      onCloseMenu={closeChatItemMenu}
+                      onStartRename={handleStartEditingChatStable}
+                      onEditingTitleChange={setEditingTitleValue}
+                      onSubmitRename={handleSubmitRenameChatStable}
+                      onCancelRename={handleCancelEditingChatStable}
+                      onDelete={handleInitiateDeleteChatStable}
+                      onMenuArrowKeyDown={handleMenuArrowKeyDownStable}
+                    />
                   );
                 })}
               </div>
@@ -9091,7 +9297,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <button
                     type="button"
                     onClick={() => setDesktopSettingsPage(null)}
-                    className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 mb-4 cursor-pointer transition-all duration-150 active:scale-[0.96]"
+                    className="inline-flex items-center gap-1.5 text-[13px] text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100 mb-4 cursor-pointer transition-[color,transform] duration-150 active:scale-[0.96]"
                   >
                     <ArrowLeft className="w-3.5 h-3.5" strokeWidth={1.75} />
                     <span>Kembali</span>
@@ -9419,7 +9625,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           <div className="w-full h-2.5 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
                             <div
                               style={{ width: `${dailyCreditsPercent}%` }}
-                              className={`h-full rounded-full transition-all duration-300 ${
+                              className={`h-full rounded-full transition-[width] duration-300 ${
                                 !isProPlan && dailyCreditsPercent <= 20
                                   ? "bg-red-500/85 dark:bg-red-400/85"
                                   : !isProPlan && dailyCreditsPercent <= 40
@@ -9502,7 +9708,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 )
                               )}%`,
                             }}
-                            className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-all duration-300"
+                            className="h-full rounded-full bg-zinc-900 dark:bg-zinc-100 transition-[width] duration-300"
                           />
                         </div>
                         <p className="text-[13.5px] text-zinc-600 dark:text-zinc-300 leading-relaxed">
@@ -9705,7 +9911,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             key={activeChatId}
             ref={scrollRef}
             onScroll={handleChatScroll}
-            className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-opacity duration-300 ease-out animate-cross-fade will-change-transform ${
+            className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-y-contain overscroll-contain touch-auto [-webkit-overflow-scrolling:touch] scrollbar-none transition-opacity duration-300 ease-out animate-cross-fade ${
               hasMessages || isLoadingExistingChat
                 ? "opacity-100 pt-4 md:pt-6 pb-[calc(9.5rem+env(safe-area-inset-bottom,0px))] md:pb-44 px-3.5 md:px-6 flex"
                 : "hidden"
@@ -9734,590 +9940,71 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               )}
 
             {currentMessages.map((message) => {
-              if (message.sender === "user") {
-                const isEditingThis = editingUserMsgId === message.id;
+              const isEditingThis = editingUserMsgId === message.id;
+              let userTimeLabel = "";
+              if (message.sender === "user" && !isEditingThis) {
                 const msgMs = message.created_at ? new Date(message.created_at).getTime() : 0;
-                const isRecentMsg =
-                  Boolean(clientNow && msgMs && !isNaN(msgMs) && clientNow.getTime() - msgMs < 60 * 60 * 1000);
-                const userTime = isRecentMsg
+                const isRecentMsg = Boolean(
+                  clientNow && msgMs && !isNaN(msgMs) && clientNow.getTime() - msgMs < 60 * 60 * 1000
+                );
+                userTimeLabel = isRecentMsg
                   ? formatRelativeTimeId(msgMs, clientNow)
                   : formatMessageTime(message.created_at);
-
-                if (isEditingThis) {
-                  return (
-                    <div
-                      key={message.id}
-                      className="w-full flex justify-end animate-user-bubble my-0 sm:my-1"
-                    >
-                      <div className="w-full max-w-[85%] lg:max-w-[70%] p-3 rounded-2xl bg-bg-elevated border border-border-strong shadow-xl space-y-2">
-                        <textarea
-                          ref={editUserTextareaRef}
-                          value={editingUserMsgText}
-                          onChange={(e) => setEditingUserMsgText(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Enter" && !e.shiftKey) {
-                              e.preventDefault();
-                              if (editingUserMsgText.trim() && !isSubmittingEdit) {
-                                void handleSubmitEditUserMessage(message.id, editingUserMsgText);
-                              }
-                            } else if (e.key === "Escape") {
-                              e.preventDefault();
-                              handleCancelEditUserMessage();
-                            }
-                          }}
-                          rows={Math.max(2, editingUserMsgText.split("\n").length)}
-                          className="w-full bg-transparent text-text-primary text-base md:text-sm leading-relaxed resize-none focus:outline-none"
-                          autoFocus
-                          aria-label="Edit pesan pengguna"
-                        />
-                        <div className="flex items-center justify-end gap-2 pt-1 border-t border-border-subtle">
-                          <button
-                            type="button"
-                            onClick={handleCancelEditUserMessage}
-                            className="min-h-[40px] lg:min-h-0 px-3 py-1.5 rounded-lg text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary border border-border-subtle transition-colors cursor-pointer"
-                          >
-                            Batal
-                          </button>
-                          <button
-                            type="button"
-                            disabled={!editingUserMsgText.trim() || isSubmittingEdit}
-                            onClick={() => handleSubmitEditUserMessage(message.id, editingUserMsgText)}
-                            className="min-h-[40px] lg:min-h-0 px-3 py-1.5 rounded-lg text-xs font-medium bg-text-primary text-bg-primary hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed transition-opacity cursor-pointer"
-                          >
-                            {isSubmittingEdit ? "Menyimpan…" : "Kirim"}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                return (
-                  <div
-                    key={message.id}
-                    style={{ animationDuration: "280ms" }}
-                    className="w-full flex justify-end animate-axioma-fade-up group relative my-0 sm:my-0.5"
-                  >
-                    <div className="flex flex-col items-end max-w-[85%] sm:max-w-[75%] lg:max-w-[70%]">
-                      {/* Attachments rendering */}
-                      {message.attachments && message.attachments.length > 0 && (
-                        <div className="flex flex-col gap-2 mb-1.5 w-full items-end">
-                          {/* Images Grid */}
-                          {message.attachments.filter((a) => a.mime_type.startsWith("image/")).length > 0 && (
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-w-full">
-                              {message.attachments
-                                .filter((a) => a.mime_type.startsWith("image/"))
-                                .map((att) => (
-                                  <div
-                                    key={att.id}
-                                    onClick={() => setLightboxImage({ url: att.signed_url || "", name: att.original_name })}
-                                    className="relative group/img overflow-hidden rounded-xl border border-border-subtle bg-bg-surface cursor-pointer shadow-sm hover:ring-2 hover:ring-border-strong transition-all"
-                                  >
-                                    <img
-                                      src={att.signed_url}
-                                      alt={att.original_name}
-                                      loading="lazy"
-                                      onError={() => void handleImageLoadError(att, message.id)}
-                                      className="max-h-60 max-w-full w-auto object-cover rounded-xl transition-transform duration-200 group-hover/img:scale-[1.02]"
-                                    />
-                                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover/img:opacity-100 transition-opacity flex items-center justify-center">
-                                      <Eye className="w-5 h-5 text-white drop-shadow" />
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                          )}
-
-                          {/* PDFs List */}
-                          {message.attachments
-                            .filter((a) => a.mime_type === "application/pdf")
-                            .map((att) => (
-                              <a
-                                key={att.id}
-                                href={att.signed_url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                download={att.original_name}
-                                className="flex items-center gap-3 p-3 rounded-xl bg-bg-surface border border-border-subtle hover:border-border-strong hover:bg-bg-elevated transition-all group/pdf max-w-full"
-                              >
-                                <div className="w-9 h-9 rounded-lg bg-red-500/10 border border-red-500/20 flex items-center justify-center shrink-0">
-                                  <FileText className="w-5 h-5 text-red-500" />
-                                </div>
-                                <div className="min-w-0 flex-1 text-left">
-                                  <p className="text-xs font-semibold text-text-primary truncate" title={att.original_name}>
-                                    {att.original_name}
-                                  </p>
-                                  <p className="text-[11px] text-text-muted">
-                                    {formatFileSize(att.size_bytes)} {att.page_count ? `· ${att.page_count} hal` : ""}
-                                  </p>
-                                </div>
-                                <Download className="w-4 h-4 text-icon-muted group-hover/pdf:text-text-primary shrink-0 transition-colors" />
-                              </a>
-                            ))}
-                        </div>
-                      )}
-
-                      {/* Text bubble */}
-                      {message.content && message.content !== "(Lampiran)" && (
-                        <div className="relative min-w-0 max-w-full overflow-hidden px-4 py-2.5 rounded-[20px] rounded-br-[6px] bg-zinc-900 text-zinc-50 dark:bg-zinc-800 dark:text-zinc-100 text-[15.5px] leading-[1.6] tracking-[-0.005em] shadow-[0_1px_4px_rgba(0,0,0,0.06)] dark:shadow-none border border-zinc-900/10 dark:border-white/[0.06] whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
-                          {message.content}
-                        </div>
-                      )}
-
-                      {/* Subtle copy/edit actions underneath user bubble (hover-revealed on desktop, ultra-compact muted icons without prominent timestamp on mobile) */}
-                      <div className="flex items-center gap-1 mt-1 text-zinc-400 dark:text-zinc-500 opacity-65 hover:opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity duration-200">
-                        {userTime && (
-                          <span className="hidden md:inline text-[11px] font-normal text-zinc-500 dark:text-zinc-500 pr-1 select-none tabular-nums">
-                            {userTime}
-                          </span>
-                        )}
-                        <div className="relative flex items-center">
-                          <button
-                            type="button"
-                            onClick={() => handleCopy(message.content, `user-${message.id}`, 1500)}
-                            title="Salin pesan"
-                            aria-label="Salin pesan pengguna"
-                            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-500 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] active:scale-[0.95] transition-all duration-150 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                          >
-                            {copiedId === `user-${message.id}` ? (
-                              <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" strokeWidth={1.75} />
-                            ) : (
-                              <Copy className="w-3.5 h-3.5" strokeWidth={1.5} />
-                            )}
-                          </button>
-                          {copiedId === `user-${message.id}` && (
-                            <span className="absolute right-full mr-1.5 px-2 py-0.5 rounded-md bg-zinc-900 text-white border border-zinc-800 dark:bg-white dark:text-zinc-950 dark:border-zinc-200 text-[11px] font-medium whitespace-nowrap shadow-md animate-in fade-in zoom-in-95 duration-150 z-30 flex items-center gap-1 pointer-events-none">
-                              <Check className="w-3 h-3 text-white dark:text-zinc-950" strokeWidth={1.75} />
-                              <span>Disalin</span>
-                            </span>
-                          )}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => handleStartEditUserMessage(message)}
-                          title="Edit pesan"
-                          aria-label="Edit pesan pengguna"
-                          className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-500 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] active:scale-[0.95] transition-all duration-150 flex items-center justify-center cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                        >
-                          <Pencil className="w-3.5 h-3.5" strokeWidth={1.5} />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
               }
-
-              if (message.isError) {
-                const lastUserMsgBeforeError = [...currentMessages]
-                  .reverse()
-                  .find((m) => m.sender === "user" && m.content.trim());
-                return (
-                  <div
-                    key={message.id}
-                    className="flex justify-start animate-error-shake w-full"
-                  >
-                    <div className="w-full max-w-xl rounded-2xl border border-zinc-200 dark:border-white/[0.08] bg-white dark:bg-[#0e0e10] px-4 py-3.5 space-y-2.5 shadow-sm">
-                      <div className="flex items-start gap-2.5 text-sm">
-                        <CircleAlert
-                          className="w-4 h-4 text-zinc-700 dark:text-zinc-300 shrink-0 mt-0.5"
-                          strokeWidth={1.5}
-                        />
-                        <div className="space-y-1 min-w-0">
-                          <div className="font-medium text-zinc-900 dark:text-zinc-100">
-                            {message.content}
-                          </div>
-                          {message.errorDetail && (
-                            <div className="text-xs text-zinc-500 dark:text-zinc-400 font-normal leading-relaxed">
-                              {message.errorDetail}
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                      {(message.retryPayload || lastUserMsgBeforeError) && (
-                        <div className="pt-0.5">
-                          <button
-                            type="button"
-                            disabled={isLoading || isGenerating}
-                            onClick={() => {
-                              if (message.retryPayload) {
-                                handleRetry(message.id, message.retryPayload);
-                              } else if (lastUserMsgBeforeError) {
-                                void handleSendMessage(lastUserMsgBeforeError.content);
-                              }
-                            }}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 transition-colors active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                          >
-                            <RotateCw className="w-3.5 h-3.5" strokeWidth={1.5} />
-                            <span>Coba Lagi</span>
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              }
-
-              const msgFeedback = feedback[message.id]?.rating;
-              const isStreamingThisMessage = streamingMessageId === message.id;
+              const activeCopiedIdForMessage =
+                copiedId &&
+                (copiedId === message.id ||
+                  copiedId === `wa-${message.id}` ||
+                  copiedId === `user-${message.id}` ||
+                  copiedId.startsWith(`${message.id}-code-`))
+                  ? copiedId
+                  : null;
+              const isFeedbackOpen = openFeedbackCommentId === message.id;
 
               return (
-                <div
+                <MessageItem
                   key={message.id}
-                  style={{ animationDuration: "280ms" }}
-                  className="w-full flex justify-start animate-axioma-fade-up group relative"
-                >
-                  <div className="w-full space-y-2 sm:space-y-2.5 min-w-0">
-                    {/* Axioma Identity Header */}
-                    <div className="inline-flex items-center gap-2 mb-1.5 select-none">
-                      <AxiomaLogoMark className="w-4 h-4 shrink-0" />
-                      <span className="text-[13px] font-medium text-zinc-900 dark:text-zinc-300">
-                        Axioma
-                      </span>
-                    </div>
-
-                    {(() => {
-                      const checklistMatches = message.content.match(
-                        /^\s*[-*+]\s+\[([ xX])\]/gm
-                      );
-                      const checklistDefaults = checklistMatches
-                        ? checklistMatches.map((m) => /\[[xX]\]/.test(m))
-                        : [];
-                      let checkboxRenderIdx = 0;
-                      const savedMap = checklistState[message.id] || {};
-                      const completedCount = checklistDefaults.reduce(
-                        (acc, defChecked, idx) =>
-                          acc + ((savedMap[idx] ?? defChecked) ? 1 : 0),
-                        0
-                      );
-
-                      if (message.lensData) {
-                        return (
-                          <div
-                            data-ai-message-id={message.id}
-                            onMouseUp={() =>
-                              handleAiMessageTextSelect(message.id, message.content)
-                            }
-                          >
-                            <AxiomaLensCard data={message.lensData} />
-                          </div>
-                        );
-                      }
-
-                      return (
-                        <div className="space-y-2">
-                          <div
-                            data-ai-message-id={message.id}
-                            onMouseUp={() =>
-                              handleAiMessageTextSelect(message.id, message.content)
-                            }
-                            className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 font-normal text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-relaxed tracking-[-0.005em] break-words transition-opacity duration-200 ${
-                              isStreamingThisMessage ? "streaming-prose" : ""
-                            }`}
-                          >
-                            <ReactMarkdown
-                              remarkPlugins={[remarkGfm, remarkMath]}
-                              rehypePlugins={[rehypeKatex]}
-                              components={{
-                                p({ node, children, ...props }) {
-                                  const hasBlockChild = (n: any): boolean => {
-                                    if (!n || !Array.isArray(n.children)) return false;
-                                    return n.children.some((child: any) => {
-                                      if (child?.type === "element") {
-                                        const tag = String(child.tagName || "").toLowerCase();
-                                        if (
-                                          tag === "img" ||
-                                          tag === "div" ||
-                                          tag === "video" ||
-                                          tag === "figure" ||
-                                          tag === "pre" ||
-                                          tag === "table"
-                                        ) {
-                                          return true;
-                                        }
-                                        return hasBlockChild(child);
-                                      }
-                                      return false;
-                                    });
-                                  };
-                                  if (hasBlockChild(node)) {
-                                    return <div className="my-2">{children}</div>;
-                                  }
-                                  return <p {...props}>{children}</p>;
-                                },
-                                input({ type, checked, ...props }) {
-                                  if (type === "checkbox") {
-                                    const currentIdx = checkboxRenderIdx++;
-                                    const isChecked =
-                                      savedMap[currentIdx] ?? Boolean(checked);
-                                    return (
-                                      <input
-                                        type="checkbox"
-                                        checked={isChecked}
-                                        disabled={false}
-                                        onChange={() =>
-                                          handleToggleChecklistItem(
-                                            message.id,
-                                            currentIdx,
-                                            isChecked
-                                          )
-                                        }
-                                        aria-label={`Tandai langkah ${currentIdx + 1}`}
-                                        className="mr-2 align-middle h-3.5 w-3.5 rounded border border-zinc-400 dark:border-zinc-600 accent-zinc-900 dark:accent-zinc-100 cursor-pointer"
-                                      />
-                                    );
-                                  }
-                                  return <input type={type} checked={checked} {...props} />;
-                                },
-                                pre({ children }) {
-                            return (
-                              <PreBlockContext.Provider value={true}>
-                                {children}
-                              </PreBlockContext.Provider>
-                            );
-                          },
-                          code({ className, children, ...props }) {
-                            return (
-                              <PreBlockContext.Consumer>
-                                {(isInsidePre) => {
-                                  const match = /language-([\w+-]+)/.exec(className || "");
-                                  const rawCode = String(children ?? "").replace(/\n$/, "");
-                                  const isBlockCode =
-                                    isInsidePre || Boolean(match) || rawCode.includes("\n");
-
-                                  if (!isBlockCode) {
-                                    return (
-                                      <code
-                                        className="px-1.5 py-0.5 mx-0.5 rounded-md bg-zinc-200/80 text-zinc-900 border border-zinc-300/60 dark:bg-zinc-800 dark:text-zinc-100 dark:border-zinc-700/60 font-mono text-[13px] leading-[1.55]"
-                                        {...props}
-                                      >
-                                        {children}
-                                      </code>
-                                    );
-                                  }
-
-                                  const language = (match?.[1] || "code").toLowerCase();
-                                  const copyKey = `${message.id}-code-${rawCode.length}-${rawCode.slice(0, 16)}`;
-
-                                  return (
-                                    <CodeBlock
-                                      language={language}
-                                      rawCode={rawCode}
-                                      isStreaming={isStreamingThisMessage}
-                                      onCopy={() => handleCopy(rawCode, copyKey, 1800)}
-                                      isCopied={copiedId === copyKey}
-                                      onRunPreview={(htmlCode) => setLivePreviewCode(htmlCode)}
-                                    />
-                                  );
-                                }}
-                              </PreBlockContext.Consumer>
-                            );
-                          },
-                          table({ children }) {
-                            return (
-                              <div className="axioma-table-scroll">
-                                <table>{children}</table>
-                              </div>
-                            );
-                          },
-                          a({ href, children, ...props }) {
-                            return (
-                              <a
-                                href={href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline underline-offset-4 decoration-blue-600/40 dark:decoration-blue-400/40 hover:decoration-current transition-colors break-words [overflow-wrap:anywhere]"
-                                {...props}
-                              >
-                                {children}
-                              </a>
-                            );
-                          },
-                          img({ src, alt }) {
-                            if (!src) return null;
-                            const isVideo =
-                              String(alt || "").toLowerCase().startsWith("video:") ||
-                              /\.(mp4|webm|mov)(\?.*)?$/i.test(String(src));
-                            if (isVideo) {
-                              const videoTitle =
-                                String(alt || "").replace(/^video:\s*/i, "") || "Adegan Video";
-                              return <AiVideoCard src={String(src)} title={videoTitle} />;
-                            }
-                            return (
-                              <AiImageCard
-                                src={String(src)}
-                                alt={String(alt || "Visual Axioma")}
-                                onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
-                              />
-                            );
-                          },
-                        }}
-                      >
-                        {sanitizeAxiomaMessageContent(message.content)}
-                      </ReactMarkdown>
-
-                      {/* Render structured media payload directly when returned separately from markdown */}
-                      {message.imageUrl && !message.content.includes(message.imageUrl) && (
-                        <AiImageCard
-                          src={message.imageUrl}
-                          alt={message.mediaTitle || "Visual Axioma"}
-                          onOpenLightbox={(url, name) => setLightboxImage({ url, name })}
-                        />
-                      )}
-                      {message.videoUrl && !message.content.includes(message.videoUrl) && (
-                        <AiVideoCard
-                          src={message.videoUrl}
-                          title={message.mediaTitle || "Adegan Video"}
-                        />
-                      )}
-                    </div>
-
-                          {/* Stage 7: Compact Interactive Checklist Progress Indicator */}
-                          {checklistDefaults.length > 0 && !isStreamingThisMessage && (
-                            <div className="flex items-center gap-2.5 max-w-xs pt-0.5 select-none">
-                              <div className="flex-1 h-1 rounded-full bg-black/[0.08] dark:bg-white/[0.08] overflow-hidden">
-                                <div
-                                  className="h-full bg-zinc-900 dark:bg-zinc-100 transition-all duration-200"
-                                  style={{
-                                    width: `${Math.round(
-                                      (completedCount / checklistDefaults.length) * 100
-                                    )}%`,
-                                  }}
-                                />
-                              </div>
-                              <span className="text-[11px] font-medium text-text-muted tabular-nums shrink-0">
-                                {completedCount}/{checklistDefaults.length} selesai
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })()}
-
-                    {/* Minimalist Message Actions: Salin + ··· Overflow Menu (Salin WA, Ulangi, Lanjutkan, Cabang, Feedback) */}
-                    <MessageActionBar
-                      messageId={message.id}
-                      isStreaming={isStreamingThisMessage}
-                      isBusy={isLoading || isGenerating}
-                      isCopied={copiedId === message.id}
-                      isWaCopied={copiedId === `wa-${message.id}`}
-                      isMenuOpen={openAiActionMenuId === message.id}
-                      feedback={msgFeedback}
-                      showFeedbackSavedNotice={feedbackSavedNoticeId === message.id}
-                      showStructuredFeedbackThanks={structuredFeedbackThanksId === message.id}
-                      onCopy={() =>
-                        handleCopy(sanitizeAxiomaMessageContent(message.content), message.id, 1500)
-                      }
-                      onCopyWhatsApp={() =>
-                        handleCopy(
-                          formatForWhatsApp(sanitizeAxiomaMessageContent(message.content)),
-                          `wa-${message.id}`,
-                          1500
-                        )
-                      }
-                      onToggleMenu={() =>
-                        setOpenAiActionMenuId((prev) => (prev === message.id ? null : message.id))
-                      }
-                      onCloseMenu={() => setOpenAiActionMenuId(null)}
-                      onBranch={() => handleBranchFromMessage(message.id)}
-                      onContinue={() => {
-                        void handleSendMessage(
-                          "Lanjutkan penjelasan sebelumnya secara langsung dan runtut dari poin terakhir tanpa mengulang."
-                        );
-                      }}
-                      onRegenerate={() => handleRegenerateLastReply(message.id)}
-                      onFeedback={(rating) => {
-                        void handleFeedback(message.id, rating);
-                      }}
-                    />
-
-                    {/* Single-Row Horizontally Scrollable Quick Follow-Up Chips (ONLY under the latest non-error AI reply when idle) */}
-                    {(() => {
-                      const lastAiMsg = [...currentMessages]
-                        .reverse()
-                        .find((m) => m.sender === "ai" && !m.isError);
-                      const isLatestAiReply = lastAiMsg?.id === message.id;
-                      if (!isLatestAiReply || isStreamingThisMessage || isLoading || isGenerating) {
-                        return null;
-                      }
-                      return (
-                        <FollowUpChips
-                          onSelectAction={(action) => {
-                            void handleSendMessage(action.prompt, {
-                              taskBreakdownMode: action.taskBreakdownMode,
-                            });
-                          }}
-                        />
-                      );
-                    })()}
-
-                    {/* Optional input "Apa yang kurang?" when 👎 is selected (1c, Item 5 + Stage 6 quick reason chips) */}
-                    {openFeedbackCommentId === message.id && msgFeedback === "down" && (
-                      <div className="rounded-xl bg-bg-elevated border border-border-subtle p-2.5 space-y-2 max-w-md">
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {(["Terlalu panjang", "Salah konteks", "Bahasa kaku"] as const).map(
-                            (reason) => (
-                              <button
-                                key={reason}
-                                type="button"
-                                onClick={() =>
-                                  void handleSendStructuredFeedback(message.id, "down", reason)
-                                }
-                                className="px-2.5 py-1 rounded-full text-[11px] font-medium text-text-secondary hover:text-text-primary border border-border-subtle hover:bg-bg-surface transition-colors cursor-pointer"
-                              >
-                                {reason}
-                              </button>
-                            )
-                          )}
-                        </div>
-                        <label
-                          htmlFor={`feedback-comment-${message.id}`}
-                          className="block text-xs font-medium text-text-secondary"
-                        >
-                          Apa yang kurang? <span className="text-text-muted">(opsional, maks 1.000 karakter)</span>
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <input
-                            id={`feedback-comment-${message.id}`}
-                            type="text"
-                            maxLength={1000}
-                            value={feedbackCommentDraft[message.id] || ""}
-                            onChange={(e) =>
-                              setFeedbackCommentDraft((prev) => ({
-                                ...prev,
-                                [message.id]: e.target.value,
-                              }))
-                            }
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") {
-                                e.preventDefault();
-                                void handleSubmitFeedbackComment(message.id);
-                              } else if (e.key === "Escape") {
-                                e.preventDefault();
-                                setOpenFeedbackCommentId(null);
-                              }
-                            }}
-                            placeholder="Misal: kurang akurat, terlalu panjang..."
-                            className="flex-1 min-w-0 px-2.5 py-1.5 rounded-lg bg-bg-surface border border-border-subtle text-[16px] md:text-[15px] lg:text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-border-strong"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => void handleSubmitFeedbackComment(message.id)}
-                            className="px-2.5 py-1.5 rounded-lg bg-text-primary hover:opacity-90 text-bg-primary text-xs font-medium transition-opacity cursor-pointer shrink-0"
-                          >
-                            Kirim
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setOpenFeedbackCommentId(null)}
-                            className="px-2 py-1.5 rounded-lg text-xs text-text-muted hover:text-text-primary hover:bg-bg-surface transition-colors cursor-pointer shrink-0"
-                          >
-                            Tutup
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </div>
+                  message={message}
+                  isStreaming={streamingMessageId === message.id}
+                  isBusy={isLoading || isGenerating}
+                  isLatestAiReply={lastAiMessageId === message.id}
+                  userTimeLabel={userTimeLabel}
+                  isEditingUser={isEditingThis}
+                  editingUserText={isEditingThis ? editingUserMsgText : ""}
+                  isSubmittingEdit={isEditingThis ? isSubmittingEdit : false}
+                  editUserTextareaRef={editUserTextareaRef}
+                  activeCopiedId={activeCopiedIdForMessage}
+                  isActionMenuOpen={openAiActionMenuId === message.id}
+                  msgFeedback={feedback[message.id]?.rating}
+                  showFeedbackSavedNotice={feedbackSavedNoticeId === message.id}
+                  showStructuredFeedbackThanks={structuredFeedbackThanksId === message.id}
+                  isFeedbackCommentOpen={isFeedbackOpen}
+                  feedbackCommentDraftValue={isFeedbackOpen ? feedbackCommentDraft[message.id] || "" : ""}
+                  savedChecklistMap={checklistState[message.id]}
+                  fallbackRetryUserContent={message.isError ? lastUserContentForError : null}
+                  onCopy={handleCopy}
+                  onOpenLightbox={handleOpenLightbox}
+                  onImageLoadError={handleImageLoadErrorStable}
+                  onStartEditUser={handleStartEditUserMessage}
+                  onEditingUserTextChange={setEditingUserMsgText}
+                  onCancelEditUser={handleCancelEditUserMessage}
+                  onSubmitEditUser={handleSubmitEditUserMessageStable}
+                  onRetryError={handleRetryErrorStable}
+                  onAiTextSelect={handleAiMessageTextSelectStable}
+                  onToggleChecklistItem={handleToggleChecklistItemStable}
+                  onRunPreview={handleRunLivePreview}
+                  onToggleActionMenu={handleToggleActionMenu}
+                  onCloseActionMenu={handleCloseActionMenu}
+                  onBranchFromMessage={handleBranchFromMessageStable}
+                  onContinueMessage={handleContinueMessageStable}
+                  onRegenerateMessage={handleRegenerateLastReplyStable}
+                  onFeedback={handleFeedbackStable}
+                  onSelectFollowUpAction={handleSelectFollowUpActionStable}
+                  onSendStructuredFeedback={handleSendStructuredFeedbackStable}
+                  onFeedbackCommentDraftChange={handleFeedbackCommentDraftChange}
+                  onSubmitFeedbackComment={handleSubmitFeedbackCommentStable}
+                  onCloseFeedbackComment={handleCloseFeedbackComment}
+                />
               );
             })}
 
@@ -10444,7 +10131,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     {pendingAttachments.map((att) => (
                       <div
                         key={att.id}
-                        className={`relative group shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs max-w-[220px] transition-all shadow-xs ${
+                        className={`relative group shrink-0 flex items-center gap-2 px-2.5 py-1.5 rounded-xl border text-xs max-w-[220px] transition-colors shadow-xs ${
                           att.status === "error"
                             ? "bg-red-950/20 border-red-500/50 text-red-200"
                             : "bg-bg-elevated border-border-subtle text-text-primary"
@@ -10503,7 +10190,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         {att.status === "uploading" && (
                           <div className="absolute left-0 bottom-0 right-0 h-0.5 bg-border-subtle rounded-b-xl overflow-hidden">
                             <div
-                              className="h-full bg-text-primary transition-all duration-150"
+                              className="h-full bg-text-primary transition-[width] duration-150"
                               style={{ width: `${att.progress}%` }}
                             />
                           </div>
@@ -10736,47 +10423,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Stage 6: Slash Commands Mini Monochrome Popover (only renders when matching) */}
-                {matchingSlashCommands.length > 0 && (
-                  <div
-                    role="listbox"
-                    aria-label="Pintasan perintah cepat"
-                    className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-1.5 space-y-0.5 shadow-lg"
-                  >
-                    {matchingSlashCommands.map((item, idx) => {
-                      const isSelected = idx === slashMenuIndex;
-                      return (
-                        <button
-                          key={item.cmd}
-                          type="button"
-                          role="option"
-                          aria-selected={isSelected}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            handleApplySlashCommand(item.cmd);
-                          }}
-                          onMouseEnter={() => setSlashMenuIndex(idx)}
-                          className={`w-full flex items-center justify-between gap-3 px-3 py-1.5 rounded-xl text-left text-xs transition-colors cursor-pointer ${
-                            isSelected
-                              ? "bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 font-medium"
-                              : "text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-white/[0.06]"
-                          }`}
-                        >
-                          <span className="font-mono font-medium">{item.cmd}</span>
-                          <span
-                            className={`text-[11px] truncate ${
-                              isSelected
-                                ? "text-zinc-300 dark:text-zinc-700"
-                                : "text-zinc-500 dark:text-zinc-400"
-                            }`}
-                          >
-                            {item.label}
-                          </span>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
+                {/* Stage 6: Slash Commands Mini Monochrome Popover (isolated subscriber — zero re-renders on normal typing) */}
+                <ComposerSlashMenu
+                  store={composerTextStore}
+                  commands={SLASH_COMMANDS}
+                  runtimeRef={slashMenuRuntimeRef}
+                  onApplyCommand={handleApplySlashCommand}
+                />
 
                 {/* Stage 6: Prompt Enhancement Preview Card (only renders when preview exists) */}
                 {enhancedPromptPreview && (
@@ -10844,24 +10497,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </span>
                 </div>
               ) : (
-                <textarea
-                  ref={textareaRef}
-                  rows={1}
-                  tabIndex={0}
-                  enterKeyHint="send"
-                  autoComplete="off"
-                  autoCorrect="on"
-                  spellCheck={true}
-                  value={inputText}
-                  onChange={handleTextareaChange}
-                  onKeyDown={handleKeyDown}
-                  onPaste={handlePaste}
-                  onFocus={() => {
-                    if (typeof window !== "undefined" && (window.scrollY !== 0 || window.scrollX !== 0)) {
-                      window.scrollTo(0, 0);
-                    }
-                  }}
-                  aria-label="Tulis pesan ke Axioma"
+                <ComposerTextarea
+                  store={composerTextStore}
+                  textareaRef={textareaRef}
                   placeholder={
                     activeMediaMode === "image"
                       ? "Deskripsikan gambar yang ingin dibuat..."
@@ -10873,8 +10511,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       ? "Lanjutkan percakapan..."
                       : DYNAMIC_PLACEHOLDERS[placeholderIndex]
                   }
-                  style={{ height: "28px" }}
-                  className="flex-1 min-w-0 w-full bg-transparent resize-none border-0 outline-none focus:outline-none text-zinc-900 dark:text-zinc-100 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 text-base md:text-sm leading-[1.45] font-normal py-0.5 px-0.5 min-h-[28px] max-h-[140px] overflow-y-auto tracking-normal transition-colors duration-300 ease-out touch-manipulation"
+                  onChangeValue={handleTextareaChange}
+                  onKeyDown={handleKeyDown}
+                  onPaste={handlePaste}
                 />
               )
             }
@@ -10908,7 +10547,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         disabled={isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice}
                         title={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas & aksi cepat"}
                         aria-label={isAttachmentsFull ? "Maksimal 4 file per pesan" : "Lampirkan berkas dan aksi cepat"}
-                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-150 ${
+                        className={`w-8 h-8 rounded-lg flex items-center justify-center transition-[color,background-color,transform] duration-150 ${
                           isAttachmentsFull || isLoading || isGenerating || isRecording || isTranscribingVoice
                             ? "text-zinc-400 dark:text-zinc-600 opacity-40 cursor-not-allowed pointer-events-none"
                             : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] active:scale-[0.96] cursor-pointer"
@@ -10945,7 +10584,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                                 closeAttachmentMenu(true)
                               )
                             }
-                            className={`absolute -left-2 bottom-full mb-2 md:mb-2.5 z-40 w-[264px] sm:w-72 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto overscroll-contain scrollbar-none rounded-2xl bg-white dark:bg-[#18181d] border border-zinc-200/90 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-2xl origin-bottom-left transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform focus:outline-none ${
+                            className={`absolute -left-2 bottom-full mb-2 md:mb-2.5 z-40 w-[264px] sm:w-72 max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto overscroll-contain scrollbar-none rounded-2xl bg-white dark:bg-[#18181d] border border-zinc-200/90 dark:border-white/[0.08] p-1.5 shadow-xl dark:shadow-2xl origin-bottom-left transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] focus:outline-none ${
                               isAttachmentMenuEntered
                                 ? "scale-100 opacity-100 translate-y-0"
                                 : "scale-95 opacity-0 translate-y-1 pointer-events-none"
@@ -11182,26 +10821,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   />
                 )}
 
-                {/* Prompt Enhancement Icon Button (only visible when input >= 12 chars) */}
-                {!isRecording &&
-                  !isTranscribingVoice &&
-                  inputText.trim().length >= 12 && (
-                    <button
-                      type="button"
-                      disabled={isLoading || isGenerating || isEnhancingPrompt}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => void handleEnhancePrompt()}
-                      title="Rapikan Prompt"
-                      aria-label="Rapikan Prompt"
-                      className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer active:scale-[0.96] disabled:opacity-45 shrink-0"
-                    >
-                      {isEnhancingPrompt ? (
-                        <Loader2 className="w-4 h-4 animate-spin" strokeWidth={1.5} />
-                      ) : (
-                        <PenLine className="w-4 h-4" strokeWidth={1.5} />
-                      )}
-                    </button>
-                  )}
+                {/* Prompt Enhancement Icon Button (isolated subscriber — only re-renders when crossing 12-char threshold) */}
+                {!isRecording && !isTranscribingVoice && (
+                  <ComposerEnhanceButton
+                    store={composerTextStore}
+                    disabled={isLoading || isGenerating}
+                    isEnhancing={isEnhancingPrompt}
+                    onEnhance={() => void handleEnhancePrompt()}
+                  />
+                )}
               </>
             }
             rightToolbarSlot={
@@ -11220,7 +10848,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       toggleHeaderAgentMenu();
                     }}
                     aria-label={`Pilih model AI, saat ini ${selectedAgent.name}`}
-                    className="h-8 px-2 max-w-[140px] sm:max-w-none rounded-lg flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer whitespace-nowrap active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+                    className="h-8 px-2 max-w-[140px] sm:max-w-none rounded-lg flex items-center gap-1 text-xs font-medium text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-[color,background-color,transform] duration-150 cursor-pointer whitespace-nowrap active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
                   >
                     <span className="truncate">
                       <span className="hidden min-[380px]:inline">Axioma </span>
@@ -11257,7 +10885,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                           agentDropdownDirection === "down"
                             ? "top-full mt-2 origin-top-right"
                             : "bottom-full mb-2 origin-bottom-right"
-                        } w-[min(280px,calc(100vw-2rem))] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[min(65vh,calc(var(--app-height)-140px))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] scrollbar-none rounded-2xl p-1.5 space-y-1 focus:outline-none transition-all duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                        } w-[min(280px,calc(100vw-2rem))] sm:w-[310px] max-w-[calc(100vw-2rem)] z-50 max-h-[min(65vh,calc(var(--app-height)-140px))] overflow-y-auto overscroll-y-contain [-webkit-overflow-scrolling:touch] scrollbar-none rounded-2xl p-1.5 space-y-1 focus:outline-none transition-[opacity,transform] duration-200 ease-[cubic-bezier(0.22,1,0.36,1)] ${
                           isHeaderAgentMenuEntered
                             ? "scale-100 opacity-100 translate-y-0"
                             : `scale-95 opacity-0 ${
@@ -11325,7 +10953,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         }}
                         title="Dikte suara (Bahasa Indonesia)"
                         aria-label="Mulai dikte"
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-all duration-150 cursor-pointer active:scale-[0.96]"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.07] transition-[color,background-color,transform] duration-150 cursor-pointer active:scale-[0.96]"
                       >
                         <Mic className="w-[17px] h-[17px]" strokeWidth={1.6} />
                       </button>
@@ -11360,7 +10988,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       onClick={() => stopVoiceRecording("stop")}
                       aria-label="Hentikan rekaman"
                       title="Hentikan rekaman (masukkan teks ke kotak input)"
-                      className="w-8 h-8 rounded-full bg-zinc-200/80 hover:bg-zinc-300 dark:bg-white/10 dark:hover:bg-white/20 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-zinc-700 dark:text-white/90"
+                      className="w-8 h-8 rounded-full bg-zinc-200/80 hover:bg-zinc-300 dark:bg-white/10 dark:hover:bg-white/20 active:scale-95 transition-[color,background-color,transform] flex items-center justify-center cursor-pointer text-zinc-700 dark:text-white/90"
                     >
                       <Square className="w-3.5 h-3.5 fill-current rounded-xs" />
                     </button>
@@ -11369,7 +10997,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                       onClick={() => stopVoiceRecording("send")}
                       aria-label="Kirim rekaman"
                       title="Kirim rekaman langsung"
-                      className="w-8 h-8 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 active:scale-95 transition-all flex items-center justify-center cursor-pointer text-white dark:text-zinc-900"
+                      className="w-8 h-8 rounded-full bg-zinc-900 hover:bg-zinc-800 dark:bg-zinc-100 dark:hover:bg-zinc-200 active:scale-95 transition-[color,background-color,transform] flex items-center justify-center cursor-pointer text-white dark:text-zinc-900"
                     >
                       <ArrowUp className="w-4 h-4 stroke-[2.5]" />
                     </button>
@@ -11387,7 +11015,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     onClick={handleStopGeneration}
                     title="Hentikan respons"
                     aria-label="Hentikan respons"
-                    className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 active:scale-95 transition-all cursor-pointer"
+                    className="w-8 h-8 rounded-full flex items-center justify-center bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-zinc-100 dark:text-zinc-900 dark:hover:bg-zinc-200 active:scale-95 transition-[color,background-color,transform] cursor-pointer"
                   >
                     <Square className="w-3.5 h-3.5 fill-current" />
                   </button>
@@ -11396,8 +11024,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     (a) => a.status === "uploading" || a.status === "compressing"
                   );
                   const hasReadyAttachments = pendingAttachments.some((a) => a.status === "ready");
-                  const hasUserTextOrAttachments =
-                    Boolean(inputText.trim()) ||
+                  const hasOtherSendablePayload =
                     hasReadyAttachments ||
                     Boolean(pendingVisionPhoto) ||
                     Boolean(pendingPdfDoc);
@@ -11410,63 +11037,16 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                     isSubmitting;
 
                   return (
-                    <div className="relative w-8 h-8 shrink-0">
-                      {hasUserTextOrAttachments ? (
-                        <button
-                          key="send-btn"
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                          }}
-                          onTouchEnd={(e) => {
-                            e.preventDefault();
-                            if (!isSendDisabled) {
-                              void handleSendMessage();
-                              textareaRef.current?.blur();
-                            }
-                          }}
-                          onClick={() => {
-                            if (!isSendDisabled) {
-                              void handleSendMessage();
-                              textareaRef.current?.blur();
-                            }
-                          }}
-                          disabled={isSendDisabled}
-                          title={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                          aria-label={!isOnline ? "Koneksi internet terputus" : "Kirim pesan"}
-                          className={`w-8 h-8 rounded-full flex items-center justify-center animate-axioma-scale-in transition-all duration-150 select-none touch-manipulation focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
-                            !isSendDisabled
-                              ? `bg-zinc-900 hover:bg-zinc-800 text-white dark:bg-zinc-100 dark:hover:bg-zinc-200 dark:text-zinc-900 active:scale-[0.95] cursor-pointer ${
-                                  isSendPressed ? "scale-[0.94]" : "scale-100"
-                                }`
-                              : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-60"
-                          }`}
-                        >
-                          {isUploadingAttachment ? (
-                            <Loader2 className="w-4 h-4 animate-spin text-current" strokeWidth={1.75} />
-                          ) : (
-                            <ArrowUp className="w-4 h-4 text-current" strokeWidth={2.25} />
-                          )}
-                        </button>
-                      ) : (
-                        <button
-                          key="vn-btn"
-                          type="button"
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                          }}
-                          onClick={() => {
-                            textareaRef.current?.blur();
-                            handleOpenVoiceMode();
-                          }}
-                          title="Mode Suara (Percakapan langsung)"
-                          aria-label="Mode Suara (Percakapan langsung)"
-                          className="w-8 h-8 rounded-full flex items-center justify-center animate-axioma-scale-in bg-zinc-200/75 hover:bg-zinc-300/80 text-zinc-800 dark:bg-white/[0.09] dark:hover:bg-white/[0.15] dark:text-zinc-100 active:scale-[0.95] transition-all duration-150 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
-                        >
-                          <AudioLines className="w-4 h-4" strokeWidth={1.75} />
-                        </button>
-                      )}
-                    </div>
+                    <ComposerSendOrVoiceButton
+                      store={composerTextStore}
+                      hasOtherSendablePayload={hasOtherSendablePayload}
+                      isSendDisabled={isSendDisabled}
+                      isOnline={isOnline}
+                      isUploadingAttachment={isUploadingAttachment}
+                      isSendPressed={isSendPressed}
+                      onSend={handleComposerSendClick}
+                      onOpenVoiceMode={handleComposerVoiceClick}
+                    />
                   );
                 })()}
               </>
@@ -11493,7 +11073,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[440px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-4 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-all duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[440px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-4 overflow-y-auto overscroll-y-contain overscroll-contain touch-auto transition-[opacity,transform] duration-280 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isEditConfirmEntered
                 ? "translate-y-0 opacity-100 md:scale-100"
                 : "translate-y-4 opacity-0 md:translate-y-0 md:scale-95"
@@ -11521,7 +11101,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 type="button"
                 disabled={isSubmittingEdit}
                 onClick={() => setEditConfirmTarget(null)}
-                className="w-full md:w-auto min-h-[44px] md:min-h-[40px] px-4 py-2 rounded-xl text-sm md:text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary active:scale-[0.96] border border-border-subtle transition-all cursor-pointer disabled:opacity-50"
+                className="w-full md:w-auto min-h-[44px] md:min-h-[40px] px-4 py-2 rounded-xl text-sm md:text-xs font-medium text-text-secondary bg-bg-surface hover:bg-bg-subtle hover:text-text-primary active:scale-[0.96] border border-border-subtle transition-[color,background-color,transform] cursor-pointer disabled:opacity-50"
               >
                 Batal
               </button>
@@ -11531,7 +11111,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 onClick={() =>
                   handleSubmitEditUserMessage(displayEditConfirm.msgId, displayEditConfirm.content)
                 }
-                className="w-full md:w-auto min-h-[44px] md:min-h-[40px] px-4 py-2 rounded-xl text-sm md:text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 active:scale-[0.96] transition-all cursor-pointer disabled:opacity-50 shadow-xs"
+                className="w-full md:w-auto min-h-[44px] md:min-h-[40px] px-4 py-2 rounded-xl text-sm md:text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 active:scale-[0.96] transition-[opacity,transform] cursor-pointer disabled:opacity-50 shadow-xs"
               >
                 {isSubmittingEdit ? "Menghapus & Mengirim…" : "Lanjutkan & Kirim"}
               </button>
@@ -11556,7 +11136,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }}
         >
           <div
-            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[480px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-5 overflow-y-auto overscroll-y-contain overscroll-contain transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] will-change-transform ${
+            className={`fixed inset-0 w-full h-[var(--app-height,100dvh)] max-w-none max-h-none m-0 rounded-none border-0 bg-[#f9f9f8] dark:bg-[#0e0e10] pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))] px-4 flex flex-col justify-between md:inset-auto md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:w-[90vw] md:max-w-[480px] md:h-auto md:max-h-[85dvh] md:rounded-[28px] md:bg-bg-elevated md:dark:bg-[#111114] md:border md:border-border-subtle md:dark:border-white/[0.08] md:p-6 md:shadow-2xl md:block md:space-y-5 overflow-y-auto overscroll-y-contain overscroll-contain transition-[opacity,transform] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] ${
               isGuestLimitEntered
                 ? "translate-y-0 opacity-100 md:scale-100"
                 : "translate-y-4 opacity-0 md:translate-y-0 md:scale-95"
@@ -11606,7 +11186,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   setIsGuestLimitModalOpen(false);
                   setIsAuthModalOpen(true);
                 }}
-                className="w-full md:w-auto flex-1 min-h-[44px] md:min-h-[42px] px-4 py-2.5 rounded-xl text-sm md:text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 transition-all shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
+                className="w-full md:w-auto flex-1 min-h-[44px] md:min-h-[42px] px-4 py-2.5 rounded-xl text-sm md:text-xs font-semibold text-bg-primary bg-text-primary hover:opacity-90 transition-[opacity,transform] shadow-xs flex items-center justify-center gap-2 cursor-pointer active:scale-98"
               >
                 <Cloud className="w-4 h-4" strokeWidth={1.75} />
                 <span>Hubungkan Akun</span>

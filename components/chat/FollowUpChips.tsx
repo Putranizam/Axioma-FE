@@ -10,7 +10,7 @@ interface FollowUpChipsProps {
   onSelectAction: (action: AdaptiveAnswerAction) => void;
 }
 
-export function FollowUpChips({ onSelectAction }: FollowUpChipsProps) {
+export const FollowUpChips = React.memo(function FollowUpChips({ onSelectAction }: FollowUpChipsProps) {
   return (
     <div
       role="group"
@@ -29,4 +29,4 @@ export function FollowUpChips({ onSelectAction }: FollowUpChipsProps) {
       ))}
     </div>
   );
-}
+});

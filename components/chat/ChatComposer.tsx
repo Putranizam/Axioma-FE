@@ -17,7 +17,7 @@ interface ChatComposerProps {
   showDisclaimer: boolean;
 }
 
-export function ChatComposer({
+export const ChatComposer = React.memo(function ChatComposer({
   hasMessages,
   isDesktopEmptyState,
   isUserScrolledUp,
@@ -49,7 +49,7 @@ export function ChatComposer({
             onClick={onScrollToBottom}
             title="Kembali ke pesan terbaru"
             aria-label="Gulir ke bawah"
-            className={`ios-glass w-9 h-9 rounded-full text-zinc-800 dark:text-zinc-100 flex items-center justify-center transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform active:scale-[0.95] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
+            className={`ios-glass w-9 h-9 rounded-full text-zinc-800 dark:text-zinc-100 flex items-center justify-center transition-[opacity,transform] duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] motion-safe-transform active:scale-[0.95] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
               isUserScrolledUp
                 ? "opacity-100 translate-y-0 scale-100 pointer-events-auto"
                 : "opacity-0 translate-y-2 scale-90 pointer-events-none"
@@ -83,7 +83,7 @@ export function ChatComposer({
             {/* Dedicated backdrop layer (keeps parent free of backdrop-filter for iOS Safari nested menus) */}
             <div
               aria-hidden="true"
-              className="ios-glass absolute inset-0 rounded-[24px] bg-white/90 dark:bg-[#17171b]/90 border border-zinc-200/90 dark:border-white/10 shadow-[0_6px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_28px_rgba(0,0,0,0.45)] pointer-events-none transition-all duration-200 group-focus-within/input:border-zinc-400/50 dark:group-focus-within/input:border-white/20"
+              className="ios-glass absolute inset-0 rounded-[24px] bg-white/95 md:bg-white/90 dark:bg-[#17171b]/95 md:dark:bg-[#17171b]/90 border border-zinc-200/90 dark:border-white/10 shadow-[0_6px_24px_rgba(0,0,0,0.06)] dark:shadow-[0_8px_28px_rgba(0,0,0,0.45)] pointer-events-none transition-colors duration-200 group-focus-within/input:border-zinc-400/50 dark:group-focus-within/input:border-white/20"
             />
 
             {/* Top Row: Textarea / Recording Waveform / Transcribing */}
@@ -135,4 +135,4 @@ export function ChatComposer({
       </p>
     </div>
   );
-}
+});

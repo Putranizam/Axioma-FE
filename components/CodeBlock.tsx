@@ -24,7 +24,9 @@ interface CodeBlockProps {
   language: string;
   rawCode: string;
   isStreaming?: boolean;
-  onCopy: () => void;
+  onCopy?: () => void;
+  copyKey?: string;
+  onCopyCode?: (code: string, copyKey: string) => void;
   isCopied: boolean;
   onRunPreview?: (code: string) => void;
 }
@@ -34,6 +36,8 @@ export const CodeBlock = memo(function CodeBlock({
   rawCode,
   isStreaming = false,
   onCopy,
+  copyKey,
+  onCopyCode,
   isCopied,
   onRunPreview,
 }: CodeBlockProps) {
@@ -53,14 +57,23 @@ export const CodeBlock = memo(function CodeBlock({
 
     try {
       const cleanLang = (language || "").trim().toLowerCase();
-      if (cleanLang && hljs.getLanguage(cleanLang)) {
+      if (
+        !cleanLang ||
+        cleanLang === "code" ||
+        cleanLang === "text" ||
+        cleanLang === "plaintext" ||
+        cleanLang === "plain" ||
+        cleanLang === "txt"
+      ) {
+        return null;
+      }
+      if (hljs.getLanguage(cleanLang)) {
         return hljs.highlight(rawCode, {
           language: cleanLang,
           ignoreIllegals: true,
         }).value;
       }
-      // Auto-detect language if unspecified or unknown
-      return hljs.highlightAuto(rawCode).value;
+      return null;
     } catch {
       return null;
     }
@@ -80,7 +93,7 @@ export const CodeBlock = memo(function CodeBlock({
               disabled={isStreaming}
               onClick={() => onRunPreview?.(rawCode)}
               aria-label="Jalankan pratinjau langsung HTML"
-              className="inline-flex items-center gap-1.5 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 px-2.5 py-1 rounded-md text-xs font-medium transition-all duration-150 active:scale-[0.96] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[28px] sm:min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+              className="inline-flex items-center gap-1.5 bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 px-2.5 py-1 rounded-md text-xs font-medium transition-[color,background-color,transform] duration-150 active:scale-[0.96] cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed min-h-[28px] sm:min-h-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
             >
               <Play className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
               <span>Jalankan</span>
@@ -88,9 +101,15 @@ export const CodeBlock = memo(function CodeBlock({
           )}
           <button
             type="button"
-            onClick={onCopy}
+            onClick={() => {
+              if (onCopyCode && copyKey) {
+                onCopyCode(rawCode, copyKey);
+              } else {
+                onCopy?.();
+              }
+            }}
             aria-label={isCopied ? "Kode berhasil disalin" : "Salin kode"}
-            className="inline-flex items-center gap-1.5 font-sans font-medium tracking-tight text-[11.5px] text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] transition-all duration-200 active:scale-[0.96] cursor-pointer py-1 px-2 min-h-[32px] sm:min-h-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+            className="inline-flex items-center gap-1.5 font-sans font-medium tracking-tight text-[11.5px] text-zinc-600 hover:text-zinc-900 hover:bg-zinc-200/80 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] transition-[color,background-color,transform] duration-200 active:scale-[0.96] cursor-pointer py-1 px-2 min-h-[32px] sm:min-h-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
           >
             {isCopied ? (
               <Check className="w-3.5 h-3.5 text-zinc-900 dark:text-zinc-100 shrink-0" strokeWidth={1.5} />

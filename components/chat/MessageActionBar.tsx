@@ -33,7 +33,7 @@ interface MessageActionBarProps {
   onFeedback: (rating: "up" | "down") => void;
 }
 
-export function MessageActionBar({
+export const MessageActionBar = React.memo(function MessageActionBar({
   isStreaming,
   isBusy,
   isCopied,
@@ -67,7 +67,7 @@ export function MessageActionBar({
           onClick={onCopy}
           title={isCopied ? "Disalin" : "Salin jawaban"}
           aria-label="Salin jawaban"
-          className="h-8 px-2 rounded-lg text-xs font-medium tracking-tight text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] active:scale-[0.96] transition-all duration-150 cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
+          className="h-8 px-2 rounded-lg text-xs font-medium tracking-tight text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06] active:scale-[0.96] transition-[color,background-color,transform] duration-150 cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60"
         >
           {isCopied ? (
             <>
@@ -91,7 +91,7 @@ export function MessageActionBar({
             aria-label="Aksi lainnya"
             title="Aksi lainnya"
             onClick={onToggleMenu}
-            className={`w-8 h-8 rounded-lg active:scale-[0.96] transition-all duration-150 cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
+            className={`w-8 h-8 rounded-lg active:scale-[0.96] transition-[color,background-color,transform] duration-150 cursor-pointer flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-zinc-400/50 dark:focus-visible:ring-zinc-600/60 ${
               isMenuOpen
                 ? "bg-zinc-200/70 text-zinc-900 dark:bg-white/[0.09] dark:text-zinc-100"
                 : "text-zinc-500 hover:text-zinc-900 hover:bg-zinc-200/60 dark:text-zinc-400 dark:hover:text-zinc-100 dark:hover:bg-white/[0.06]"
@@ -226,4 +226,4 @@ export function MessageActionBar({
       </div>
     </div>
   );
-}
+});
