@@ -10833,9 +10833,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             <div ref={messagesEndRef} className="h-6 shrink-0" />
           </div>
 
-          {/* Input Console (Mobile < md: full-bleed edge-to-edge dock | Desktop md+: floating .ios-glass capsule) */}
+          {/* Input Console (Rounded floating card on Mobile & Desktop with iPhone safe-area bottom) */}
           <div
-            className={`w-full bg-transparent px-0 pt-0 pb-0 md:px-6 md:pt-2 md:pb-3 [[data-kb="open"]_&]:md:pt-1.5 ${
+            className={`w-full bg-transparent px-3 sm:px-4 md:px-6 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] md:pb-3 [[data-kb="open"]_&]:pt-1.5 ${
               hasMessages
                 ? "absolute bottom-0 inset-x-0 z-20 pointer-events-none"
                 : isDesktopEmptyState
@@ -10864,7 +10864,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               </div>
             )}
             <div
-              className={`w-full max-w-none md:max-w-[680px] lg:max-w-[720px] md:mx-auto flex flex-col items-center ${
+              className={`w-full max-w-[680px] lg:max-w-[720px] mx-auto flex flex-col items-center ${
                 isDesktopEmptyState ? "md:flex-1 md:justify-center" : ""
               }`}
             >
@@ -10901,7 +10901,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Pending Attachment Chips Preview */}
                 {pendingAttachments.length > 0 && (
-                  <div className="pointer-events-auto flex items-center gap-2 mb-2 px-3 py-1.5 md:p-1.5 overflow-x-auto max-w-full scrollbar-none animate-fade-in">
+                  <div className="pointer-events-auto flex items-center gap-2 mb-2 p-1.5 overflow-x-auto max-w-full scrollbar-none animate-fade-in">
                     {pendingAttachments.map((att) => (
                       <div
                         key={att.id}
@@ -11061,7 +11061,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Stage 9: Smart PDF Preview & Mode Selector Card */}
                 {pendingPdfDoc && (
-                  <div className="pointer-events-auto max-w-[720px] mx-auto w-[calc(100%-1.5rem)] md:w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-start gap-3 shadow-lg">
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-start gap-3 shadow-lg">
                     <div className="relative shrink-0 w-11 h-11 rounded-xl border border-zinc-200 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.04] flex items-center justify-center">
                       <FileText
                         className="w-5 h-5 text-zinc-700 dark:text-zinc-300"
@@ -11127,7 +11127,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Stage 8: Multimodal Vision Photo Preview & Mode Selector Card */}
                 {pendingVisionPhoto && (
-                  <div className="pointer-events-auto max-w-[720px] mx-auto w-[calc(100%-1.5rem)] md:w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-center gap-3 shadow-lg">
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-2.5 flex items-center gap-3 shadow-lg">
                     <div className="relative shrink-0">
                       <img
                         src={pendingVisionPhoto.previewUrl}
@@ -11202,7 +11202,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   <div
                     role="listbox"
                     aria-label="Pintasan perintah cepat"
-                    className="pointer-events-auto max-w-[720px] mx-auto w-[calc(100%-1.5rem)] md:w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-1.5 space-y-0.5 shadow-lg"
+                    className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-1.5 space-y-0.5 shadow-lg"
                   >
                     {matchingSlashCommands.map((item, idx) => {
                       const isSelected = idx === slashMenuIndex;
@@ -11241,7 +11241,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
                 {/* Stage 6: Prompt Enhancement Preview Card (only renders when preview exists) */}
                 {enhancedPromptPreview && (
-                  <div className="pointer-events-auto max-w-[720px] mx-auto w-[calc(100%-1.5rem)] md:w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-3 space-y-2 shadow-lg">
+                  <div className="pointer-events-auto max-w-[720px] mx-auto w-full mb-2 rounded-2xl bg-white dark:bg-[#0e0e10] border border-zinc-200 dark:border-white/[0.08] p-3 space-y-2 shadow-lg">
                     <div className="flex items-center justify-between gap-2">
                       <span className="inline-flex items-center gap-1.5 text-[10px] font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                         <PenLine className="w-3 h-3" strokeWidth={1.5} />
@@ -11282,17 +11282,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </div>
                 )}
 
-                {/* Axioma Input Box (Mobile < md: Full-bleed edge-to-edge dock | Desktop md+: rounded-[24px] Native iOS Glass) */}
+                {/* Axioma Organic Minimalist Input Box (rounded-[24px], 2-Row, Native iOS Glass) */}
                 <div
                   style={!hasMessages ? { animationDelay: "120ms" } : undefined}
-                  className={`group/input relative pointer-events-auto w-full max-w-none rounded-none border-t border-zinc-200/80 dark:border-white/[0.08] bg-[#f9f9f8]/95 dark:bg-[#0e0e10]/95 backdrop-blur-md px-3.5 pt-2.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:max-w-[720px] md:mx-auto md:rounded-[24px] md:border-t-0 md:bg-transparent md:dark:bg-transparent md:backdrop-blur-none md:px-4 md:pt-3 md:pb-2.5 flex flex-col gap-1.5 ${
+                  className={`group/input relative pointer-events-auto max-w-[720px] mx-auto w-full rounded-[24px] px-4 pt-3 pb-2.5 flex flex-col gap-1.5 ${
                     !hasMessages ? "animate-axioma-fade-up" : ""
                   }`}
                 >
-                  {/* Dedicated .ios-glass backdrop layer (Desktop md+ only; mobile uses seamless full-bleed dock) */}
+                  {/* Dedicated .ios-glass backdrop layer (keeps parent free of backdrop-filter so nested Model Dropdown blurs cleanly in Safari iOS) */}
                   <div
                     aria-hidden="true"
-                    className="hidden md:block ios-glass absolute inset-0 rounded-[24px] pointer-events-none transition-all duration-200 group-focus-within/input:border-zinc-400/40 dark:group-focus-within/input:border-white/25"
+                    className="ios-glass absolute inset-0 rounded-[24px] border border-zinc-200/90 dark:border-white/10 shadow-[0_6px_24px_rgba(0,0,0,0.08)] dark:shadow-[0_8px_28px_rgba(0,0,0,0.45)] pointer-events-none transition-all duration-200 group-focus-within/input:border-zinc-400/50 dark:group-focus-within/input:border-white/25"
                   />
                   {/* Baris Atas: Textarea Auto-Expand / Recording Waveform / Transcribing */}
                   <div className="relative z-10 w-full min-w-0 flex items-center">
@@ -11957,7 +11957,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
             {/* Disclaimer + Privacy & Terms Links (#9, WCAG AA >= 4.5:1 via --text-muted #a1a1aa) */}
             <p
-              className={`pointer-events-none shrink-0 mt-1.5 mb-0 py-0.5 md:pt-1.5 md:pb-3 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal [[data-kb="open"]_&]:hidden ${
+              className={`pointer-events-none shrink-0 mt-2 mb-0 py-0.5 md:pt-1.5 md:pb-3 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 md:text-zinc-500 md:dark:text-zinc-400 tracking-normal [[data-kb="open"]_&]:hidden ${
                 currentMessages.length === 0
                   ? "hidden"
                   : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5"
