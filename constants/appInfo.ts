@@ -17,3 +17,17 @@ export function formatQuotaResetLabel(resetAt?: string): string {
     return "pukul 00.00 WIB";
   }
 }
+
+export function formatTokenNumber(value: number): string {
+  if (!Number.isFinite(value)) return "0";
+  return Math.max(0, Math.round(value)).toLocaleString("id-ID");
+}
+
+export function formatUsagePercentLabel(percent: number): string {
+  if (!Number.isFinite(percent) || percent <= 0) return "0%";
+  const clamped = Math.min(100, Math.max(0, percent));
+  if (clamped > 0 && clamped < 1) {
+    return `${clamped.toLocaleString("id-ID", { maximumFractionDigits: 1 })}%`;
+  }
+  return `${Math.round(clamped)}%`;
+}

@@ -20,7 +20,8 @@ import {
   User,
   X,
 } from "lucide-react";
-import { AXIOMA_APP_VERSION } from "@/constants/appInfo";
+import { AXIOMA_APP_VERSION, formatTokenNumber } from "@/constants/appInfo";
+import { TokenUsageDiagram } from "./TokenUsageDiagram";
 import type {
   DesktopSettingsPageId,
   SettingsAgentId,
@@ -72,18 +73,21 @@ export interface SettingsModalProps {
   onToggleRequirementLock: (enabled: boolean) => void;
   onAddRequirementLockItem: () => void;
   onUpdateRequirementLockItems: (items: string[]) => void;
-  // Quota
+  // Quota (Token-based)
   isQuotaInitialLoading: boolean;
   hasLoadedQuota: boolean;
-  isProPlan: boolean;
-  remainingCreditsCount: number;
-  dailyCreditsRemaining: number;
-  dailyCreditLimit: number;
-  dailyCreditsPercent: number;
-  bonusCreditsCount: number;
-  quotaTariffCompact: string;
+  quotaPlan: "free" | "pro";
+  dailyTokenLimit: number;
+  usedTokensCount: number;
+  remainingTokensCount: number;
+  bonusTokensCount: number;
+  tokenUsagePercent: number;
+  promptTokensUsedCount: number;
+  completionTokensUsedCount: number;
+  quotaRowSummary: string;
+  quotaTariffNote: string;
   quotaResetLabel: string;
-  guestFreeDailyLimit: number;
+  guestFreeDailyTokens?: number;
   guestMessageCount: number;
   guestMaxMessages: number;
   onRefreshQuota: () => void;
@@ -132,15 +136,18 @@ export function SettingsModal({
   onUpdateRequirementLockItems,
   isQuotaInitialLoading,
   hasLoadedQuota,
-  isProPlan,
-  remainingCreditsCount,
-  dailyCreditsRemaining,
-  dailyCreditLimit,
-  dailyCreditsPercent,
-  bonusCreditsCount,
-  quotaTariffCompact,
+  quotaPlan,
+  dailyTokenLimit,
+  usedTokensCount,
+  remainingTokensCount,
+  bonusTokensCount,
+  tokenUsagePercent,
+  promptTokensUsedCount,
+  completionTokensUsedCount,
+  quotaRowSummary,
+  quotaTariffNote,
   quotaResetLabel,
-  guestFreeDailyLimit,
+  guestFreeDailyTokens,
   guestMessageCount,
   guestMaxMessages,
   onRefreshQuota,
@@ -156,6 +163,8 @@ export function SettingsModal({
   onSetTheme,
   onRequestClearAllChats,
 }: SettingsModalProps) {
+  const isProPlan = quotaPlan === "pro";
+
   if (typeof document === "undefined") {
     return null;
   }
@@ -341,12 +350,12 @@ export function SettingsModal({
                           </div>
                           <p className="text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
                             {isQuotaInitialLoading
-                              ? "Memuat sisa kuota kredit harian..."
+                              ? "Memuat kuota token harian..."
                               : !hasLoadedQuota
-                                ? "Gagal memuat status kuota kredit."
+                                ? "Gagal memuat status kuota token."
                                 : isProPlan
-                                  ? "Akses penuh tanpa batas kredit harian untuk seluruh model."
-                                  : `Paket Gratis (Free) · ${remainingCreditsCount} kredit tersisa · Reset ${quotaResetLabel}`}
+                                  ? `Axioma Pro · ${formatTokenNumber(remainingTokensCount)} token tersisa · Reset ${quotaResetLabel}`
+                                  : `Paket Gratis (Free) · ${formatTokenNumber(remainingTokensCount)} token tersisa · Reset ${quotaResetLabel}`}
                           </p>
                           <button
                             type="button"
@@ -518,7 +527,7 @@ export function SettingsModal({
                     </span>
                   </button>
 
-                  {/* Batas penggunaan (sisa kredit real-time dari state kuota / GET /api/quota) */}
+                  {/* Batas penggunaan (pemakaian token real-time dari state kuota / GET /api/quota) */}
                   <button
                     type="button"
                     onClick={() => {
@@ -546,9 +555,7 @@ export function SettingsModal({
                             ? "..."
                             : !hasLoadedQuota
                               ? "—"
-                              : isProPlan
-                                ? "PRO"
-                                : `${remainingCreditsCount} kredit`
+                              : quotaRowSummary
                           : `${Math.max(0, guestMaxMessages - guestMessageCount)}/${guestMaxMessages}`}
                       </span>
                       <ChevronRight
@@ -567,8 +574,8 @@ export function SettingsModal({
                         isQuotaInitialLoading ? (
                           <div
                             role="status"
-                            aria-label="Memuat kuota kredit"
-                            className="w-full space-y-3 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4"
+                            aria-label="Memuat kuota token"
+                            className="w-full space-y-4 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4"
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
@@ -576,19 +583,18 @@ export function SettingsModal({
                               </span>
                               <span className="h-5 w-14 rounded-full bg-zinc-200/85 dark:bg-white/[0.08] animate-pulse" />
                             </div>
-                            <div className="space-y-2">
-                              <div className="h-6 w-48 rounded-lg bg-zinc-200/85 dark:bg-white/[0.08] animate-pulse" />
-                              <div className="h-3.5 w-36 rounded bg-zinc-200/70 dark:bg-white/[0.06] animate-pulse" />
+                            <div className="flex flex-col items-center gap-3 py-1">
+                              <div className="w-[124px] h-[124px] rounded-full border-[10px] border-zinc-200/85 dark:border-white/[0.08] animate-pulse" />
+                              <div className="w-full h-24 rounded-xl bg-zinc-200/70 dark:bg-white/[0.06] animate-pulse" />
                             </div>
-                            <div className="w-full h-2 rounded-full bg-zinc-200/80 dark:bg-white/[0.08] animate-pulse" />
-                            <p className="text-[11.5px] text-zinc-500 dark:text-zinc-400">
-                              Memuat sisa kuota kredit harian...
+                            <p className="text-[11.5px] text-zinc-500 dark:text-zinc-400 text-center">
+                              Memuat statistik pemakaian token harian...
                             </p>
                           </div>
                         ) : !hasLoadedQuota ? (
                           <div className="w-full space-y-3 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
                             <p className="text-xs text-zinc-600 dark:text-zinc-300 leading-relaxed">
-                              Gagal memuat detail kuota kredit dari server.
+                              Gagal memuat detail kuota token dari server.
                             </p>
                             <button
                               type="button"
@@ -599,92 +605,20 @@ export function SettingsModal({
                             </button>
                           </div>
                         ) : (
-                          <div className="w-full space-y-3.5 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
-                            {/* Status Paket */}
-                            <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                                Status Paket
-                              </span>
-                              {isProPlan ? (
-                                <span className="bg-zinc-950 text-white dark:bg-white dark:text-zinc-950 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
-                                  PRO
-                                </span>
-                              ) : (
-                                <span className="border border-zinc-300 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 text-[10.5px] font-semibold tracking-wider uppercase px-2 py-0.5 rounded-full">
-                                  FREE
-                                </span>
-                              )}
-                            </div>
-
-                            {/* Sisa Kredit Utama */}
-                            <div className="space-y-1">
-                              <div className="text-[18px] font-semibold tracking-tight text-zinc-950 dark:text-white tabular-nums">
-                                {isProPlan
-                                  ? "Tanpa batas harian"
-                                  : `${dailyCreditsRemaining} / ${dailyCreditLimit} kredit tersisa hari ini`}
-                              </div>
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed tabular-nums">
-                                {isProPlan
-                                  ? "Akses penuh tanpa batas kredit harian untuk seluruh model Axioma."
-                                  : `Sisa kredit hari ini: ${dailyCreditsRemaining} dari ${dailyCreditLimit} kredit`}
-                              </p>
-                            </div>
-
-                            {/* Progress Bar Visual */}
-                            <div className="space-y-1.5">
-                              <div className="w-full h-2 rounded-full bg-zinc-200/90 dark:bg-white/[0.08] overflow-hidden">
-                                <div
-                                  style={{ width: `${dailyCreditsPercent}%` }}
-                                  className={`h-full rounded-full transition-[width] duration-300 ${
-                                    !isProPlan && dailyCreditsPercent <= 20
-                                      ? "bg-red-500/85 dark:bg-red-400/85"
-                                      : !isProPlan && dailyCreditsPercent <= 40
-                                        ? "bg-amber-500/85 dark:bg-amber-400/85"
-                                        : "bg-zinc-900 dark:bg-zinc-100"
-                                  }`}
-                                />
-                              </div>
-                              <div className="flex items-center justify-between gap-2 text-[11px] text-zinc-500 dark:text-zinc-400 tabular-nums">
-                                <span>{dailyCreditsPercent}% tersisa</span>
-                                <span>{quotaTariffCompact}</span>
-                              </div>
-                            </div>
-
-                            {/* Kredit Tambahan / Bonus (jika > 0) */}
-                            {bonusCreditsCount > 0 && (
-                              <div className="flex items-center justify-between gap-2 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-3 py-2 text-xs">
-                                <div className="min-w-0">
-                                  <div className="font-medium text-zinc-800 dark:text-zinc-200">
-                                    Kredit Tambahan / Bonus
-                                  </div>
-                                  <div className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                                    Saldo permanen, masa aktif selamanya
-                                  </div>
-                                </div>
-                                <span className="font-semibold text-zinc-950 dark:text-white tabular-nums shrink-0">
-                                  +{bonusCreditsCount} kredit
-                                </span>
-                              </div>
-                            )}
-
-                            {/* Info Reset Harian */}
-                            <div className="flex items-start gap-1.5 text-[11.5px] text-zinc-500 dark:text-zinc-400 leading-relaxed pt-1 border-t border-zinc-200/70 dark:border-white/[0.06]">
-                              <Clock className="w-3.5 h-3.5 mt-0.5 shrink-0" strokeWidth={1.5} />
-                              <span>Kuota harian direset otomatis setiap hari {quotaResetLabel}.</span>
-                            </div>
-
-                            {/* Aksi Lanjutan */}
-                            <button
-                              type="button"
-                              onClick={onOpenSubscriptionModal}
-                              className="w-full h-9 rounded-xl bg-zinc-950 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200 text-xs font-medium inline-flex items-center justify-center gap-1.5 transition-colors active:scale-[0.98] cursor-pointer"
-                            >
-                              <span>
-                                {isProPlan ? "Lihat Rincian Paket" : "Upgrade ke Pro — Segera Hadir"}
-                              </span>
-                              <ChevronRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-                            </button>
-                          </div>
+                          <TokenUsageDiagram
+                            plan={quotaPlan}
+                            dailyLimit={dailyTokenLimit}
+                            usedTokens={usedTokensCount}
+                            remainingTokens={remainingTokensCount}
+                            bonusTokens={bonusTokensCount}
+                            usagePercent={tokenUsagePercent}
+                            promptTokensUsed={promptTokensUsedCount}
+                            completionTokensUsed={completionTokensUsedCount}
+                            resetLabel={quotaResetLabel}
+                            tariffNote={quotaTariffNote}
+                            compact
+                            onOpenSubscriptionModal={onOpenSubscriptionModal}
+                          />
                         )
                       ) : (
                         <div className="w-full space-y-3 md:rounded-xl md:border md:border-zinc-200/85 md:dark:border-white/[0.08] md:bg-white md:dark:bg-[#141416] md:p-4">
@@ -718,8 +652,11 @@ export function SettingsModal({
                             />
                           </div>
                           <p className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">
-                            Masuk ke akun untuk mendapatkan {guestFreeDailyLimit} kredit gratis setiap
-                            hari yang direset otomatis {quotaResetLabel}.
+                            Masuk ke akun untuk mendapatkan{" "}
+                            {typeof guestFreeDailyTokens === "number" && guestFreeDailyTokens > 0
+                              ? `${formatTokenNumber(guestFreeDailyTokens)} token gratis`
+                              : "kuota token gratis"}{" "}
+                            setiap hari yang direset otomatis {quotaResetLabel}.
                           </p>
                           <button
                             type="button"

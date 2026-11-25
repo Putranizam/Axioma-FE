@@ -26,7 +26,11 @@ import {
 } from "./WorkspaceSidebarSection";
 import type { AxiomaLensData } from "./AxiomaLensCard";
 import type { QuotaModalInfo } from "./UpgradeModal";
-import { formatQuotaResetLabel } from "@/constants/appInfo";
+import {
+  formatQuotaResetLabel,
+  formatTokenNumber,
+  formatUsagePercentLabel,
+} from "@/constants/appInfo";
 import { ChatHeader } from "./chat/ChatHeader";
 import { ChatEmptyState } from "./chat/ChatEmptyState";
 import { ChatComposer } from "./chat/ChatComposer";
@@ -2362,10 +2366,124 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
   }, [authUser, buildAuthHeaders]);
 
-  // Fetch daily credit quota status for authenticated users (`GET /api/quota`) with in-flight guard & 30s cooldown
+  // Fetch daily token quota status for authenticated users (`GET /api/quota`) with in-flight guard & 30s cooldown
   const quotaInFlightRef = useRef<boolean>(false);
   const lastQuotaFetchedAtRef = useRef<number>(0);
   const hasQuotaLoadedRef = useRef<boolean>(false);
+
+  const applyTokenQuotaPayload = useCallback(
+    (
+      data: Record<string, any>,
+      options?: { triggeredByLimit?: boolean; markSyncedNow?: boolean }
+    ) => {
+      const hasTokenFields =
+        typeof data.remainingTokens === "number" ||
+        typeof data.usedTokens === "number" ||
+        typeof data.dailyLimit === "number";
+      if (!hasTokenFields) return false;
+
+      if (options?.markSyncedNow !== false) {
+        lastQuotaFetchedAtRef.current = Date.now();
+      }
+      hasQuotaLoadedRef.current = true;
+      setQuotaFetchStatus("loaded");
+
+      const nextWeights =
+        data.weights && typeof data.weights === "object"
+          ? {
+              omni:
+                typeof data.weights.omni === "number" && Number.isFinite(data.weights.omni)
+                  ? data.weights.omni
+                  : undefined,
+              pro:
+                typeof data.weights.pro === "number" && Number.isFinite(data.weights.pro)
+                  ? data.weights.pro
+                  : undefined,
+              architect:
+                typeof data.weights.architect === "number" &&
+                Number.isFinite(data.weights.architect)
+                  ? data.weights.architect
+                  : undefined,
+              media:
+                typeof data.weights.media === "number" && Number.isFinite(data.weights.media)
+                  ? data.weights.media
+                  : undefined,
+            }
+          : undefined;
+
+      const nextTiers =
+        data.tiers && typeof data.tiers === "object" ? data.tiers : undefined;
+      const nextTopupPacks = Array.isArray(data.topupPacks) ? data.topupPacks : undefined;
+
+      setQuotaInfo((prev) => ({
+        ...(prev || {}),
+        plan: data.plan === "pro" ? "pro" : data.plan === "free" ? "free" : prev?.plan,
+        unit: "token",
+        dailyLimit:
+          typeof data.dailyLimit === "number" && Number.isFinite(data.dailyLimit)
+            ? data.dailyLimit
+            : prev?.dailyLimit,
+        usedTokens:
+          typeof data.usedTokens === "number" && Number.isFinite(data.usedTokens)
+            ? Math.max(0, data.usedTokens)
+            : prev?.usedTokens,
+        remainingTokens:
+          typeof data.remainingTokens === "number" && Number.isFinite(data.remainingTokens)
+            ? Math.max(0, data.remainingTokens)
+            : prev?.remainingTokens,
+        bonusTokens:
+          typeof data.bonusTokens === "number" && Number.isFinite(data.bonusTokens)
+            ? Math.max(0, data.bonusTokens)
+            : prev?.bonusTokens,
+        usagePercent:
+          typeof data.usagePercent === "number" && Number.isFinite(data.usagePercent)
+            ? Math.min(100, Math.max(0, data.usagePercent))
+            : prev?.usagePercent,
+        promptTokensUsed:
+          typeof data.promptTokensUsed === "number" && Number.isFinite(data.promptTokensUsed)
+            ? Math.max(0, data.promptTokensUsed)
+            : prev?.promptTokensUsed,
+        completionTokensUsed:
+          typeof data.completionTokensUsed === "number" &&
+          Number.isFinite(data.completionTokensUsed)
+            ? Math.max(0, data.completionTokensUsed)
+            : prev?.completionTokensUsed,
+        requiredTokens:
+          typeof data.requiredTokens === "number" && Number.isFinite(data.requiredTokens)
+            ? Math.max(0, data.requiredTokens)
+            : options?.triggeredByLimit
+              ? prev?.requiredTokens
+              : undefined,
+        minTokensToStart:
+          typeof data.minTokensToStart === "number" && Number.isFinite(data.minTokensToStart)
+            ? Math.max(0, data.minTokensToStart)
+            : prev?.minTokensToStart,
+        mediaTokenCost:
+          typeof data.mediaTokenCost === "number" && Number.isFinite(data.mediaTokenCost)
+            ? Math.max(0, data.mediaTokenCost)
+            : prev?.mediaTokenCost,
+        resetAt: typeof data.resetAt === "string" ? data.resetAt : prev?.resetAt,
+        expiresAt: typeof data.expiresAt === "string" ? data.expiresAt : prev?.expiresAt,
+        message:
+          typeof data.message === "string"
+            ? data.message
+            : typeof data.error === "string"
+              ? data.error
+              : options?.triggeredByLimit
+                ? prev?.message
+                : undefined,
+        weights: nextWeights ?? prev?.weights,
+        tiers: nextTiers ?? prev?.tiers,
+        topupPacks: nextTopupPacks ?? prev?.topupPacks,
+        triggeredByLimit:
+          options?.triggeredByLimit !== undefined
+            ? options.triggeredByLimit
+            : (prev?.triggeredByLimit ?? false),
+      }));
+      return true;
+    },
+    []
+  );
 
   const fetchUserQuota = useCallback(
     async (options?: { force?: boolean }) => {
@@ -2401,73 +2519,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           return;
         }
         const data = await response.json().catch(() => null);
-        if (data && typeof data === "object") {
-          lastQuotaFetchedAtRef.current = Date.now();
-          hasQuotaLoadedRef.current = true;
-          setQuotaFetchStatus("loaded");
-          const nextCredits =
-            typeof data.remainingCredits === "number" && Number.isFinite(data.remainingCredits)
-              ? data.remainingCredits
-              : undefined;
-          const nextCosts =
-            data.costs && typeof data.costs === "object"
-              ? {
-                  omni:
-                    typeof data.costs.omni === "number" && Number.isFinite(data.costs.omni)
-                      ? data.costs.omni
-                      : undefined,
-                  pro:
-                    typeof data.costs.pro === "number" && Number.isFinite(data.costs.pro)
-                      ? data.costs.pro
-                      : undefined,
-                  architect:
-                    typeof data.costs.architect === "number" &&
-                    Number.isFinite(data.costs.architect)
-                      ? data.costs.architect
-                      : undefined,
-                  media:
-                    typeof data.costs.media === "number" && Number.isFinite(data.costs.media)
-                      ? data.costs.media
-                      : undefined,
-                }
-              : undefined;
-          const nextTiers =
-            data.tiers && typeof data.tiers === "object" ? data.tiers : undefined;
-
-          setQuotaInfo((prev) => ({
-            ...(prev || {}),
-            plan: data.plan === "pro" ? "pro" : "free",
-            unlimited: Boolean(data.unlimited),
-            remainingCredits: nextCredits ?? prev?.remainingCredits,
-            remaining: nextCredits ?? prev?.remaining,
-            dailyCredits:
-              typeof data.dailyCredits === "number" && Number.isFinite(data.dailyCredits)
-                ? data.dailyCredits
-                : prev?.dailyCredits,
-            dailyLimit:
-              typeof data.dailyLimit === "number" && Number.isFinite(data.dailyLimit)
-                ? data.dailyLimit
-                : prev?.dailyLimit,
-            usedToday:
-              typeof data.usedToday === "number" && Number.isFinite(data.usedToday)
-                ? data.usedToday
-                : prev?.usedToday,
-            bonusCredits:
-              typeof data.bonusCredits === "number" && Number.isFinite(data.bonusCredits)
-                ? data.bonusCredits
-                : prev?.bonusCredits,
-            resetAt: typeof data.resetAt === "string" ? data.resetAt : prev?.resetAt,
-            expiresAt:
-              typeof data.expiresAt === "string" ? data.expiresAt : prev?.expiresAt,
-            costs: nextCosts ?? prev?.costs,
-            tiers: nextTiers ?? prev?.tiers,
-            triggeredByLimit: prev?.triggeredByLimit ?? false,
-          }));
+        if (data && typeof data === "object" && applyTokenQuotaPayload(data)) {
+          // applied cleanly
         } else if (!hasQuotaLoadedRef.current) {
           setQuotaFetchStatus("error");
         }
       } catch {
-        // Non-blocking: ignore transient network errors when refreshing quota badge
+        // Non-blocking: ignore transient network errors when refreshing quota state
         if (!hasQuotaLoadedRef.current) {
           setQuotaFetchStatus("error");
         }
@@ -2475,7 +2533,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         quotaInFlightRef.current = false;
       }
     },
-    [authUser, buildAuthHeaders]
+    [authUser, buildAuthHeaders, applyTokenQuotaPayload]
   );
 
   useEffect(() => {
@@ -2525,74 +2583,72 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
   const hasLoadedQuota = Boolean(
     quotaInfo &&
-      (typeof quotaInfo.remainingCredits === "number" ||
-        typeof quotaInfo.remaining === "number" ||
-        quotaInfo.unlimited)
+      (typeof quotaInfo.remainingTokens === "number" ||
+        typeof quotaInfo.dailyLimit === "number")
   );
   const isQuotaInitialLoading = Boolean(
     authUser && !hasLoadedQuota && quotaFetchStatus !== "error"
   );
-  const isProPlan = Boolean(quotaInfo?.plan === "pro" || quotaInfo?.unlimited);
-  const dailyCreditLimit =
+  const quotaPlan: "free" | "pro" = quotaInfo?.plan === "pro" ? "pro" : "free";
+  const dailyTokenLimit =
     typeof quotaInfo?.dailyLimit === "number" &&
     Number.isFinite(quotaInfo.dailyLimit) &&
     quotaInfo.dailyLimit > 0
-      ? quotaInfo.dailyLimit
-      : 30;
-  const remainingCreditsCount =
-    typeof quotaInfo?.remainingCredits === "number" &&
-    Number.isFinite(quotaInfo.remainingCredits)
-      ? Math.max(0, quotaInfo.remainingCredits)
+      ? Math.round(quotaInfo.dailyLimit)
       : 0;
-  const rawBonusCredits =
-    typeof quotaInfo?.bonusCredits === "number" &&
-    Number.isFinite(quotaInfo.bonusCredits)
-      ? Math.max(0, quotaInfo.bonusCredits)
+  const usedTokensCount =
+    typeof quotaInfo?.usedTokens === "number" && Number.isFinite(quotaInfo.usedTokens)
+      ? Math.max(0, Math.round(quotaInfo.usedTokens))
       : 0;
-  const hasConsistentQuotaBreakdown =
-    typeof quotaInfo?.dailyCredits === "number" &&
-    Number.isFinite(quotaInfo.dailyCredits) &&
-    Math.max(0, quotaInfo.dailyCredits) + rawBonusCredits === remainingCreditsCount;
-  const bonusCreditsCount = isProPlan
-    ? rawBonusCredits
-    : hasConsistentQuotaBreakdown
-      ? rawBonusCredits
-      : Math.min(rawBonusCredits, remainingCreditsCount);
-  const dailyCreditsRemaining = isProPlan
-    ? dailyCreditLimit
-    : hasConsistentQuotaBreakdown && typeof quotaInfo?.dailyCredits === "number"
-      ? Math.min(dailyCreditLimit, Math.max(0, quotaInfo.dailyCredits))
-      : Math.min(dailyCreditLimit, Math.max(0, remainingCreditsCount - bonusCreditsCount));
-  const dailyCreditsPercent = isProPlan
-    ? 100
-    : Math.max(0, Math.min(100, Math.round((dailyCreditsRemaining / dailyCreditLimit) * 100)));
-  const quotaCosts = {
-    omni:
-      typeof quotaInfo?.costs?.omni === "number" && Number.isFinite(quotaInfo.costs.omni)
-        ? quotaInfo.costs.omni
-        : 1,
-    pro:
-      typeof quotaInfo?.costs?.pro === "number" && Number.isFinite(quotaInfo.costs.pro)
-        ? quotaInfo.costs.pro
-        : 3,
-    architect:
-      typeof quotaInfo?.costs?.architect === "number" &&
-      Number.isFinite(quotaInfo.costs.architect)
-        ? quotaInfo.costs.architect
-        : 4,
-    media:
-      typeof quotaInfo?.costs?.media === "number" && Number.isFinite(quotaInfo.costs.media)
-        ? quotaInfo.costs.media
-        : 5,
-  };
-  const quotaTariffCompact = `Omni ${quotaCosts.omni} · Pro ${quotaCosts.pro} · Architect ${quotaCosts.architect} · Media ${quotaCosts.media}`;
+  const bonusTokensCount =
+    typeof quotaInfo?.bonusTokens === "number" && Number.isFinite(quotaInfo.bonusTokens)
+      ? Math.max(0, Math.round(quotaInfo.bonusTokens))
+      : 0;
+  const remainingTokensCount =
+    typeof quotaInfo?.remainingTokens === "number" && Number.isFinite(quotaInfo.remainingTokens)
+      ? Math.max(0, Math.round(quotaInfo.remainingTokens))
+      : Math.max(0, dailyTokenLimit - usedTokensCount) + bonusTokensCount;
+  const tokenUsagePercent =
+    typeof quotaInfo?.usagePercent === "number" && Number.isFinite(quotaInfo.usagePercent)
+      ? Math.min(100, Math.max(0, quotaInfo.usagePercent))
+      : dailyTokenLimit > 0
+        ? Number(Math.min(100, Math.max(0, (usedTokensCount / dailyTokenLimit) * 100)).toFixed(1))
+        : 0;
+  const promptTokensUsedCount =
+    typeof quotaInfo?.promptTokensUsed === "number" && Number.isFinite(quotaInfo.promptTokensUsed)
+      ? Math.max(0, Math.round(quotaInfo.promptTokensUsed))
+      : 0;
+  const completionTokensUsedCount =
+    typeof quotaInfo?.completionTokensUsed === "number" &&
+    Number.isFinite(quotaInfo.completionTokensUsed)
+      ? Math.max(0, Math.round(quotaInfo.completionTokensUsed))
+      : 0;
+  const quotaRowSummary = `${formatUsagePercentLabel(tokenUsagePercent)} terpakai`;
+
+  const formatWeightMultiplier = (val: number): string =>
+    Number.isInteger(val) ? `${val}×` : `${String(val).replace(".", ",")}×`;
+  const quotaTariffParts: string[] = [];
+  if (typeof quotaInfo?.weights?.omni === "number") {
+    quotaTariffParts.push(`Omni ${formatWeightMultiplier(quotaInfo.weights.omni)}`);
+  }
+  if (typeof quotaInfo?.weights?.pro === "number") {
+    quotaTariffParts.push(`Pro ${formatWeightMultiplier(quotaInfo.weights.pro)}`);
+  }
+  if (typeof quotaInfo?.weights?.architect === "number") {
+    quotaTariffParts.push(`Architect ${formatWeightMultiplier(quotaInfo.weights.architect)}`);
+  }
+  if (typeof quotaInfo?.mediaTokenCost === "number") {
+    quotaTariffParts.push(`Media ${formatTokenNumber(quotaInfo.mediaTokenCost)} token`);
+  }
+  const quotaTariffNote =
+    quotaTariffParts.length > 0 ? `Bobot token: ${quotaTariffParts.join(" · ")}` : "";
   const quotaResetLabel = formatQuotaResetLabel(quotaInfo?.resetAt);
-  const guestFreeDailyLimit =
-    typeof quotaInfo?.tiers?.free?.credits === "number" &&
-    Number.isFinite(quotaInfo.tiers.free.credits) &&
-    quotaInfo.tiers.free.credits > 0
-      ? quotaInfo.tiers.free.credits
-      : dailyCreditLimit;
+  const guestFreeDailyTokens =
+    typeof quotaInfo?.tiers?.free?.tokens === "number" &&
+    Number.isFinite(quotaInfo.tiers.free.tokens) &&
+    quotaInfo.tiers.free.tokens > 0
+      ? quotaInfo.tiers.free.tokens
+      : undefined;
 
   const openQuotaSettings = useCallback(() => {
     setIsMobileSidebarOpen(false);
@@ -5485,8 +5541,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       AVAILABLE_AGENTS.find((a) => a.id === "axioma-omni") || AVAILABLE_AGENTS[0];
     setSelectedAgent(omniAgent);
     safeSetLocalStorage(STORAGE_KEYS.SELECTED_AGENT, omniAgent.id);
-    showToastNotice(`Beralih ke Axioma Omni (${quotaCosts.omni} kredit / pesan)`, 2200);
-  }, [quotaCosts.omni, showToastNotice]);
+    showToastNotice("Beralih ke Axioma Omni (mode teks hemat token)", 2200);
+  }, [showToastNotice]);
 
   const handleUpdateDisplayName = async (
     rawName: string,
@@ -5934,6 +5990,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     let currentUserMsgId = options?.tempUserMsgId || "";
     let streamBubbleCreated = false;
     let accumulatedText = "";
+    let receivedRealtimeTokenSummary = false;
 
     const promoteChatToTop = (chatId: string, title?: string) => {
       const nowIso = new Date().toISOString();
@@ -6067,15 +6124,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         initialTimeoutId = null;
       }
 
-      // Sync remaining credits immediately when exposed by backend header
-      const remainingCreditsHeader = response.headers.get("X-Axioma-Remaining-Credits");
-      if (remainingCreditsHeader !== null && remainingCreditsHeader.trim() !== "") {
-        const parsedCredits = Number(remainingCreditsHeader);
-        if (Number.isFinite(parsedCredits) && parsedCredits >= 0) {
+      // Sync remaining tokens immediately when exposed by backend header
+      const remainingTokensHeader = response.headers.get("X-Axioma-Remaining-Tokens");
+      if (remainingTokensHeader !== null && remainingTokensHeader.trim() !== "") {
+        const parsedTokens = Number(remainingTokensHeader);
+        if (Number.isFinite(parsedTokens) && parsedTokens >= 0) {
           setQuotaInfo((prev) => ({
             ...(prev || {}),
-            remainingCredits: parsedCredits,
-            remaining: parsedCredits,
+            unit: "token",
+            remainingTokens: Math.round(parsedTokens),
             triggeredByLimit: false,
           }));
         }
@@ -6352,25 +6409,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             if (typeof realAiId === "string" && realAiId) {
               returnedMessageId = realAiId;
             }
-            if (typeof payload.remainingCredits === "number" && Number.isFinite(payload.remainingCredits)) {
-              const nextDailyCredits =
-                typeof payload.dailyCredits === "number" && Number.isFinite(payload.dailyCredits)
-                  ? payload.dailyCredits
-                  : undefined;
-              const nextBonusCredits =
-                typeof payload.bonusCredits === "number" && Number.isFinite(payload.bonusCredits)
-                  ? payload.bonusCredits
-                  : undefined;
-              hasQuotaLoadedRef.current = true;
-              setQuotaFetchStatus("loaded");
-              setQuotaInfo((prev) => ({
-                ...(prev || {}),
-                remainingCredits: payload.remainingCredits,
-                remaining: payload.remainingCredits,
-                dailyCredits: nextDailyCredits ?? prev?.dailyCredits,
-                bonusCredits: nextBonusCredits ?? prev?.bonusCredits,
-                triggeredByLimit: false,
-              }));
+            if (
+              typeof payload.remainingTokens === "number" ||
+              typeof payload.usedTokens === "number"
+            ) {
+              if (
+                applyTokenQuotaPayload(payload, {
+                  triggeredByLimit: false,
+                  markSyncedNow: true,
+                })
+              ) {
+                receivedRealtimeTokenSummary = true;
+              }
             }
             if (payload.chat) returnedChat = payload.chat;
             if (hasEventMedia) {
@@ -6506,36 +6556,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         if (!response.ok || (!result?.success && !hasJsonMedia)) {
           if (response.status === 429 && result?.code === "QUOTA_EXCEEDED") {
-            const nextRemaining =
-              typeof result?.remaining === "number" && Number.isFinite(result.remaining)
-                ? result.remaining
-                : 0;
-            setQuotaInfo((prev) => ({
-              ...(prev || {}),
-              remainingCredits: nextRemaining,
-              remaining: nextRemaining,
-              required:
-                typeof result?.required === "number" && Number.isFinite(result.required)
-                  ? result.required
-                  : undefined,
-              resetAt:
-                typeof result?.resetAt === "string" ? result.resetAt : prev?.resetAt,
-              suggestedModel:
-                typeof result?.suggestedModel === "string"
-                  ? result.suggestedModel
-                  : "omni",
-              message:
-                typeof result?.message === "string"
-                  ? result.message
-                  : typeof result?.error === "string"
-                    ? result.error
-                    : undefined,
+            applyTokenQuotaPayload(result, {
               triggeredByLimit: true,
-            }));
+              markSyncedNow: true,
+            });
+            receivedRealtimeTokenSummary = true;
+            showToastNotice(
+              typeof result?.message === "string" && result.message.trim()
+                ? result.message
+                : "Kuota token harian Anda telah habis.",
+              3500
+            );
             setIsUpgradeModalOpen(true);
-            if (authUser) {
-              void fetchUserQuota();
-            }
             return;
           }
 
@@ -6550,7 +6582,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             throw new Error(
               result?.message ||
                 result?.error ||
-                "Kuota pemakaian sementara tercapai. Coba lagi beberapa saat lagi atau besok."
+                "Kuota token harian Anda telah habis atau batas permintaan sementara tercapai."
             );
           }
           if (
@@ -6567,25 +6599,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           throw new Error(errorDetail);
         }
 
-        if (typeof result?.remainingCredits === "number" && Number.isFinite(result.remainingCredits)) {
-          const nextDailyCredits =
-            typeof result?.dailyCredits === "number" && Number.isFinite(result.dailyCredits)
-              ? result.dailyCredits
-              : undefined;
-          const nextBonusCredits =
-            typeof result?.bonusCredits === "number" && Number.isFinite(result.bonusCredits)
-              ? result.bonusCredits
-              : undefined;
-          hasQuotaLoadedRef.current = true;
-          setQuotaFetchStatus("loaded");
-          setQuotaInfo((prev) => ({
-            ...(prev || {}),
-            remainingCredits: result.remainingCredits,
-            remaining: result.remainingCredits,
-            dailyCredits: nextDailyCredits ?? prev?.dailyCredits,
-            bonusCredits: nextBonusCredits ?? prev?.bonusCredits,
-            triggeredByLimit: false,
-          }));
+        if (
+          typeof result?.remainingTokens === "number" ||
+          typeof result?.usedTokens === "number"
+        ) {
+          if (
+            applyTokenQuotaPayload(result, {
+              triggeredByLimit: false,
+              markSyncedNow: true,
+            })
+          ) {
+            receivedRealtimeTokenSummary = true;
+          }
         }
 
         if (typeof result?.user_message_id === "string" && result.user_message_id && currentUserMsgId) {
@@ -6780,10 +6805,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
       isSubmittingRef.current = false;
       setIsSubmitting(false);
       focusDesktopTextarea();
-      // Sync sidebar & daily credit quota with backend after AI reply completes
+      // Sync sidebar & daily token quota with backend after AI reply completes (skip redundant fetch if SSE done already synced)
       void refreshChatHistory();
-      if (authUser) {
-        void fetchUserQuota();
+      if (authUser && !receivedRealtimeTokenSummary) {
+        void fetchUserQuota({ force: true });
       }
     }
   };
@@ -7928,15 +7953,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           onUpdateRequirementLockItems={handleUpdateRequirementLockItems}
           isQuotaInitialLoading={isQuotaInitialLoading}
           hasLoadedQuota={hasLoadedQuota}
-          isProPlan={isProPlan}
-          remainingCreditsCount={remainingCreditsCount}
-          dailyCreditsRemaining={dailyCreditsRemaining}
-          dailyCreditLimit={dailyCreditLimit}
-          dailyCreditsPercent={dailyCreditsPercent}
-          bonusCreditsCount={bonusCreditsCount}
-          quotaTariffCompact={quotaTariffCompact}
+          quotaPlan={quotaPlan}
+          dailyTokenLimit={dailyTokenLimit}
+          usedTokensCount={usedTokensCount}
+          remainingTokensCount={remainingTokensCount}
+          bonusTokensCount={bonusTokensCount}
+          tokenUsagePercent={tokenUsagePercent}
+          promptTokensUsedCount={promptTokensUsedCount}
+          completionTokensUsedCount={completionTokensUsedCount}
+          quotaRowSummary={quotaRowSummary}
+          quotaTariffNote={quotaTariffNote}
           quotaResetLabel={quotaResetLabel}
-          guestFreeDailyLimit={guestFreeDailyLimit}
+          guestFreeDailyTokens={guestFreeDailyTokens}
           guestMessageCount={guestMessageCount}
           guestMaxMessages={GUEST_MAX_MESSAGES}
           onRefreshQuota={() => void fetchUserQuota({ force: true })}
@@ -8405,7 +8433,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 {authUser ? userName : "Mode Tamu"}
               </button>
               {authUser &&
-                (isProPlan ? (
+                (quotaPlan === "pro" ? (
                   <button
                     type="button"
                     onClick={(e) => {
@@ -8734,16 +8762,18 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               onUpdateRequirementLockItems={handleUpdateRequirementLockItems}
               isQuotaInitialLoading={isQuotaInitialLoading}
               hasLoadedQuota={hasLoadedQuota}
-              isProPlan={isProPlan}
+              quotaPlan={quotaPlan}
               quotaExpiresAt={quotaInfo?.expiresAt}
-              remainingCreditsCount={remainingCreditsCount}
-              dailyCreditsRemaining={dailyCreditsRemaining}
-              dailyCreditLimit={dailyCreditLimit}
-              dailyCreditsPercent={dailyCreditsPercent}
-              bonusCreditsCount={bonusCreditsCount}
-              quotaTariffCompact={quotaTariffCompact}
+              dailyTokenLimit={dailyTokenLimit}
+              usedTokensCount={usedTokensCount}
+              remainingTokensCount={remainingTokensCount}
+              bonusTokensCount={bonusTokensCount}
+              tokenUsagePercent={tokenUsagePercent}
+              promptTokensUsedCount={promptTokensUsedCount}
+              completionTokensUsedCount={completionTokensUsedCount}
+              quotaTariffNote={quotaTariffNote}
               quotaResetLabel={quotaResetLabel}
-              guestFreeDailyLimit={guestFreeDailyLimit}
+              guestFreeDailyTokens={guestFreeDailyTokens}
               guestMessageCount={guestMessageCount}
               guestMaxMessages={GUEST_MAX_MESSAGES}
               onRefreshQuota={() => void fetchUserQuota({ force: true })}

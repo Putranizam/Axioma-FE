@@ -3,15 +3,27 @@
 import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X, Check, ArrowRight, Clock } from "lucide-react";
-import { formatQuotaResetLabel } from "@/constants/appInfo";
+import {
+  formatQuotaResetLabel,
+  formatTokenNumber,
+  formatUsagePercentLabel,
+} from "@/constants/appInfo";
 
 export { formatQuotaResetLabel };
 
-export interface QuotaModelCosts {
+export interface QuotaModelWeights {
   omni?: number;
   pro?: number;
   architect?: number;
   media?: number;
+}
+
+export interface QuotaTopupPack {
+  id: string;
+  tokens: number;
+  label: string;
+  priceIdr: number;
+  priceLabel: string;
 }
 
 export interface QuotaTierDefinition {
@@ -20,36 +32,43 @@ export interface QuotaTierDefinition {
   priceIdr?: number;
   priceLabel?: string;
   billingCycle?: string;
-  credits?: number | "unlimited";
+  tokens?: number;
   description?: string;
   highlights?: readonly string[];
 }
 
 export interface QuotaModalInfo {
   plan?: "free" | "pro";
-  unlimited?: boolean;
-  remainingCredits?: number;
-  remaining?: number;
-  dailyCredits?: number;
+  unit?: "token";
   dailyLimit?: number;
-  usedToday?: number;
-  bonusCredits?: number;
-  required?: number;
+  usedTokens?: number;
+  remainingTokens?: number;
+  bonusTokens?: number;
+  usagePercent?: number;
+  promptTokensUsed?: number;
+  completionTokensUsed?: number;
+  requiredTokens?: number;
+  minTokensToStart?: number;
+  mediaTokenCost?: number;
   resetAt?: string;
   expiresAt?: string;
-  suggestedModel?: string;
   message?: string;
   triggeredByLimit?: boolean;
-  costs?: QuotaModelCosts;
+  weights?: QuotaModelWeights;
   tiers?: {
     free?: QuotaTierDefinition;
     pro?: QuotaTierDefinition;
     topup?: QuotaTierDefinition;
   };
+  topupPacks?: readonly QuotaTopupPack[];
 }
 
 export function formatIdrCurrency(amount: number): string {
   return `Rp ${Math.max(0, Math.round(amount)).toLocaleString("id-ID")}`;
+}
+
+function formatMultiplier(val: number): string {
+  return Number.isInteger(val) ? `${val}×` : `${String(val).replace(".", ",")}×`;
 }
 
 export interface UpgradeModalProps {
@@ -60,30 +79,17 @@ export interface UpgradeModalProps {
   triggerReason?: "manual" | "quota_exceeded";
 }
 
-const FREE_BENEFITS = [
-  "Kuota chat harian standar",
-  "Akses model AI cepat",
-  "Riwayat chat tersimpan",
+const FALLBACK_FREE_BENEFITS = [
+  "Kuota token harian otomatis reset pukul 00.00 WIB",
+  "Akses model AI cepat & responsif",
+  "Riwayat percakapan tersimpan aman",
 ] as const;
 
-const PRO_BENEFITS = [
-  "Kuota chat harian hingga 15x lebih besar",
+const FALLBACK_PRO_BENEFITS = [
+  "Kuota token harian 10× lebih besar",
   "Akses semua model AI premium (coding & analisis mendalam)",
-  "Upload file & gambar lebih leluasa",
+  "Upload dokumen & gambar lebih leluasa",
   "Prioritas kecepatan respons",
-] as const;
-
-const TOPUP_OPTIONS = [
-  {
-    id: "topup-50",
-    creditsLabel: "+50 Kredit",
-    priceLabel: "Rp 15.000",
-  },
-  {
-    id: "topup-150",
-    creditsLabel: "+150 Kredit",
-    priceLabel: "Rp 35.000",
-  },
 ] as const;
 
 export function UpgradeModal({
@@ -105,138 +111,107 @@ export function UpgradeModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
-  const isProPlan = Boolean(quotaInfo?.plan === "pro" || quotaInfo?.unlimited);
+  const isProPlan = quotaInfo?.plan === "pro";
   const isQuotaLoaded = Boolean(
     quotaInfo &&
-      (typeof quotaInfo.remainingCredits === "number" ||
-        typeof quotaInfo.remaining === "number" ||
-        typeof quotaInfo.dailyLimit === "number" ||
-        quotaInfo.unlimited)
+      (typeof quotaInfo.remainingTokens === "number" ||
+        typeof quotaInfo.dailyLimit === "number")
   );
   const effectiveTriggerReason: "manual" | "quota_exceeded" =
     triggerReason ?? (quotaInfo?.triggeredByLimit ? "quota_exceeded" : "manual");
   const isLimitTriggered = effectiveTriggerReason === "quota_exceeded";
 
   const dailyLimit =
-    typeof quotaInfo?.dailyLimit === "number" && Number.isFinite(quotaInfo.dailyLimit)
-      ? Math.max(0, quotaInfo.dailyLimit)
-      : 30;
+    typeof quotaInfo?.dailyLimit === "number" &&
+    Number.isFinite(quotaInfo.dailyLimit) &&
+    quotaInfo.dailyLimit > 0
+      ? Math.round(quotaInfo.dailyLimit)
+      : 0;
+  const usedTokens =
+    typeof quotaInfo?.usedTokens === "number" && Number.isFinite(quotaInfo.usedTokens)
+      ? Math.max(0, Math.round(quotaInfo.usedTokens))
+      : 0;
+  const remainingTokens =
+    typeof quotaInfo?.remainingTokens === "number" && Number.isFinite(quotaInfo.remainingTokens)
+      ? Math.max(0, Math.round(quotaInfo.remainingTokens))
+      : Math.max(0, dailyLimit - usedTokens);
+  const bonusTokens =
+    typeof quotaInfo?.bonusTokens === "number" && Number.isFinite(quotaInfo.bonusTokens)
+      ? Math.max(0, Math.round(quotaInfo.bonusTokens))
+      : 0;
+  const dailyRemaining = Math.max(0, dailyLimit - usedTokens);
+  const usagePercent =
+    typeof quotaInfo?.usagePercent === "number" && Number.isFinite(quotaInfo.usagePercent)
+      ? Math.min(100, Math.max(0, quotaInfo.usagePercent))
+      : dailyLimit > 0
+        ? Math.min(100, Math.max(0, (usedTokens / dailyLimit) * 100))
+        : 0;
 
-  const omniCost =
-    typeof quotaInfo?.costs?.omni === "number" && Number.isFinite(quotaInfo.costs.omni)
-      ? quotaInfo.costs.omni
-      : 1;
-  const proCost =
-    typeof quotaInfo?.costs?.pro === "number" && Number.isFinite(quotaInfo.costs.pro)
-      ? quotaInfo.costs.pro
-      : 3;
-  const architectCost =
-    typeof quotaInfo?.costs?.architect === "number" && Number.isFinite(quotaInfo.costs.architect)
-      ? quotaInfo.costs.architect
-      : 4;
-  const mediaCost =
-    typeof quotaInfo?.costs?.media === "number" && Number.isFinite(quotaInfo.costs.media)
-      ? quotaInfo.costs.media
-      : 5;
+  const minTokensToStart =
+    typeof quotaInfo?.minTokensToStart === "number" && Number.isFinite(quotaInfo.minTokensToStart)
+      ? quotaInfo.minTokensToStart
+      : 250;
+  const mediaTokenCost =
+    typeof quotaInfo?.mediaTokenCost === "number" && Number.isFinite(quotaInfo.mediaTokenCost)
+      ? quotaInfo.mediaTokenCost
+      : undefined;
+
+  const omniWeight = quotaInfo?.weights?.omni;
+  const proWeight = quotaInfo?.weights?.pro;
+  const architectWeight = quotaInfo?.weights?.architect;
+
+  const weightSummaryParts: string[] = [];
+  if (typeof omniWeight === "number") weightSummaryParts.push(`Omni ${formatMultiplier(omniWeight)}`);
+  if (typeof proWeight === "number") weightSummaryParts.push(`Pro ${formatMultiplier(proWeight)}`);
+  if (typeof architectWeight === "number") {
+    weightSummaryParts.push(`Architect ${formatMultiplier(architectWeight)}`);
+  }
+  if (typeof mediaTokenCost === "number") {
+    weightSummaryParts.push(`Media ${formatTokenNumber(mediaTokenCost)} token`);
+  }
+  const weightSummaryText =
+    weightSummaryParts.length > 0 ? `Bobot token: ${weightSummaryParts.join(" · ")}` : null;
 
   const resetTimeLabel = formatQuotaResetLabel(quotaInfo?.resetAt);
 
   const freeTier = quotaInfo?.tiers?.free;
   const proTier = quotaInfo?.tiers?.pro;
-  const topupTier = quotaInfo?.tiers?.topup;
 
-  const freeTierName = freeTier?.name || "Paket Free";
+  const freeTierName = freeTier?.name || "Axioma Gratis";
   const freeTierPrice =
     typeof freeTier?.priceIdr === "number" ? formatIdrCurrency(freeTier.priceIdr) : "Rp 0";
   const freeBenefitsList =
     Array.isArray(freeTier?.highlights) && freeTier.highlights.length > 0
       ? freeTier.highlights
-      : FREE_BENEFITS;
+      : FALLBACK_FREE_BENEFITS;
 
-  const proTierName = proTier?.name || "Paket Pro";
+  const proTierName = proTier?.name || "Axioma Pro";
   const proTierPrice =
     typeof proTier?.priceIdr === "number" ? formatIdrCurrency(proTier.priceIdr) : "Rp 49.000";
   const proBenefitsList =
     Array.isArray(proTier?.highlights) && proTier.highlights.length > 0
       ? proTier.highlights
-      : PRO_BENEFITS;
+      : FALLBACK_PRO_BENEFITS;
 
-  const dynamicTopupOptions =
-    topupTier && typeof topupTier.credits === "number" && typeof topupTier.priceIdr === "number"
-      ? [
-          {
-            id: "topup-primary",
-            creditsLabel: `+${topupTier.credits} Kredit`,
-            priceLabel: formatIdrCurrency(topupTier.priceIdr),
-          },
-          TOPUP_OPTIONS[1],
-        ]
-      : TOPUP_OPTIONS;
+  const dynamicTopupOptions: readonly QuotaTopupPack[] =
+    Array.isArray(quotaInfo?.topupPacks) && quotaInfo.topupPacks.length > 0
+      ? quotaInfo.topupPacks
+      : [];
 
-  const effectiveRemaining =
-    typeof quotaInfo?.remaining === "number" && Number.isFinite(quotaInfo.remaining)
-      ? Math.max(0, quotaInfo.remaining)
-      : typeof quotaInfo?.remainingCredits === "number" &&
-          Number.isFinite(quotaInfo.remainingCredits)
-        ? Math.max(0, quotaInfo.remainingCredits)
-        : 0;
-
-  const hasExplicitDaily =
-    typeof quotaInfo?.dailyCredits === "number" &&
-    Number.isFinite(quotaInfo.dailyCredits) &&
-    typeof quotaInfo?.bonusCredits === "number" &&
-    Number.isFinite(quotaInfo.bonusCredits);
-
-  const hasExplicitUsedSplit =
-    typeof quotaInfo?.usedToday === "number" &&
-    Number.isFinite(quotaInfo.usedToday) &&
-    typeof quotaInfo?.bonusCredits === "number" &&
-    Number.isFinite(quotaInfo.bonusCredits);
-
-  let dailyRemaining: number;
-  let bonusCredits: number;
-
-  if (isProPlan) {
-    dailyRemaining = dailyLimit;
-    bonusCredits =
-      typeof quotaInfo?.bonusCredits === "number" && Number.isFinite(quotaInfo.bonusCredits)
-        ? Math.max(0, quotaInfo.bonusCredits)
-        : 0;
-  } else if (hasExplicitDaily || hasExplicitUsedSplit) {
-    const rawDailyRemaining = hasExplicitDaily
-      ? Math.max(0, Math.min(dailyLimit, quotaInfo!.dailyCredits as number))
-      : Math.max(0, dailyLimit - (quotaInfo!.usedToday as number));
-    const rawBonus = Math.max(0, quotaInfo!.bonusCredits as number);
-    if (rawDailyRemaining + rawBonus === effectiveRemaining) {
-      dailyRemaining = rawDailyRemaining;
-      bonusCredits = rawBonus;
-    } else if (effectiveRemaining <= rawBonus) {
-      dailyRemaining = 0;
-      bonusCredits = effectiveRemaining;
-    } else {
-      bonusCredits = rawBonus;
-      dailyRemaining = Math.min(dailyLimit, Math.max(0, effectiveRemaining - rawBonus));
-    }
-  } else if (effectiveRemaining > dailyLimit) {
-    dailyRemaining = dailyLimit;
-    bonusCredits = effectiveRemaining - dailyLimit;
-  } else {
-    dailyRemaining = Math.min(dailyLimit, effectiveRemaining);
-    bonusCredits = 0;
-  }
-
+  // Allow switching to lightweight text chat if user hit a high media requirement while still having text tokens
   const canContinueWithOmni =
-    isLimitTriggered && !isProPlan && effectiveRemaining >= omniCost;
+    isLimitTriggered &&
+    remainingTokens >= minTokensToStart &&
+    typeof quotaInfo?.requiredTokens === "number" &&
+    quotaInfo.requiredTokens > minTokensToStart;
 
   if (!isOpen || typeof document === "undefined") {
     return null;
   }
 
   const modalTitle = isLimitTriggered
-    ? "Tingkatkan Kapasitas Axioma"
+    ? "Kuota Token Harian Tercapai"
     : "Paket & Langganan Axioma";
-
-  const showSeparatedBalances = !isProPlan && bonusCredits > 0;
 
   return createPortal(
     <div
@@ -261,62 +236,56 @@ export function UpgradeModal({
               {modalTitle}
             </h2>
 
-            {isProPlan ? (
+            {isLimitTriggered && (
               <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                Langganan Axioma Pro Anda aktif dengan akses penuh tanpa batas kredit harian.
-                {bonusCredits > 0 && (
-                  <span className="ml-1.5 font-medium text-zinc-700 dark:text-zinc-300 tabular-nums">
-                    Saldo Top-Up tersimpan: {bonusCredits} kredit (Aktif selamanya).
-                  </span>
-                )}
+                {quotaInfo?.message || "Kuota token harian Anda telah habis."} Reset otomatis{" "}
+                {resetTimeLabel}.
               </p>
-            ) : (
-              <>
-                {isLimitTriggered && (
-                  <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                    Kuota harian Anda untuk model ini telah habis. Reset otomatis {resetTimeLabel}.
-                  </p>
-                )}
-
-                {!isQuotaLoaded ? (
-                  <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 animate-pulse">
-                    Memuat sisa kuota kredit harian...
-                  </p>
-                ) : showSeparatedBalances ? (
-                  <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap gap-1.5 sm:gap-2">
-                    <div className="inline-flex items-baseline flex-wrap gap-x-1.5 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-2.5 py-1 text-[12px]">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100 tabular-nums">
-                        Kuota Harian: {dailyRemaining}/{dailyLimit} kredit
-                      </span>
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                        (Reset otomatis {resetTimeLabel})
-                      </span>
-                    </div>
-                    <div className="inline-flex items-baseline flex-wrap gap-x-1.5 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-2.5 py-1 text-[12px]">
-                      <span className="font-medium text-zinc-900 dark:text-zinc-100 tabular-nums">
-                        Saldo Top-Up: {bonusCredits} kredit
-                      </span>
-                      <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
-                        (Aktif selamanya)
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  !isLimitTriggered && (
-                    <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
-                      <span className="font-medium text-zinc-800 dark:text-zinc-200 tabular-nums">
-                        Kuota Harian: {dailyRemaining}/{dailyLimit} kredit
-                      </span>{" "}
-                      <span>(Reset otomatis {resetTimeLabel})</span>
-                    </p>
-                  )
-                )}
-              </>
             )}
 
-            <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
-              Tarif penggunaan: Omni {omniCost} kredit · Pro {proCost} kredit · Architect {architectCost} kredit · Media {mediaCost} kredit
-            </p>
+            {!isQuotaLoaded ? (
+              <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400 animate-pulse">
+                Memuat kuota token harian...
+              </p>
+            ) : bonusTokens > 0 ? (
+              <div className="mt-2 flex flex-col sm:flex-row sm:flex-wrap gap-1.5 sm:gap-2">
+                <div className="inline-flex items-baseline flex-wrap gap-x-1.5 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-2.5 py-1 text-[12px]">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    Kuota Harian: {formatTokenNumber(dailyRemaining)} /{" "}
+                    {formatTokenNumber(dailyLimit)} token
+                  </span>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    ({formatUsagePercentLabel(usagePercent)} terpakai)
+                  </span>
+                </div>
+                <div className="inline-flex items-baseline flex-wrap gap-x-1.5 rounded-lg border border-zinc-200/80 dark:border-white/[0.08] bg-zinc-50 dark:bg-white/[0.03] px-2.5 py-1 text-[12px]">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100 tabular-nums">
+                    Token Bonus: +{formatTokenNumber(bonusTokens)} token
+                  </span>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    (Aktif selamanya)
+                  </span>
+                </div>
+              </div>
+            ) : (
+              !isLimitTriggered && (
+                <p className="mt-1 text-[13px] leading-relaxed text-zinc-500 dark:text-zinc-400">
+                  <span className="font-medium text-zinc-800 dark:text-zinc-200 tabular-nums">
+                    Sisa Token Hari Ini: {formatTokenNumber(remainingTokens)} /{" "}
+                    {formatTokenNumber(dailyLimit)} token
+                  </span>{" "}
+                  <span>
+                    ({formatUsagePercentLabel(usagePercent)} terpakai · Reset {resetTimeLabel})
+                  </span>
+                </p>
+              )
+            )}
+
+            {weightSummaryText && (
+              <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400 tabular-nums">
+                {weightSummaryText}
+              </p>
+            )}
           </div>
           <button
             type="button"
@@ -450,47 +419,50 @@ export function UpgradeModal({
             </div>
           </div>
 
-          {/* Bagian Tambahan: Top-Up Kredit Ekstra */}
-          <section className="rounded-2xl border border-zinc-200/90 dark:border-white/[0.08] bg-zinc-50/70 dark:bg-white/[0.02] p-4 sm:p-5 space-y-3">
-            <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
-              <h3 className="text-[14.5px] font-semibold text-zinc-950 dark:text-white">
-                Top-Up Kredit Ekstra
-              </h3>
-              <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                Sekali Beli, Masa Aktif Selamanya
-              </span>
-            </div>
+          {/* Bagian Tambahan: Top-Up Token Ekstra (dinamis dari backend topupPacks) */}
+          {dynamicTopupOptions.length > 0 && (
+            <section className="rounded-2xl border border-zinc-200/90 dark:border-white/[0.08] bg-zinc-50/70 dark:bg-white/[0.02] p-4 sm:p-5 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-baseline sm:justify-between gap-1">
+                <h3 className="text-[14.5px] font-semibold text-zinc-950 dark:text-white">
+                  Top-Up Token Ekstra
+                </h3>
+                <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                  Sekali Beli, Masa Aktif Selamanya
+                </span>
+              </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {dynamicTopupOptions.map((option) => (
-                <div
-                  key={option.id}
-                  className="min-w-0 flex items-center justify-between gap-3 rounded-xl border border-zinc-200/90 dark:border-white/[0.08] bg-white dark:bg-[#111113] px-3.5 py-3"
-                >
-                  <div className="min-w-0">
-                    <div className="text-[14px] font-semibold text-zinc-950 dark:text-white tabular-nums">
-                      {option.creditsLabel}
-                    </div>
-                    <div className="text-[12.5px] text-zinc-500 dark:text-zinc-400 tabular-nums">
-                      {option.priceLabel}
-                    </div>
-                  </div>
-                  <button
-                    type="button"
-                    disabled
-                    aria-disabled="true"
-                    className="shrink-0 h-8 px-3 rounded-lg bg-zinc-100 text-zinc-500 border border-zinc-200/90 dark:bg-white/[0.06] dark:text-zinc-400 dark:border-white/10 text-xs font-medium inline-flex items-center justify-center cursor-not-allowed select-none"
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {dynamicTopupOptions.map((option) => (
+                  <div
+                    key={option.id}
+                    className="min-w-0 flex items-center justify-between gap-3 rounded-xl border border-zinc-200/90 dark:border-white/[0.08] bg-white dark:bg-[#111113] px-3.5 py-3"
                   >
-                    Segera Hadir
-                  </button>
-                </div>
-              ))}
-            </div>
-          </section>
+                    <div className="min-w-0">
+                      <div className="text-[14px] font-semibold text-zinc-950 dark:text-white tabular-nums">
+                        {option.label}
+                      </div>
+                      <div className="text-[12.5px] text-zinc-500 dark:text-zinc-400 tabular-nums">
+                        {option.priceLabel || formatIdrCurrency(option.priceIdr)}
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      disabled
+                      aria-disabled="true"
+                      className="shrink-0 h-8 px-3 rounded-lg bg-zinc-100 text-zinc-500 border border-zinc-200/90 dark:bg-white/[0.06] dark:text-zinc-400 dark:border-white/10 text-xs font-medium inline-flex items-center justify-center cursor-not-allowed select-none"
+                    >
+                      Segera Hadir
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
 
           {/* Keterangan Integrasi Pembayaran */}
           <p className="text-center text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 px-1">
-            Pembayaran otomatis sedang dalam tahap integrasi dan akan segera hadir. Gunakan kuota gratis harian Anda sementara waktu.
+            Pembayaran otomatis sedang dalam tahap integrasi dan akan segera hadir. Gunakan kuota
+            token harian Anda sementara waktu.
           </p>
         </div>
 
@@ -498,7 +470,7 @@ export function UpgradeModal({
         <footer className="shrink-0 border-t border-zinc-200/80 dark:border-white/[0.08] bg-[#f9f9f8] dark:bg-[#0e0e10] md:bg-white md:dark:bg-[#141416] px-4 md:px-6 pt-3.5 pb-[max(1.5rem,env(safe-area-inset-bottom))] md:py-3.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
           <div className="inline-flex items-center gap-1.5 text-[12px] text-zinc-500 dark:text-zinc-400">
             <Clock className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
-            <span>Kuota gratis direset otomatis setiap hari {resetTimeLabel}</span>
+            <span>Kuota token direset otomatis setiap hari {resetTimeLabel}</span>
           </div>
 
           {canContinueWithOmni && (
@@ -510,7 +482,7 @@ export function UpgradeModal({
               }}
               className="inline-flex items-center justify-center sm:justify-end gap-1.5 text-[12.5px] font-medium text-zinc-800 hover:text-zinc-950 dark:text-zinc-200 dark:hover:text-white py-1.5 px-3 rounded-lg bg-zinc-100 hover:bg-zinc-200/80 dark:bg-white/[0.06] dark:hover:bg-white/[0.1] transition-colors cursor-pointer active:scale-[0.98]"
             >
-              <span>Lanjut dengan Axioma Omni ({omniCost} kredit)</span>
+              <span>Lanjut chat teks dengan Axioma Omni</span>
               <ArrowRight className="w-3.5 h-3.5 shrink-0" strokeWidth={1.5} />
             </button>
           )}
