@@ -123,6 +123,9 @@ export const metadata: Metadata = {
       },
     ],
   },
+  other: {
+    "google-adsense-account": "ca-pub-5124129835032941",
+  },
 };
 
 export const viewport: Viewport = {
