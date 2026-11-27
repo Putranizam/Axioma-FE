@@ -494,17 +494,16 @@ html.dark .axioma-logo-mark {
   will-change: transform, opacity;
 }
 
-/* Smooth fade-in on newly appended markdown blocks & glowing typing cursor during streaming */
+/* Smooth inline typing cursor during active AI streaming (without block-level opacity dips) */
 .streaming-prose {
   position: relative;
-  will-change: contents;
 }
 
-.streaming-prose > *:last-child {
-  animation: streamBlockFade 220ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
-}
-
-.streaming-prose > *:last-child::after {
+.streaming-prose:empty::after,
+.streaming-prose > :is(p, h1, h2, h3, h4, h5, h6):last-child::after,
+.streaming-prose > :is(ul, ol):last-child > li:last-child:not(:has(> p))::after,
+.streaming-prose > :is(ul, ol):last-child > li:last-child > p:last-child::after,
+.streaming-prose > blockquote:last-child > p:last-child::after {
   content: "";
   display: inline-block;
   width: 6px;

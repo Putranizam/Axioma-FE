@@ -10,8 +10,10 @@ import "katex/dist/katex.min.css";
 import "./markdown.css";
 import {
   sanitizeAxiomaMessageContent,
+  stabilizeStreamingMarkdown,
   type RetryPayloadRecord,
 } from "@/lib/sanitizeMessage";
+import { useSmoothStreamText } from "@/hooks/useSmoothStreamText";
 
 export { sanitizeAxiomaMessageContent, type RetryPayloadRecord };
 import {
@@ -59,6 +61,9 @@ const AiVideoCard = dynamic(
 
 export interface ChatMessageRecord {
   id: string;
+  clientRenderKey?: string;
+  liveEpoch?: number;
+  streamStopped?: boolean;
   sender: "user" | "ai";
   content: string;
   created_at?: string;
@@ -100,6 +105,7 @@ function hasBlockChild(n: any): boolean {
 interface MessageItemProps {
   message: ChatMessageRecord;
   isStreaming: boolean;
+  shouldAnimateStream?: boolean;
   isBusy: boolean;
   isLatestAiReply: boolean;
   userTimeLabel: string;
@@ -116,6 +122,7 @@ interface MessageItemProps {
   feedbackCommentDraftValue: string;
   savedChecklistMap?: Record<number, boolean>;
   fallbackRetryUserContent: string | null;
+  onStreamProgressTick?: () => void;
   onCopy: (text: string, id: string, durationMs?: number) => void;
   onOpenLightbox: (url: string, name: string) => void;
   onImageLoadError: (att: AttachmentItem, messageId: string) => void;
@@ -147,6 +154,7 @@ interface MessageItemProps {
 export const MessageItem = memo(function MessageItem({
   message,
   isStreaming,
+  shouldAnimateStream = false,
   isBusy,
   isLatestAiReply,
   userTimeLabel,
@@ -163,6 +171,7 @@ export const MessageItem = memo(function MessageItem({
   feedbackCommentDraftValue,
   savedChecklistMap,
   fallbackRetryUserContent,
+  onStreamProgressTick,
   onCopy,
   onOpenLightbox,
   onImageLoadError,
@@ -188,10 +197,41 @@ export const MessageItem = memo(function MessageItem({
 }: MessageItemProps) {
   const checkboxCounterRef = useRef(0);
 
-  const sanitizedContent = useMemo(
-    () => (message.sender === "ai" && !message.isError ? sanitizeAxiomaMessageContent(message.content) : ""),
+  const isAiStandardReply =
+    message.sender === "ai" && !message.isError && !message.lensData;
+
+  const { displayedText, isVisuallyStreaming } = useSmoothStreamText({
+    incomingText: isAiStandardReply ? message.content : "",
+    isStreamingNetwork: isStreaming,
+    shouldAnimate: Boolean(isAiStandardReply && (shouldAnimateStream || isStreaming)),
+    isStopped: Boolean(message.streamStopped),
+    onProgressTick: onStreamProgressTick,
+  });
+
+  const fullSanitizedContent = useMemo(
+    () =>
+      message.sender === "ai" && !message.isError
+        ? sanitizeAxiomaMessageContent(message.content)
+        : "",
     [message.sender, message.isError, message.content]
   );
+
+  const renderedMarkdownContent = useMemo(() => {
+    if (message.sender !== "ai" || message.isError) return "";
+    if (!isVisuallyStreaming) {
+      return fullSanitizedContent;
+    }
+    const cleanPartial = sanitizeAxiomaMessageContent(displayedText, {
+      preserveTrailingSpace: true,
+    });
+    return stabilizeStreamingMarkdown(cleanPartial, true);
+  }, [
+    message.sender,
+    message.isError,
+    isVisuallyStreaming,
+    displayedText,
+    fullSanitizedContent,
+  ]);
 
   const checklistDefaults = useMemo(() => {
     if (message.sender !== "ai" || message.isError || message.lensData) return [];
@@ -216,12 +256,12 @@ export const MessageItem = memo(function MessageItem({
   );
 
   const handleCopyAiReply = useCallback(() => {
-    onCopy(sanitizedContent, message.id, 1500);
-  }, [onCopy, sanitizedContent, message.id]);
+    onCopy(fullSanitizedContent, message.id, 1500);
+  }, [onCopy, fullSanitizedContent, message.id]);
 
   const handleCopyAiWhatsApp = useCallback(() => {
-    onCopy(formatForWhatsApp(sanitizedContent), `wa-${message.id}`, 1500);
-  }, [onCopy, sanitizedContent, message.id]);
+    onCopy(formatForWhatsApp(fullSanitizedContent), `wa-${message.id}`, 1500);
+  }, [onCopy, fullSanitizedContent, message.id]);
 
   const handleToggleThisMenu = useCallback(() => {
     onToggleActionMenu(message.id);
@@ -297,7 +337,7 @@ export const MessageItem = memo(function MessageItem({
                 <CodeBlock
                   language={language}
                   rawCode={rawCode}
-                  isStreaming={isStreaming}
+                  isStreaming={isVisuallyStreaming}
                   copyKey={copyKey}
                   onCopyCode={handleCodeCopy}
                   isCopied={activeCopiedId === copyKey}
@@ -349,7 +389,7 @@ export const MessageItem = memo(function MessageItem({
     };
   }, [
     message.id,
-    isStreaming,
+    isVisuallyStreaming,
     activeCopiedId,
     savedChecklistMap,
     handleCodeCopy,
@@ -586,7 +626,7 @@ export const MessageItem = memo(function MessageItem({
               data-ai-message-id={message.id}
               onMouseUp={() => onAiTextSelect(message.id, message.content)}
               className={`axioma-markdown w-full max-w-full sm:max-w-[70ch] min-w-0 font-normal text-zinc-900 dark:text-zinc-100 text-[15.5px] leading-relaxed tracking-[-0.005em] break-words transition-opacity duration-200 ${
-                isStreaming ? "streaming-prose" : ""
+                isVisuallyStreaming ? "streaming-prose" : ""
               }`}
             >
               <ReactMarkdown
@@ -594,25 +634,29 @@ export const MessageItem = memo(function MessageItem({
                 rehypePlugins={REHYPE_PLUGINS}
                 components={markdownComponents}
               >
-                {sanitizedContent}
+                {renderedMarkdownContent}
               </ReactMarkdown>
 
-              {message.imageUrl && !message.content.includes(message.imageUrl) && (
-                <AiImageCard
-                  src={message.imageUrl}
-                  alt={message.mediaTitle || "Visual Axioma"}
-                  onOpenLightbox={onOpenLightbox}
-                />
-              )}
-              {message.videoUrl && !message.content.includes(message.videoUrl) && (
-                <AiVideoCard
-                  src={message.videoUrl}
-                  title={message.mediaTitle || "Adegan Video"}
-                />
-              )}
+              {!isVisuallyStreaming &&
+                message.imageUrl &&
+                !message.content.includes(message.imageUrl) && (
+                  <AiImageCard
+                    src={message.imageUrl}
+                    alt={message.mediaTitle || "Visual Axioma"}
+                    onOpenLightbox={onOpenLightbox}
+                  />
+                )}
+              {!isVisuallyStreaming &&
+                message.videoUrl &&
+                !message.content.includes(message.videoUrl) && (
+                  <AiVideoCard
+                    src={message.videoUrl}
+                    title={message.mediaTitle || "Adegan Video"}
+                  />
+                )}
             </div>
 
-            {checklistDefaults.length > 0 && !isStreaming && (
+            {checklistDefaults.length > 0 && !isVisuallyStreaming && (
               <div className="flex items-center gap-2.5 max-w-xs pt-0.5 select-none">
                 <div className="flex-1 h-1 rounded-full bg-black/[0.08] dark:bg-white/[0.08] overflow-hidden">
                   <div
@@ -632,7 +676,7 @@ export const MessageItem = memo(function MessageItem({
 
         <MessageActionBar
           messageId={message.id}
-          isStreaming={isStreaming}
+          isStreaming={isVisuallyStreaming}
           isBusy={isBusy}
           isCopied={activeCopiedId === message.id}
           isWaCopied={activeCopiedId === `wa-${message.id}`}
@@ -650,7 +694,7 @@ export const MessageItem = memo(function MessageItem({
           onFeedback={handleFeedbackThis}
         />
 
-        {isLatestAiReply && !isStreaming && !isBusy && (
+        {isLatestAiReply && !isVisuallyStreaming && !isBusy && (
           <FollowUpChips onSelectAction={onSelectFollowUpAction} />
         )}
 

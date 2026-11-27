@@ -136,6 +136,18 @@ const UpgradeModal = dynamic(
   { ssr: false }
 );
 
+let messageItemPreloaded = false;
+function preloadMessageItemChunk(): void {
+  if (messageItemPreloaded || typeof window === "undefined") return;
+  messageItemPreloaded = true;
+  void import("./chat/MessageItem").catch(() => {
+    messageItemPreloaded = false;
+  });
+}
+
+// Unique per-tab memory epoch so only replies generated live in this browser session animate via rAF
+const LIVE_STREAM_SESSION_EPOCH = Date.now();
+
 const MessageItem = dynamic(
   () => import("./chat/MessageItem").then((mod) => mod.MessageItem),
   { ssr: false }
@@ -446,6 +458,9 @@ interface RetryPayload {
 
 interface Message {
   id: string;
+  clientRenderKey?: string;
+  liveEpoch?: number;
+  streamStopped?: boolean;
   sender: "user" | "ai";
   content: string;
   created_at?: string;
@@ -2106,14 +2121,17 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     };
   }, [isProfileDropdownOpen]);
 
-  // Lightweight Render backend warmup deferred until browser idle so it never contends with initial load
+  // Lightweight Render backend warmup & MessageItem chunk preload deferred until browser idle so it never contends with initial load
   useEffect(() => {
-    if (!BACKEND_URL || typeof window === "undefined") return;
+    if (typeof window === "undefined") return;
     return scheduleIdleWork(() => {
-      void fetch(`${BACKEND_URL}/api/health`, {
-        method: "GET",
-        cache: "no-store",
-      }).catch(() => {});
+      preloadMessageItemChunk();
+      if (BACKEND_URL) {
+        void fetch(`${BACKEND_URL}/api/health`, {
+          method: "GET",
+          cache: "no-store",
+        }).catch(() => {});
+      }
     }, 2500);
   }, []);
 
@@ -5868,7 +5886,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ? {
                 ...chat,
                 messages: chat.messages.map((m) =>
-                  m.id === oldId ? { ...m, id: newId } : m
+                  m.id === oldId
+                    ? { ...m, clientRenderKey: m.clientRenderKey || m.id, id: newId }
+                    : m
                 ),
               }
             : chat
@@ -5916,7 +5936,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ...chat,
             messages: chat.messages.map((m) =>
               m.id === activeStreamId
-                ? { ...m, content: appendStoppedNotice(m.content) }
+                ? { ...m, streamStopped: true, content: appendStoppedNotice(m.content) }
                 : m
             ),
           };
@@ -5927,7 +5947,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ...chat,
             messages: chat.messages.map((m, idx) =>
               idx === chat.messages.length - 1
-                ? { ...m, content: appendStoppedNotice(m.content) }
+                ? { ...m, streamStopped: true, content: appendStoppedNotice(m.content) }
                 : m
             ),
           };
@@ -5938,6 +5958,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             ...chat.messages,
             {
               id: activeStreamId || `ai-stopped-${Date.now()}`,
+              streamStopped: true,
               sender: "ai",
               content: "_[Respons dihentikan]_",
               agentId: selectedAgent.id,
@@ -5987,10 +6008,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     };
 
     let activeAiMsgId = `ai-${Date.now()}`;
+    const stableAiRenderKey = activeAiMsgId;
     let currentUserMsgId = options?.tempUserMsgId || "";
     let streamBubbleCreated = false;
     let accumulatedText = "";
     let receivedRealtimeTokenSummary = false;
+
+    // Ensure MessageItem chunk is loaded before the first SSE token arrives
+    preloadMessageItemChunk();
 
     const promoteChatToTop = (chatId: string, title?: string) => {
       const nowIso = new Date().toISOString();
@@ -6148,7 +6173,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
       if (isSseResponse && response.body) {
         const reader = response.body.getReader();
-        const decoder = new TextDecoder();
+        const decoder = new TextDecoder("utf-8");
         let buffer = "";
         let returnedChat: { id: string; title: string } | undefined;
         let returnedAgentName = activeAgentSnapshot.name;
@@ -6160,6 +6185,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         let returnedMediaTitle: string | undefined;
         let returnedRevisedPrompt: string | undefined;
         let hasReceivedContent = false;
+        let hasPendingChunkUpdate = false;
 
         // Initialize 30s idle timeout for active streaming (#1)
         resetIdleTimeout();
@@ -6173,6 +6199,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             setChatStreamingMsgId(targetChatId, activeAiMsgId);
             appendMessageToChat(targetChatId, {
               id: activeAiMsgId,
+              clientRenderKey: stableAiRenderKey,
+              liveEpoch: LIVE_STREAM_SESSION_EPOCH,
               sender: "ai",
               content: fallbackCaption,
               agentId: returnedAgentId,
@@ -6212,30 +6240,9 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }
         };
 
-        // Coalesce incoming SSE text chunks into ~36ms / rAF frames to prevent per-token React re-render storms
-        const SSE_CHUNK_FLUSH_INTERVAL_MS = 36;
-        let sseFlushTimerId: ReturnType<typeof setTimeout> | null = null;
-        let sseFlushRafId: number | null = null;
-        let hasPendingChunkFlush = false;
-        let lastChunkFlushMs = 0;
-
-        const cancelPendingChunkFlush = () => {
-          if (sseFlushTimerId !== null) {
-            clearTimeout(sseFlushTimerId);
-            sseFlushTimerId = null;
-          }
-          if (sseFlushRafId !== null) {
-            cancelAnimationFrame(sseFlushRafId);
-            sseFlushRafId = null;
-          }
-        };
-
-        const flushBufferedChunk = () => {
-          cancelPendingChunkFlush();
-          if (!hasPendingChunkFlush || !streamBubbleCreated) return;
-          hasPendingChunkFlush = false;
-          lastChunkFlushMs =
-            typeof performance !== "undefined" ? performance.now() : Date.now();
+        const flushIncomingStreamText = () => {
+          if (!hasPendingChunkUpdate || !streamBubbleCreated) return;
+          hasPendingChunkUpdate = false;
           const currentText = accumulatedText;
           const targetMsgId = activeAiMsgId;
           setChats((prev) =>
@@ -6260,34 +6267,15 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 : chat
             )
           );
-          scrollToBottom(false);
-        };
-
-        const scheduleBufferedChunkFlush = () => {
-          if (sseFlushTimerId !== null || sseFlushRafId !== null) return;
-          const nowMs =
-            typeof performance !== "undefined" ? performance.now() : Date.now();
-          const elapsed = nowMs - lastChunkFlushMs;
-          const queueRaf = () => {
-            sseFlushRafId = requestAnimationFrame(() => {
-              sseFlushRafId = null;
-              flushBufferedChunk();
-            });
-          };
-          if (elapsed >= SSE_CHUNK_FLUSH_INTERVAL_MS) {
-            queueRaf();
-          } else {
-            sseFlushTimerId = setTimeout(() => {
-              sseFlushTimerId = null;
-              queueRaf();
-            }, Math.max(0, SSE_CHUNK_FLUSH_INTERVAL_MS - elapsed));
-          }
         };
 
         const processRawSseEvent = (rawEvent: string) => {
-          const line = rawEvent.split(/\r?\n/).find((l) => l.startsWith("data:"));
-          if (!line) return;
-          const jsonStr = line.slice(5).trim();
+          const dataLines = rawEvent
+            .split(/\r?\n/)
+            .filter((l) => l.startsWith("data:"))
+            .map((l) => l.slice(5).trim());
+          if (dataLines.length === 0) return;
+          const jsonStr = dataLines.join("\n").trim();
           if (!jsonStr || jsonStr === "[DONE]") return;
 
           let payload: any;
@@ -6365,12 +6353,12 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             accumulatedText += payload.text;
             if (!streamBubbleCreated) {
               streamBubbleCreated = true;
-              lastChunkFlushMs =
-                typeof performance !== "undefined" ? performance.now() : Date.now();
               setChatLoading(targetChatId, false);
               setChatStreamingMsgId(targetChatId, activeAiMsgId);
               appendMessageToChat(targetChatId, {
                 id: activeAiMsgId,
+                clientRenderKey: stableAiRenderKey,
+                liveEpoch: LIVE_STREAM_SESSION_EPOCH,
                 sender: "ai",
                 content: accumulatedText,
                 agentId: returnedAgentId,
@@ -6383,11 +6371,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               });
               scrollToBottom(false);
             } else {
-              hasPendingChunkFlush = true;
-              scheduleBufferedChunkFlush();
+              hasPendingChunkUpdate = true;
             }
           } else if (payload.type === "done") {
-            flushBufferedChunk();
+            flushIncomingStreamText();
             if (
               typeof payload.data === "string" &&
               payload.data.length > accumulatedText.length
@@ -6427,7 +6414,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               upsertStreamMediaBubble();
             }
           } else if (payload.type === "error") {
-            flushBufferedChunk();
+            flushIncomingStreamText();
             if (process.env.NODE_ENV !== "production") {
               console.warn("[SSE_EVENT_ERROR]", { rawEvent, payload });
             }
@@ -6471,6 +6458,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             for (const rawEvent of events) {
               processRawSseEvent(rawEvent);
             }
+            flushIncomingStreamText();
           }
 
           if (buffer.trim()) {
@@ -6482,7 +6470,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           }
         } finally {
           // Ensure final buffered text is committed cleanly on done, abort, or error
-          flushBufferedChunk();
+          flushIncomingStreamText();
         }
 
         const hasStructuredMedia = Boolean(returnedImageUrl || returnedVideoUrl);
@@ -6503,6 +6491,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         if (!streamBubbleCreated) {
           appendMessageToChat(targetChatId, {
             id: finalMsgId,
+            clientRenderKey: stableAiRenderKey,
+            liveEpoch: LIVE_STREAM_SESSION_EPOCH,
             sender: "ai",
             content: finalContent,
             agentId: returnedAgentId,
@@ -6527,6 +6517,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                         ? {
                             ...m,
                             id: finalMsgId,
+                            clientRenderKey: m.clientRenderKey || stableAiRenderKey,
+                            liveEpoch: m.liveEpoch ?? LIVE_STREAM_SESSION_EPOCH,
                             content: finalContent,
                             agentId: returnedAgentId,
                             agentName: returnedAgentName,
@@ -6635,6 +6627,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         const newAiMsg: Message = {
           id: finalMsgId,
+          clientRenderKey: stableAiRenderKey,
+          liveEpoch: LIVE_STREAM_SESSION_EPOCH,
           sender: "ai",
           content: aiResponseContent,
           agentId: returnedAgentId,
@@ -6670,6 +6664,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   m.id === activeAiMsgId
                     ? {
                         ...m,
+                        streamStopped: true,
                         content: stoppedContent,
                         agentId: activeAgentSnapshot.id,
                         agentName: activeAgentSnapshot.name,
@@ -6684,7 +6679,13 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 ...chat,
                 messages: chat.messages.map((m, idx) =>
                   idx === chat.messages.length - 1
-                    ? { ...m, id: activeAiMsgId, content: appendStoppedNotice(m.content) }
+                    ? {
+                        ...m,
+                        id: activeAiMsgId,
+                        clientRenderKey: m.clientRenderKey || stableAiRenderKey,
+                        streamStopped: true,
+                        content: appendStoppedNotice(m.content),
+                      }
                     : m
                 ),
               };
@@ -6695,6 +6696,8 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 ...chat.messages,
                 {
                   id: activeAiMsgId,
+                  clientRenderKey: stableAiRenderKey,
+                  streamStopped: true,
                   sender: "ai",
                   content: stoppedContent,
                   agentId: activeAgentSnapshot.id,
@@ -7534,6 +7537,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     }
     return null;
   }, [currentMessages]);
+
+  const handleStreamProgressScrollStable = useCallback(() => {
+    scrollToBottom(false);
+  }, [scrollToBottom]);
 
   // Eternally stable callback wrappers for React.memo(MessageItem), React.memo(SidebarChatItem), and Composer controls
   const latestActionHandlersRef = useRef({
@@ -8863,9 +8870,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
               return (
                 <MessageItem
-                  key={message.id}
+                  key={message.clientRenderKey || message.id}
                   message={message}
                   isStreaming={streamingMessageId === message.id}
+                  shouldAnimateStream={message.liveEpoch === LIVE_STREAM_SESSION_EPOCH}
                   isBusy={isLoading || isGenerating}
                   isLatestAiReply={lastAiMessageId === message.id}
                   userTimeLabel={userTimeLabel}
@@ -8882,6 +8890,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   feedbackCommentDraftValue={isFeedbackOpen ? feedbackCommentDraft[message.id] || "" : ""}
                   savedChecklistMap={checklistState[message.id]}
                   fallbackRetryUserContent={message.isError ? lastUserContentForError : null}
+                  onStreamProgressTick={handleStreamProgressScrollStable}
                   onCopy={handleCopy}
                   onOpenLightbox={handleOpenLightbox}
                   onImageLoadError={handleImageLoadErrorStable}
