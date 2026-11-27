@@ -1,6 +1,19 @@
 export const AXIOMA_APP_VERSION = "v1.0 Beta" as const;
 export const AXIOMA_ENGINE_LABEL = "Axioma Engine" as const;
 
+export const PUBLIC_APP_URL = (
+  process.env.NEXT_PUBLIC_APP_URL || "https://axioma.my.id"
+)
+  .trim()
+  .replace(/\/+$/, "");
+
+export const PUBLIC_CONTACT_EMAIL = (
+  process.env.NEXT_PUBLIC_CONTACT_EMAIL || "axiomamyid@gmail.com"
+).trim();
+
+export const PUBLIC_LEGAL_UPDATED_LABEL = "27 November 2026" as const;
+export const PUBLIC_LEGAL_UPDATED_ISO = "2026-11-27" as const;
+
 export function formatQuotaResetLabel(resetAt?: string): string {
   if (!resetAt) return "pukul 00.00 WIB";
   const parsed = Date.parse(resetAt);

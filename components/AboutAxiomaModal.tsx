@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import Link from "next/link";
 import {
   ChevronLeft,
   X,
@@ -339,10 +340,29 @@ export function AboutSettingsView({
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="pt-2 flex items-center justify-between text-[11.5px] text-zinc-500">
-        <span>© 2026 Axioma</span>
-        <span>Hak cipta dilindungi</span>
+      {/* Footer & Halaman Publik Resmi */}
+      <div className="pt-3 border-t border-zinc-200/70 dark:border-white/[0.06] space-y-2">
+        <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11.5px] text-zinc-500 dark:text-zinc-400">
+          <Link href="/about" className="hover:text-zinc-900 dark:hover:text-white underline underline-offset-2">
+            Tentang
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/privacy-policy" className="hover:text-zinc-900 dark:hover:text-white underline underline-offset-2">
+            Kebijakan Privasi
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/terms" className="hover:text-zinc-900 dark:hover:text-white underline underline-offset-2">
+            Syarat &amp; Ketentuan
+          </Link>
+          <span aria-hidden="true">·</span>
+          <Link href="/contact" className="hover:text-zinc-900 dark:hover:text-white underline underline-offset-2">
+            Kontak
+          </Link>
+        </div>
+        <div className="flex items-center justify-between text-[11.5px] text-zinc-500">
+          <span>© 2026 Axioma</span>
+          <span>Hak cipta dilindungi</span>
+        </div>
       </div>
 
       {!inline && (

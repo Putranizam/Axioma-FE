@@ -22,6 +22,20 @@ const nextConfig: NextConfig = {
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },
+  async redirects() {
+    return [
+      {
+        source: "/privasi",
+        destination: "/privacy-policy",
+        permanent: true,
+      },
+      {
+        source: "/ketentuan",
+        destination: "/terms",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {

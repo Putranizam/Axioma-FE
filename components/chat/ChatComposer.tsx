@@ -99,35 +99,73 @@ export const ChatComposer = React.memo(function ChatComposer({
         </div>
       </div>
 
-      {/* Subtle Disclaimer Footer */}
-      <p
+      {/* Subtle Disclaimer Footer & Public Legal Links (crawlable on / without CLS) */}
+      <div
         className={`pointer-events-none shrink-0 mt-2 mb-0 py-0.5 md:pt-1.5 md:pb-2 w-full overflow-visible text-center text-[11px] sm:text-xs leading-normal text-zinc-400 dark:text-zinc-500 tracking-normal [[data-kb="open"]_&]:hidden ${
-          !showDisclaimer
-            ? "hidden"
-            : "block md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5"
+          !showDisclaimer ? "hidden" : "block"
         }`}
       >
-        <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
-        <span className="hidden md:inline">
-          Axioma dapat membuat kesalahan. Periksa kembali informasi penting.
-        </span>
-        <span className="hidden md:inline text-border-strong">•</span>
-        <span className="hidden md:inline-flex items-center gap-2 pointer-events-auto">
-          <Link
-            href="/privasi"
-            className="py-1 px-1.5 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+        <p className="md:flex md:flex-wrap md:items-center md:justify-center md:gap-x-2 md:gap-y-0.5">
+          <span className="md:hidden">Axioma dapat membuat kesalahan.</span>
+          <span className="hidden md:inline">
+            Axioma dapat membuat kesalahan. Periksa kembali informasi penting.
+          </span>
+          <span className="hidden md:inline text-border-strong">•</span>
+          <span className="hidden md:inline-flex items-center gap-1.5 pointer-events-auto">
+            <Link
+              href="/about"
+              className="py-0.5 px-1 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+            >
+              Tentang
+            </Link>
+            <span className="text-border-strong">·</span>
+            <Link
+              href="/privacy-policy"
+              className="py-0.5 px-1 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+            >
+              Privasi
+            </Link>
+            <span className="text-border-strong">·</span>
+            <Link
+              href="/terms"
+              className="py-0.5 px-1 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+            >
+              Ketentuan
+            </Link>
+            <span className="text-border-strong">·</span>
+            <Link
+              href="/contact"
+              className="py-0.5 px-1 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
+            >
+              Kontak
+            </Link>
+          </span>
+        </p>
+
+        {/* Mobile Empty State subtle public links (hidden once chat messages appear so active composer stays compact) */}
+        {!hasMessages && (
+          <nav
+            aria-label="Informasi publik Axioma"
+            className="md:hidden mt-0.5 inline-flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-[10.5px] opacity-65 pointer-events-auto"
           >
-            Privasi
-          </Link>
-          <span className="text-border-strong">·</span>
-          <Link
-            href="/ketentuan"
-            className="py-1 px-1.5 inline-block underline underline-offset-2 decoration-border-strong hover:text-text-primary hover:decoration-text-primary transition-colors"
-          >
-            Ketentuan
-          </Link>
-        </span>
-      </p>
+            <Link href="/about" className="hover:text-text-primary transition-colors">
+              Tentang
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/privacy-policy" className="hover:text-text-primary transition-colors">
+              Privasi
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/terms" className="hover:text-text-primary transition-colors">
+              Ketentuan
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/contact" className="hover:text-text-primary transition-colors">
+              Kontak
+            </Link>
+          </nav>
+        )}
+      </div>
     </div>
   );
 });

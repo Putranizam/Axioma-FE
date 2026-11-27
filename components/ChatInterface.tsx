@@ -8562,7 +8562,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                 </p>
                 <div className="px-2.5 py-1 flex items-center justify-between text-[11px] text-text-muted border-t border-border-subtle/50">
                   <Link
-                    href="/privasi"
+                    href="/privacy-policy"
                     onClick={() => closeSettingsMenu(false)}
                     className="py-1.5 px-2 inline-block hover:text-text-primary transition-colors underline underline-offset-2 decoration-border-strong"
                   >
@@ -8570,11 +8570,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                   </Link>
                   <span className="text-border-strong">·</span>
                   <Link
-                    href="/ketentuan"
+                    href="/terms"
                     onClick={() => closeSettingsMenu(false)}
                     className="py-1.5 px-2 inline-block hover:text-text-primary transition-colors underline underline-offset-2 decoration-border-strong"
                   >
-                    Ketentuan Layanan
+                    Syarat &amp; Ketentuan
                   </Link>
                 </div>
               </div>

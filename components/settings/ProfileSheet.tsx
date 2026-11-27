@@ -250,9 +250,9 @@ export function ProfileSheet({
         </div>
 
         {/* Bottom Footer Links (1-line horizontal layout) */}
-        <div className="mt-6 md:mt-3 flex items-center justify-center gap-2 text-[12px] md:text-[11px] text-zinc-500 shrink-0">
+        <div className="mt-6 md:mt-3 flex flex-wrap items-center justify-center gap-2 text-[12px] md:text-[11px] text-zinc-500 shrink-0">
           <Link
-            href="/privasi"
+            href="/privacy-policy"
             onClick={onClose}
             className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
           >
@@ -260,11 +260,19 @@ export function ProfileSheet({
           </Link>
           <span aria-hidden="true">•</span>
           <Link
-            href="/ketentuan"
+            href="/terms"
             onClick={onClose}
             className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
           >
-            Persyaratan Layanan
+            Syarat &amp; Ketentuan
+          </Link>
+          <span aria-hidden="true">•</span>
+          <Link
+            href="/contact"
+            onClick={onClose}
+            className="hover:text-zinc-900 dark:hover:text-zinc-300 transition-colors"
+          >
+            Kontak
           </Link>
         </div>
       </div>

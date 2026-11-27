@@ -1,29 +1,37 @@
 import type { MetadataRoute } from "next";
+import { PUBLIC_APP_URL, PUBLIC_LEGAL_UPDATED_ISO } from "@/constants/appInfo";
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const baseUrl = (process.env.NEXT_PUBLIC_APP_URL || "https://axioma.my.id")
-    .trim()
-    .replace(/\/+$/, "");
-
   return [
     {
-      url: baseUrl,
-      lastModified: new Date(),
+      url: PUBLIC_APP_URL,
+      lastModified: PUBLIC_LEGAL_UPDATED_ISO,
       changeFrequency: "daily",
       priority: 1.0,
     },
     {
-      url: `${baseUrl}/privasi`,
-      lastModified: new Date(),
+      url: `${PUBLIC_APP_URL}/about`,
+      lastModified: PUBLIC_LEGAL_UPDATED_ISO,
       changeFrequency: "monthly",
-      priority: 0.5,
+      priority: 0.8,
     },
     {
-      url: `${baseUrl}/ketentuan`,
-      lastModified: new Date(),
+      url: `${PUBLIC_APP_URL}/privacy-policy`,
+      lastModified: PUBLIC_LEGAL_UPDATED_ISO,
       changeFrequency: "monthly",
-      priority: 0.5,
+      priority: 0.7,
+    },
+    {
+      url: `${PUBLIC_APP_URL}/terms`,
+      lastModified: PUBLIC_LEGAL_UPDATED_ISO,
+      changeFrequency: "monthly",
+      priority: 0.7,
+    },
+    {
+      url: `${PUBLIC_APP_URL}/contact`,
+      lastModified: PUBLIC_LEGAL_UPDATED_ISO,
+      changeFrequency: "monthly",
+      priority: 0.7,
     },
   ];
 }
-
