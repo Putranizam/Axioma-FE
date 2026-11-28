@@ -353,12 +353,13 @@ export async function GET(req: NextRequest) {
   const searchParams = req.nextUrl.searchParams;
   try {
     const rawPrompt = (searchParams.get("prompt") || "").trim();
+    // Preserve UTF-8 scripts & verbatim quoted text ("..."); strip only control chars and trailing stray parens
     const cleanedPrompt = rawPrompt
-      .replace(/[\r\n]+/g, " ")
+      .replace(/[\u0000-\u001f\u007f]+/g, " ")
       .replace(/[)]+$/, "")
       .replace(/\s+/g, " ")
       .trim()
-      .slice(0, 400);
+      .slice(0, 800);
 
     if (!cleanedPrompt) {
       return NextResponse.json(
@@ -367,7 +368,8 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const seed = (searchParams.get("seed") || "42").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24) || "42";
+    const rawSeed = (searchParams.get("seed") || "").replace(/[^a-zA-Z0-9_-]/g, "").slice(0, 24);
+    const seed = rawSeed || String(Math.floor(100_000 + Math.random() * 900_000_000));
     const engine = (searchParams.get("engine") || "auto").toLowerCase();
     const fresh = searchParams.get("fresh") === "1";
 
@@ -423,7 +425,7 @@ export async function GET(req: NextRequest) {
       status: 200,
       headers: {
         "Content-Type": imageResult.contentType || "image/jpeg",
-        "Cache-Control": "public, max-age=31536000, immutable",
+        "Cache-Control": fresh ? "no-store" : "private, max-age=3600",
         "X-Content-Type-Options": "nosniff",
       },
     });

@@ -78,7 +78,10 @@ export interface ChatMessageRecord {
   videoUrl?: string;
   mediaType?: "image" | "video";
   mediaTitle?: string;
+  mediaPrompt?: string;
   revisedPrompt?: string;
+  detectedLanguage?: string;
+  videoJobId?: string;
 }
 
 function hasBlockChild(n: any): boolean {

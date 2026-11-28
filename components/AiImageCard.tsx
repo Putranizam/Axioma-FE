@@ -11,10 +11,19 @@ interface AiImageCardProps {
 
 function sanitizeVisualPrompt(raw: string): string {
   const cleaned = (raw || "")
-    .replace(/[\r\n\[\]]+/g, " ")
+    .replace(/[\u0000-\u001f\u007f\[\]]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-  return cleaned || "scenic cinematic landscape artwork";
+  return cleaned || "detailed visual scene";
+}
+
+function hashPromptSeed(input: string): string {
+  let h = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return String(Math.abs(h) || 100001);
 }
 
 function cleanRawImageUrl(rawUrl: string): string {
@@ -35,9 +44,10 @@ function buildInternalProxyUrl(
   prompt: string,
   options?: { seed?: string; width?: number; height?: number; engine?: string; fresh?: boolean }
 ): string {
+  const cleanPrompt = sanitizeVisualPrompt(prompt).slice(0, 780);
   const params = new URLSearchParams();
-  params.set("prompt", sanitizeVisualPrompt(prompt).slice(0, 400));
-  params.set("seed", options?.seed || "42");
+  params.set("prompt", cleanPrompt);
+  params.set("seed", options?.seed || hashPromptSeed(cleanPrompt));
   if (options?.width) params.set("width", String(options.width));
   if (options?.height) params.set("height", String(options.height));
   if (options?.engine) params.set("engine", options.engine);
@@ -95,7 +105,7 @@ function extractPromptAndParams(
         Number.isFinite(rawHeight) && rawHeight >= 256 && rawHeight <= 1024
           ? Math.round(rawHeight)
           : 1024;
-      const seed = parsed.searchParams.get("seed") || "42";
+      const seed = parsed.searchParams.get("seed") || hashPromptSeed(decodedPrompt);
 
       return {
         initialSrc: buildInternalProxyUrl(decodedPrompt, { seed, width, height }),

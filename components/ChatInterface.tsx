@@ -475,7 +475,10 @@ interface Message {
   videoUrl?: string;
   mediaType?: "image" | "video";
   mediaTitle?: string;
+  mediaPrompt?: string;
   revisedPrompt?: string;
+  detectedLanguage?: string;
+  videoJobId?: string;
 }
 
 interface ChatSession {
@@ -939,7 +942,11 @@ function extractStructuredMediaPayload(payload: any): {
   videoUrl?: string;
   mediaType?: "image" | "video";
   mediaTitle?: string;
+  mediaPrompt?: string;
   revisedPrompt?: string;
+  detectedLanguage?: string;
+  assistantReply?: string;
+  videoJobId?: string;
 } {
   if (!payload || typeof payload !== "object") return {};
 
@@ -983,14 +990,35 @@ function extractStructuredMediaPayload(payload: any): {
       : rawType === "image" || rawType === "video"
         ? rawType
         : undefined;
+  const mediaPrompt =
+    typeof payload.mediaPrompt === "string" && payload.mediaPrompt.trim()
+      ? payload.mediaPrompt.trim()
+      : typeof payload.media_prompt === "string" && payload.media_prompt.trim()
+        ? payload.media_prompt.trim()
+        : undefined;
   const revisedPrompt =
-    typeof payload.revisedPrompt === "string" && payload.revisedPrompt.trim()
+    mediaPrompt ||
+    (typeof payload.revisedPrompt === "string" && payload.revisedPrompt.trim()
       ? payload.revisedPrompt.trim()
       : typeof payload.revised_prompt === "string" && payload.revised_prompt.trim()
         ? payload.revised_prompt.trim()
         : typeof payload.enhanced_prompt === "string" && payload.enhanced_prompt.trim()
           ? payload.enhanced_prompt.trim()
-          : undefined;
+          : undefined);
+  const detectedLanguage =
+    typeof payload.detectedLanguage === "string" && payload.detectedLanguage.trim()
+      ? payload.detectedLanguage.trim()
+      : typeof payload.detected_language === "string" && payload.detected_language.trim()
+        ? payload.detected_language.trim()
+        : undefined;
+  const assistantReply =
+    typeof payload.assistantReply === "string" && payload.assistantReply.trim()
+      ? payload.assistantReply.trim()
+      : undefined;
+  const videoJobId =
+    typeof payload.jobId === "string" && payload.jobId.trim()
+      ? payload.jobId.trim()
+      : undefined;
   const mediaTitle =
     typeof payload.mediaTitle === "string" && payload.mediaTitle.trim()
       ? payload.mediaTitle.trim()
@@ -1005,7 +1033,11 @@ function extractStructuredMediaPayload(payload: any): {
     videoUrl: explicitVideoUrl,
     mediaType,
     mediaTitle,
+    mediaPrompt: mediaPrompt || revisedPrompt,
     revisedPrompt,
+    detectedLanguage,
+    assistantReply,
+    videoJobId,
   };
 }
 
@@ -6052,6 +6084,37 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
       let response: Response | null = null;
 
+      // Extract recent conversation & last media metadata so backend Unified Media Router preserves follow-up context
+      const existingChatMessages = (
+        chats.find((c) => c.id === targetChatId)?.messages || []
+      ).filter((m) => !m.isError && m.content.trim());
+      const priorMessagesBeforeCurrent =
+        existingChatMessages.length > 0 &&
+        existingChatMessages[existingChatMessages.length - 1]?.id === currentUserMsgId
+          ? existingChatMessages.slice(0, -1)
+          : existingChatMessages;
+      const lastMediaMsg = [...priorMessagesBeforeCurrent]
+        .reverse()
+        .find((m) => Boolean(m.mediaType || m.imageUrl || m.videoUrl));
+      const lastMediaContextPayload = lastMediaMsg
+        ? {
+            lastMediaType:
+              lastMediaMsg.mediaType ||
+              (lastMediaMsg.videoUrl ? ("video" as const) : ("image" as const)),
+            lastMediaPrompt:
+              lastMediaMsg.mediaPrompt || lastMediaMsg.revisedPrompt || lastMediaMsg.mediaTitle,
+            detectedLanguage: lastMediaMsg.detectedLanguage,
+            lastMediaUrl: lastMediaMsg.videoUrl || lastMediaMsg.imageUrl,
+          }
+        : undefined;
+      const recentMediaTurnsPayload = priorMessagesBeforeCurrent.slice(-6).map((m) => ({
+        role: m.sender === "ai" ? ("ai" as const) : ("user" as const),
+        content: m.content.slice(0, 500),
+        mediaType: m.mediaType,
+        mediaPrompt: m.mediaPrompt || m.revisedPrompt,
+        detectedLanguage: m.detectedLanguage,
+      }));
+
       // Attempt sending message with 1 auto-retry if Turnstile verification fails (403 turnstile_failed)
       for (let attempt = 0; attempt < 2; attempt++) {
         const isRetry = attempt > 0;
@@ -6099,16 +6162,19 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             turnstile_token: currentTurnstileToken || undefined,
             attachment_ids: options?.attachmentIds?.length ? options.attachmentIds : undefined,
             media_mode: options?.mediaMode || undefined,
+            lastMediaContext: contextControl.useHistory ? lastMediaContextPayload : undefined,
+            recentMediaTurns: contextControl.useHistory ? recentMediaTurnsPayload : undefined,
             history: !authUser
               ? !contextControl.useHistory
                 ? []
-                : (chats.find((c) => c.id === targetChatId)?.messages || [])
-                  .filter((m) => !m.isError && m.content.trim())
-                  .map((m) => ({
+                : priorMessagesBeforeCurrent.map((m) => ({
                     id: m.id,
                     role: m.sender === "ai" ? "ai" : "user",
                     content: m.content,
                     created_at: m.created_at,
+                    mediaType: m.mediaType,
+                    mediaPrompt: m.mediaPrompt || m.revisedPrompt,
+                    detectedLanguage: m.detectedLanguage,
                   }))
               : undefined,
           }),
@@ -6183,7 +6249,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
         let returnedVideoUrl: string | undefined;
         let returnedMediaType: "image" | "video" | undefined;
         let returnedMediaTitle: string | undefined;
+        let returnedMediaPrompt: string | undefined;
         let returnedRevisedPrompt: string | undefined;
+        let returnedDetectedLanguage: string | undefined;
+        let returnedVideoJobId: string | undefined;
         let hasReceivedContent = false;
         let hasPendingChunkUpdate = false;
 
@@ -6192,7 +6261,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
         const upsertStreamMediaBubble = () => {
           const fallbackCaption =
-            accumulatedText.trim() || "Berikut visualisasi untuk permintaan Anda:";
+            accumulatedText.trim() || "Berikut visualisasi sesuai permintaan Anda:";
           if (!streamBubbleCreated) {
             streamBubbleCreated = true;
             setChatLoading(targetChatId, false);
@@ -6209,7 +6278,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
               videoUrl: returnedVideoUrl,
               mediaType: returnedMediaType,
               mediaTitle: returnedMediaTitle,
+              mediaPrompt: returnedMediaPrompt ?? returnedRevisedPrompt,
               revisedPrompt: returnedRevisedPrompt,
+              detectedLanguage: returnedDetectedLanguage,
+              videoJobId: returnedVideoJobId,
             });
             scrollToBottom(false);
           } else {
@@ -6228,7 +6300,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                               videoUrl: returnedVideoUrl ?? m.videoUrl,
                               mediaType: returnedMediaType ?? m.mediaType,
                               mediaTitle: returnedMediaTitle ?? m.mediaTitle,
+                              mediaPrompt:
+                                returnedMediaPrompt ?? returnedRevisedPrompt ?? m.mediaPrompt,
                               revisedPrompt: returnedRevisedPrompt ?? m.revisedPrompt,
+                              detectedLanguage: returnedDetectedLanguage ?? m.detectedLanguage,
+                              videoJobId: returnedVideoJobId ?? m.videoJobId,
                             }
                           : m
                       ),
@@ -6259,7 +6335,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             videoUrl: returnedVideoUrl ?? m.videoUrl,
                             mediaType: returnedMediaType ?? m.mediaType,
                             mediaTitle: returnedMediaTitle ?? m.mediaTitle,
+                            mediaPrompt:
+                              returnedMediaPrompt ?? returnedRevisedPrompt ?? m.mediaPrompt,
                             revisedPrompt: returnedRevisedPrompt ?? m.revisedPrompt,
+                            detectedLanguage: returnedDetectedLanguage ?? m.detectedLanguage,
+                            videoJobId: returnedVideoJobId ?? m.videoJobId,
                           }
                         : m
                     ),
@@ -6298,17 +6378,32 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           if (extractedMedia.videoUrl) returnedVideoUrl = extractedMedia.videoUrl;
           if (extractedMedia.mediaType) returnedMediaType = extractedMedia.mediaType;
           if (extractedMedia.mediaTitle) returnedMediaTitle = extractedMedia.mediaTitle;
+          if (extractedMedia.mediaPrompt) returnedMediaPrompt = extractedMedia.mediaPrompt;
           if (extractedMedia.revisedPrompt) returnedRevisedPrompt = extractedMedia.revisedPrompt;
+          if (extractedMedia.detectedLanguage) {
+            returnedDetectedLanguage = extractedMedia.detectedLanguage;
+          }
+          if (extractedMedia.videoJobId) returnedVideoJobId = extractedMedia.videoJobId;
 
           if (hasEventMedia) {
             hasReceivedContent = true;
           }
 
-          if (payload.type === "status" && typeof payload.text === "string") {
-            const lowerStatus = payload.text.toLowerCase();
-            if (lowerStatus.includes("gambar") || lowerStatus.includes("foto")) {
+          if (payload.type === "status") {
+            const explicitStatusMedia = payload.mediaType;
+            const lowerStatus = typeof payload.text === "string" ? payload.text.toLowerCase() : "";
+            if (
+              explicitStatusMedia === "image" ||
+              lowerStatus.includes("gambar") ||
+              lowerStatus.includes("foto") ||
+              lowerStatus.includes("image") ||
+              lowerStatus.includes("visual")
+            ) {
               setActiveLoadingContext("image");
-            } else if (lowerStatus.includes("video")) {
+            } else if (
+              explicitStatusMedia === "video" ||
+              lowerStatus.includes("video")
+            ) {
               setActiveLoadingContext("video");
             }
             return;
@@ -6501,7 +6596,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
             videoUrl: returnedVideoUrl,
             mediaType: returnedMediaType,
             mediaTitle: returnedMediaTitle,
+            mediaPrompt: returnedMediaPrompt ?? returnedRevisedPrompt,
             revisedPrompt: returnedRevisedPrompt,
+            detectedLanguage: returnedDetectedLanguage,
+            videoJobId: returnedVideoJobId,
           });
         } else {
           if (activeAiMsgId !== finalMsgId) {
@@ -6526,7 +6624,11 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
                             videoUrl: returnedVideoUrl ?? m.videoUrl,
                             mediaType: returnedMediaType ?? m.mediaType,
                             mediaTitle: returnedMediaTitle ?? m.mediaTitle,
+                            mediaPrompt:
+                              returnedMediaPrompt ?? returnedRevisedPrompt ?? m.mediaPrompt,
                             revisedPrompt: returnedRevisedPrompt ?? m.revisedPrompt,
+                            detectedLanguage: returnedDetectedLanguage ?? m.detectedLanguage,
+                            videoJobId: returnedVideoJobId ?? m.videoJobId,
                           }
                         : m
                     ),
@@ -6637,7 +6739,10 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
           videoUrl: jsonMedia.videoUrl,
           mediaType: jsonMedia.mediaType,
           mediaTitle: jsonMedia.mediaTitle,
+          mediaPrompt: jsonMedia.mediaPrompt ?? jsonMedia.revisedPrompt,
           revisedPrompt: jsonMedia.revisedPrompt,
+          detectedLanguage: jsonMedia.detectedLanguage,
+          videoJobId: jsonMedia.videoJobId,
         };
 
         appendMessageToChat(targetChatId, newAiMsg);
@@ -7239,14 +7344,14 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
 
     const hasAttachment = effectiveAttachments.length > 0;
     const detectedIntent = detectMediaIntent(userText, hasAttachment);
-    const mediaModeToSend =
-      mediaModeOverride ||
-      (activeMediaModeRef.current ? activeMediaModeRef.current : detectedIntent.type);
+    const explicitMediaModeToSend =
+      mediaModeOverride || (activeMediaModeRef.current ? activeMediaModeRef.current : undefined);
+    const loadingHintMode = explicitMediaModeToSend || detectedIntent.type;
 
     setActiveLoadingContext(
-      mediaModeToSend === "image"
+      loadingHintMode === "image"
         ? "image"
-        : mediaModeToSend === "video"
+        : loadingHintMode === "video"
           ? "video"
           : "chat"
     );
@@ -7254,7 +7359,7 @@ export default function ChatInterface({ initialChatId }: ChatInterfaceProps = {}
     await requestAiReply(targetChatId, sessionPayloadId, userText, {
       tempUserMsgId,
       attachmentIds: effectiveAttachments.map((a) => a.id),
-      mediaMode: mediaModeToSend || undefined,
+      mediaMode: explicitMediaModeToSend,
       taskBreakdownMode: extraOptions?.taskBreakdownMode,
     });
   };
